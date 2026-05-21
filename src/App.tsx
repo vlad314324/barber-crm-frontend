@@ -1,6 +1,8 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
+import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Clients from './pages/Clients';
 import ClientDetails from './pages/ClientDetails';
@@ -13,20 +15,64 @@ import './index.css';
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="clients" element={<Clients />} />
-          <Route path="clients/:id" element={<ClientDetails />} />
-          <Route path="appointments" element={<Appointments />} />
-          <Route path="employees" element={<Employees />} />
-          <Route path="services" element={<Services />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="settings" element={<Settings />} />
-        </Route>
-      </Routes>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <Routes>
+          {/* Публічний маршрут */}
+          <Route path="/login" element={<Login />} />
+
+          {/* Захищені маршрути */}
+          <Route path="/" element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }>
+            <Route index element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Dashboard />
+              </ProtectedRoute>
+            }/>
+            <Route path="clients" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Clients />
+              </ProtectedRoute>
+            }/>
+            <Route path="clients/:id" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <ClientDetails />
+              </ProtectedRoute>
+            }/>
+            <Route path="appointments" element={
+              <ProtectedRoute allowedRoles={['admin', 'barber']}>
+                <Appointments />
+              </ProtectedRoute>
+            }/>
+            <Route path="employees" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Employees />
+              </ProtectedRoute>
+            }/>
+            <Route path="services" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Services />
+              </ProtectedRoute>
+            }/>
+            <Route path="reports" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Reports />
+              </ProtectedRoute>
+            }/>
+            <Route path="settings" element={
+              <ProtectedRoute allowedRoles={['admin', 'barber']}>
+                <Settings />
+              </ProtectedRoute>
+            }/>
+          </Route>
+
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 

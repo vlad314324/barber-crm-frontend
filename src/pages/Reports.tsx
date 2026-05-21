@@ -1,310 +1,317 @@
-import React, { useState } from 'react';
-import { BarChart2, Calendar, Download, Filter } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { BarChart2, TrendingUp, Scissors, User, RefreshCw, Users } from 'lucide-react';
+import api from '../api';
+
+const SEGMENT_COLORS: Record<string, string> = {
+  Champions:       'bg-purple-100 text-purple-700 border-purple-200',
+  Loyal:           'bg-blue-100 text-blue-700 border-blue-200',
+  'At Risk':       'bg-orange-100 text-orange-700 border-orange-200',
+  Lost:            'bg-red-100 text-red-700 border-red-200',
+  'New Customers': 'bg-green-100 text-green-700 border-green-200',
+  Promising:       'bg-yellow-100 text-yellow-700 border-yellow-200',
+};
+
+const SEGMENT_DESC: Record<string, string> = {
+  Champions:       'Найлояльніші, активні, витратні',
+  Loyal:           'Стабільна база, потенціал для апсейлу',
+  'At Risk':       'Раніше активні — починають відходити',
+  Lost:            'Давно не відвідували',
+  'New Customers': 'Новий клієнт — перший візит',
+  Promising:       'Нові з потенціалом зростання',
+};
+
+const BAR_HEIGHT = 128; // px — висота зони графіку
 
 const Reports = () => {
-  const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'year'>('month');
-  
-  // Mock data for reports
-  const revenueData = [
-    { month: 'Jan', amount: 4200 },
-    { month: 'Feb', amount: 4800 },
-    { month: 'Mar', amount: 5300 },
-    { month: 'Apr', amount: 6100 },
-    { month: 'May', amount: 5700 },
-    { month: 'Jun', amount: 6500 },
-    { month: 'Jul', amount: 7200 },
-    { month: 'Aug', amount: 7800 },
-    { month: 'Sep', amount: 7100 },
-    { month: 'Oct', amount: 6700 },
-    { month: 'Nov', amount: 6200 },
-    { month: 'Dec', amount: 5900 }
-  ];
-  
-  const servicePerformanceData = [
-    { name: 'Classic Haircut', count: 782, revenue: 23460 },
-    { name: 'Beard Trim', count: 548, revenue: 10960 },
-    { name: 'Hot Towel Shave', count: 312, revenue: 10920 },
-    { name: 'Full Service', count: 285, revenue: 21375 },
-    { name: 'Hair Coloring', count: 164, revenue: 9840 }
-  ];
-  
-  const employeePerformanceData = [
-    { name: 'Mike Johnson', appointments: 423, revenue: 25380, rating: 4.9 },
-    { name: 'Robert Taylor', appointments: 387, revenue: 23220, rating: 4.8 },
-    { name: 'David Wilson', appointments: 286, revenue: 17160, rating: 4.6 }
-  ];
-  
-  const maxRevenue = Math.max(...revenueData.map(item => item.amount));
-  
+  const [dashboard, setDashboard] = useState<any>(null);
+  const [forecast,  setForecast]  = useState<any>(null);
+  const [rfm,       setRfm]       = useState<any>(null);
+  const [loading,   setLoading]   = useState(true);
+  const [activeTab, setActiveTab] = useState<'overview' | 'forecast' | 'rfm'>('overview');
+
+  const fetchAll = async () => {
+    setLoading(true);
+    try {
+      const [d, f, r] = await Promise.all([
+        api.get('/analytics/dashboard'),
+        api.get('/analytics/forecast'),
+        api.get('/analytics/rfm'),
+      ]);
+      setDashboard(d.data);
+      setForecast(f.data);
+      setRfm(r.data);
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { fetchAll(); }, []);
+
+  if (loading) return <div className="text-center py-16 text-gray-500">Завантаження аналітики...</div>;
+
+  const maxRev      = dashboard ? Math.max(...dashboard.revenueByMonth.map((d: any) => d.amount), 1) : 1;
+  const maxForecast = forecast  ? Math.max(...(forecast.forecast || []).map((d: any) => d.predicted), 1) : 1;
+  const maxSeries   = forecast  ? Math.max(...(forecast.series   || []).map((d: any) => d.count),    1) : 1;
+
+  const barPx = (val: number, max: number) =>
+    val === 0 ? 3 : Math.max(Math.round((val / max) * BAR_HEIGHT), 6);
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+      {/* Header */}
+      <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-            <BarChart2 size={24} className="mr-2 text-indigo-600" />
+            <BarChart2 size={24} className="mr-2 text-indigo-600"/>
             Reports & Analytics
           </h1>
-          <p className="text-gray-600">Business performance insights</p>
+          <p className="text-gray-500 text-sm mt-0.5">Реальні дані з бази</p>
         </div>
-        <div className="mt-4 sm:mt-0 flex space-x-3">
-          <button
-            type="button"
-            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            <Calendar size={16} className="mr-2 text-gray-500" />
-            Custom Range
-          </button>
-          <button
-            type="button"
-            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            <Download size={16} className="mr-2 text-gray-500" />
-            Export
-          </button>
-        </div>
-      </div>
-      
-      {/* Period selector */}
-      <div className="bg-white rounded-lg shadow p-4 flex justify-between items-center">
-        <div className="flex space-x-2">
-          <button
-            onClick={() => setPeriod('day')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md ${
-              period === 'day' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            Day
-          </button>
-          <button
-            onClick={() => setPeriod('week')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md ${
-              period === 'week' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            Week
-          </button>
-          <button
-            onClick={() => setPeriod('month')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md ${
-              period === 'month' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            Month
-          </button>
-          <button
-            onClick={() => setPeriod('year')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md ${
-              period === 'year' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            Year
-          </button>
-        </div>
-        <button
-          type="button"
-          className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-        >
-          <Filter size={16} className="mr-1.5 text-gray-500" />
-          Filter
+        <button onClick={fetchAll}
+          className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">
+          <RefreshCw size={14}/> Оновити
         </button>
       </div>
-      
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[
-          { title: 'Total Revenue', value: '$78,950', change: '+12.5%', trend: 'up' },
-          { title: 'Appointments', value: '1,245', change: '+8.2%', trend: 'up' },
-          { title: 'New Clients', value: '156', change: '+5.3%', trend: 'up' },
-          { title: 'Avg. Service Value', value: '$63.40', change: '-2.1%', trend: 'down' }
-        ].map((card, index) => (
-          <div key={index} className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-sm font-medium text-gray-500">{card.title}</h3>
-            <div className="mt-2 flex items-baseline">
-              <p className="text-3xl font-semibold text-gray-900">{card.value}</p>
-              <p className={`ml-2 text-sm font-medium ${
-                card.trend === 'up' ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {card.change}
-              </p>
-            </div>
-            <div className="mt-4">
-              <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full ${card.trend === 'up' ? 'bg-green-500' : 'bg-red-500'}`} 
-                  style={{ width: '70%' }}
-                ></div>
-              </div>
-            </div>
-          </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
+        {([['overview','Огляд'],['forecast','Прогнозування'],['rfm','RFM Сегменти']] as const).map(([tab, label]) => (
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-all
+              ${activeTab === tab ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
+            {label}
+          </button>
         ))}
       </div>
-      
-      {/* Revenue chart */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-          <h3 className="text-lg leading-6 font-medium text-gray-900 flex items-center">
-            <BarChart2 size={20} className="mr-2 text-indigo-600" />
-            Revenue Trend
-          </h3>
-          <p className="mt-1 max-w-2xl text-sm text-gray-500">
-            Monthly revenue for the current year
-          </p>
-        </div>
-        
-        <div className="p-6">
-          <div className="h-80 flex items-end space-x-2">
-            {revenueData.map((item, index) => (
-              <div key={index} className="flex-1 flex flex-col items-center">
-                <div 
-                  className="w-full bg-indigo-500 hover:bg-indigo-600 transition-colors rounded-t-md cursor-pointer relative group"
-                  style={{ 
-                    height: `${(item.amount / maxRevenue) * 100}%`,
-                  }}
-                >
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    ${item.amount.toLocaleString()}
-                  </div>
-                </div>
-                <div className="mt-2 text-xs font-medium">{item.month}</div>
+
+      {/* ── OVERVIEW ── */}
+      {activeTab === 'overview' && dashboard && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { title: 'Загальна виручка',  value: `$${dashboard.totalRevenue.toLocaleString()}`, sub: `Цього місяця: $${dashboard.monthRevenue}`,      color: 'text-green-600'  },
+              { title: 'Всього записів',    value: dashboard.totalAppointments,                  sub: `Цього місяця: ${dashboard.monthAppointments}`,  color: 'text-blue-600'   },
+              { title: 'Клієнтів',          value: dashboard.totalClients,                       sub: 'В базі',                                         color: 'text-purple-600' },
+              { title: 'Середній чек',      value: `$${dashboard.avgServiceValue}`,              sub: 'За виконаний запис',                             color: 'text-amber-600'  },
+            ].map((c, i) => (
+              <div key={i} className="bg-white rounded-lg shadow p-5">
+                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">{c.title}</p>
+                <p className={`text-3xl font-bold mt-1 ${c.color}`}>{c.value}</p>
+                <p className="text-xs text-gray-400 mt-1">{c.sub}</p>
               </div>
             ))}
           </div>
-        </div>
-      </div>
-      
-      {/* Service performance */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-          <h3 className="text-lg leading-6 font-medium text-gray-900 flex items-center">
-            <Scissors size={20} className="mr-2 text-indigo-600" />
-            Service Performance
-          </h3>
-          <p className="mt-1 max-w-2xl text-sm text-gray-500">
-            Most popular services by appointments and revenue
-          </p>
-        </div>
-        
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Service
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Appointments
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Revenue
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Trend
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {servicePerformanceData.map((service, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{service.name}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{service.count}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">${service.revenue.toLocaleString()}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="w-32 bg-gray-200 rounded-full h-2.5">
-                      <div 
-                        className="bg-indigo-600 h-2.5 rounded-full" 
-                        style={{ width: `${(service.count / servicePerformanceData[0].count) * 100}%` }}
-                      ></div>
-                    </div>
-                  </td>
-                </tr>
+
+          {/* Revenue bar chart */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2 mb-6">
+              <TrendingUp size={18} className="text-indigo-600"/> Виручка за 12 місяців
+            </h3>
+            <div className="flex items-end gap-1" style={{ height: `${BAR_HEIGHT + 40}px` }}>
+              {dashboard.revenueByMonth.map((d: any, i: number) => (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
+                  <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    ${d.amount}
+                  </span>
+                  <div
+                    className="w-full bg-indigo-500 hover:bg-indigo-600 rounded-t transition-colors"
+                    style={{ height: `${barPx(d.amount, maxRev)}px` }}
+                  />
+                  <span className="text-xs text-gray-400">{d.month}</span>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Service performance */}
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+                <Scissors size={18} className="text-indigo-600"/>
+                <h3 className="text-base font-semibold text-gray-900">Популярні послуги</h3>
+              </div>
+              {dashboard.servicePerformance.length === 0 ? (
+                <p className="px-5 py-8 text-sm text-center text-gray-400">Немає даних</p>
+              ) : (
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-5 py-2 text-left text-xs text-gray-500 font-medium">Послуга</th>
+                      <th className="px-5 py-2 text-right text-xs text-gray-500 font-medium">Записів</th>
+                      <th className="px-5 py-2 text-right text-xs text-gray-500 font-medium">Виручка</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {dashboard.servicePerformance.map((s: any, i: number) => (
+                      <tr key={i} className="hover:bg-gray-50">
+                        <td className="px-5 py-3 text-sm text-gray-900">{s.name}</td>
+                        <td className="px-5 py-3 text-sm text-gray-600 text-right">{s.count}</td>
+                        <td className="px-5 py-3 text-sm font-medium text-green-600 text-right">${s.revenue}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Employee performance */}
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+                <User size={18} className="text-indigo-600"/>
+                <h3 className="text-base font-semibold text-gray-900">Продуктивність майстрів</h3>
+              </div>
+              {dashboard.empPerformance.length === 0 ? (
+                <p className="px-5 py-8 text-sm text-center text-gray-400">Немає даних</p>
+              ) : (
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-5 py-2 text-left text-xs text-gray-500 font-medium">Майстер</th>
+                      <th className="px-5 py-2 text-right text-xs text-gray-500 font-medium">Записів</th>
+                      <th className="px-5 py-2 text-right text-xs text-gray-500 font-medium">Виручка</th>
+                      <th className="px-5 py-2 text-right text-xs text-gray-500 font-medium">Рейтинг</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {dashboard.empPerformance.map((e: any, i: number) => (
+                      <tr key={i} className="hover:bg-gray-50">
+                        <td className="px-5 py-3 text-sm font-medium text-gray-900">{e.name}</td>
+                        <td className="px-5 py-3 text-sm text-gray-600 text-right">{e.appointments}</td>
+                        <td className="px-5 py-3 text-sm font-medium text-green-600 text-right">${e.revenue}</td>
+                        <td className="px-5 py-3 text-sm text-amber-500 text-right">
+                          {e.rating > 0 ? `⭐ ${e.rating}` : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
-      
-      {/* Employee performance */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-          <h3 className="text-lg leading-6 font-medium text-gray-900 flex items-center">
-            <User size={20} className="mr-2 text-indigo-600" />
-            Employee Performance
-          </h3>
-          <p className="mt-1 max-w-2xl text-sm text-gray-500">
-            Barber productivity and revenue generation
-          </p>
-        </div>
-        
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Employee
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Appointments
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Revenue
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Avg. Rating
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Performance
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {employeePerformanceData.map((employee, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{employee.name}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{employee.appointments}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">${employee.revenue.toLocaleString()}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="text-sm text-gray-900 mr-1">{employee.rating}</div>
-                      <div className="flex text-yellow-400">
-                        {[...Array(5)].map((_, i) => (
-                          <svg key={i} className={`h-4 w-4 ${i < Math.floor(employee.rating) ? 'text-yellow-400' : 'text-gray-300'}`} fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                          </svg>
-                        ))}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="w-32 bg-gray-200 rounded-full h-2.5">
-                      <div 
-                        className="bg-green-500 h-2.5 rounded-full" 
-                        style={{ width: `${(employee.revenue / employeePerformanceData[0].revenue) * 100}%` }}
-                      ></div>
-                    </div>
-                  </td>
-                </tr>
+      )}
+
+      {/* ── FORECAST ── */}
+      {activeTab === 'forecast' && forecast && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-white rounded-lg shadow p-5">
+              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">SMA (7 днів)</p>
+              <p className="text-3xl font-bold text-indigo-600 mt-1">{forecast.sma}</p>
+              <p className="text-xs text-gray-400 mt-1">Середнє за тиждень</p>
+            </div>
+            <div className="bg-white rounded-lg shadow p-5">
+              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">MAE</p>
+              <p className="text-3xl font-bold text-indigo-600 mt-1">{forecast.mae}</p>
+              <p className="text-xs text-gray-400 mt-1">Середня абсолютна похибка</p>
+            </div>
+          </div>
+
+          {/* Historical */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-base font-semibold text-gray-900 mb-1">Фактичне навантаження (14 днів)</h3>
+            <p className="text-xs text-gray-400 mb-4">Кількість виконаних записів по днях</p>
+            <div className="flex items-end gap-1" style={{ height: `${BAR_HEIGHT + 32}px` }}>
+              {forecast.series.map((d: any, i: number) => (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1 group min-w-0">
+                  <span className="text-xs text-gray-500 font-medium">{d.count > 0 ? d.count : ''}</span>
+                  <div
+                    className="w-full bg-indigo-400 hover:bg-indigo-600 rounded-t transition-colors"
+                    style={{ height: `${barPx(d.count, maxSeries)}px` }}
+                  />
+                  <span className="text-gray-400 text-center leading-tight" style={{ fontSize: '9px' }}>
+                    {d.date.slice(5)}
+                  </span>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </div>
+
+          {/* Forecast */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-base font-semibold text-gray-900 mb-1">Прогноз на 7 днів</h3>
+            <p className="text-xs text-gray-400 mb-4">Комбінована модель SMA + лінійна регресія (α=0.6)</p>
+            <div className="flex items-end gap-2" style={{ height: `${BAR_HEIGHT + 48}px` }}>
+              {forecast.forecast.map((d: any, i: number) => (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
+                  <span className="text-sm font-semibold text-gray-700">{d.predicted}</span>
+                  <div
+                    className="w-full bg-green-400 hover:bg-green-500 rounded-t transition-colors"
+                    style={{ height: `${barPx(d.predicted, maxForecast)}px` }}
+                  />
+                  <span className="text-xs text-gray-400 text-center leading-tight">{d.date}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* ── RFM ── */}
+      {activeTab === 'rfm' && rfm && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            {rfm.summary.map((s: any) => (
+              <div key={s.segment}
+                className={`rounded-lg border p-4 ${SEGMENT_COLORS[s.segment] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-semibold text-sm">{s.segment}</p>
+                    <p className="text-xs opacity-75 mt-0.5">{SEGMENT_DESC[s.segment]}</p>
+                  </div>
+                  <span className="text-2xl font-bold">{s.count}</span>
+                </div>
+                <p className="text-xs mt-2 opacity-75">Виручка: ${s.revenue.toLocaleString()}</p>
+              </div>
+            ))}
+          </div>
+
+          {rfm.summary.length === 0 && (
+            <div className="bg-white rounded-lg shadow p-8 text-center">
+              <Users size={32} className="mx-auto text-gray-300 mb-2"/>
+              <p className="text-gray-500">Недостатньо даних для RFM аналізу.</p>
+              <p className="text-sm text-gray-400 mt-1">Потрібні клієнти з виконаними записами.</p>
+            </div>
+          )}
+
+          {rfm.segments.length > 0 && (
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100">
+                <h3 className="text-base font-semibold text-gray-900">Деталі клієнтів</h3>
+                <p className="text-xs text-gray-400 mt-0.5">R — давність (дні), F — частота, M — виручка ($)</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      {['Клієнт','R','F','M','RFM','Сегмент'].map(h => (
+                        <th key={h} className="px-4 py-2 text-left text-xs text-gray-500 font-medium">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {rfm.segments.map((c: any) => (
+                      <tr key={c.clientId} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{c.name}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{c.R}д</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{c.F}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">${c.M}</td>
+                        <td className="px-4 py-3 text-sm font-semibold text-indigo-600">{c.rfm}</td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs px-2 py-0.5 rounded-full border font-medium
+                            ${SEGMENT_COLORS[c.segment] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                            {c.segment}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
-
-// Fix missing import
-import { User } from 'lucide-react';
 
 export default Reports;
