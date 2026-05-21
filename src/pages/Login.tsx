@@ -103,29 +103,11 @@ const Login = () => {
               ))}
             </div>
           </div>
+
         </div>
       </div>
     </div>
   );
-  {/* Тимчасова кнопка реєстрації — видалити після створення акаунтів */}
-<div className="mt-4 pt-4 border-t border-gray-100">
-  <p className="text-xs text-gray-400 text-center mb-2">Створити акаунти (один раз)</p>
-  <button
-    type="button"
-    onClick={async () => {
-      try {
-        const api = (await import('../api')).default;
-        await api.post('/auth/register', { name: 'Admin Manager', email: 'admin@barbershop.com', password: 'admin123', role: 'admin' });
-        await api.post('/auth/register', { name: 'Іван Бровко', email: 'barber@barbershop.com', password: 'barber123', role: 'barber' });
-        alert('Акаунти створено! Тепер можна видалити цю кнопку.');
-      } catch (err: any) {
-        alert(err.response?.data?.msg || 'Помилка — можливо акаунти вже існують');
-      }
-    }}
-    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-xs text-gray-500 hover:bg-gray-50 transition">
-    Створити тестові акаунти
-  </button>
-</div>
 };
 
 export default Login;

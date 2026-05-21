@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   User, Calendar, Phone, Mail, Clock,
-  ArrowLeft, Edit, Trash2, Plus
+  ArrowLeft, Edit, Trash2
 } from 'lucide-react';
-import { clientApi, appointmentApi } from '../api';
+import { clientApi } from '../api';
+import api from '../api';
 import { Client, Appointment } from '../api/types';
 import Modal from '../components/Modal';
 
@@ -23,18 +24,13 @@ const ClientDetails = () => {
     const fetchData = async () => {
       if (!id) return;
       try {
-        const [clientData, allAppointments] = await Promise.all([
+        const [clientData, clientAppointments] = await Promise.all([
           clientApi.getById(id),
-          appointmentApi.getAll(),
+          api.get(`/clients/${id}/appointments`).then(r => r.data),
         ]);
         setClient(clientData);
         setFormData({ name: clientData.name, phone: clientData.phone, email: clientData.email });
-        const clientAppointments = allAppointments.filter(
-          a => typeof a.client === 'object' ? a.client._id === id : a.client === id
-        );
-        setAppointments(clientAppointments.sort(
-          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-        ));
+        setAppointments(clientAppointments);
       } catch (err) {
         console.error('Error fetching client:', err);
       } finally {

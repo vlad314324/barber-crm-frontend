@@ -1,3 +1,36 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+
+.phone-input {
+    display: flex;
+    align-items: center;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    gap: 0.5rem;
+  }
+  
+  .phone-input:focus-within {
+    outline: none;
+    ring: 2px;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+  }
+  
+  .phone-input .PhoneInputInput {
+    border: none;
+    outline: none;
+    width: 100%;
+    font-size: 0.875rem;
+  }
+  
+  .phone-input .PhoneInputCountrySelect {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 0.875rem;
+    cursor: pointer;
+  }

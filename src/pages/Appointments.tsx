@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, Plus, UserPlus, ChevronDown } from 'lucide-react';
 import { appointmentApi, clientApi, employeeApi, serviceApi } from '../api';
+import api from '../api';
 import { Appointment, Client, Employee, Service } from '../api/types';
 import Modal from '../components/Modal';
 
@@ -179,6 +180,7 @@ const Appointments = () => {
   const [employees,    setEmployees]    = useState<Employee[]>([]);
   const [services,     setServices]     = useState<Service[]>([]);
   const [loading,      setLoading]      = useState(true);
+  const [shopSettings, setShopSettings] = useState<any>(null);
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [addForm,   setAddForm]   = useState(defaultAdd);
@@ -193,11 +195,13 @@ const Appointments = () => {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [a,c,e,s] = await Promise.all([
+      const [a, c, e, s, settings] = await Promise.all([
         appointmentApi.getAll(), clientApi.getAll(),
-        employeeApi.getAll(),    serviceApi.getAll(),
+        employeeApi.getAll(), serviceApi.getAll(),
+        api.get('/settings').then(r => r.data),
       ]);
       setAppointments(a); setClients(c); setEmployees(e); setServices(s);
+      setShopSettings(settings);
     } catch(err){ console.error(err); }
     finally { setLoading(false); }
   }, []);
@@ -206,11 +210,24 @@ const Appointments = () => {
   const barbers = employees.filter(e => e.role === 'Barber');
 
   // ── day off check ─────────────────────────────────────────────────────────
-  const isDayOff = (emp: Employee, date: Date): boolean => {
-    const dayKey = DAY_KEYS[date.getDay()];
-    const val = emp.schedule?.[dayKey as keyof typeof emp.schedule];
-    return !val || val === 'Вихідний' || val === 'Off';
-  };
+  const DAY_KEYS_FULL = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+const isDayOff = (emp: Employee, date: Date): boolean => {
+  const dayKeyFull = DAY_KEYS_FULL[date.getDay()];
+
+  // Перевірка 1 — заклад закритий
+  if (shopSettings?.workingHours) {
+    const shopDay = shopSettings.workingHours[dayKeyFull];
+    if (!shopDay || !shopDay.isOpen) return true;
+  }
+
+  // Перевірка 2 — вихідний конкретного майстра
+  const empDayKey = DAY_KEYS[date.getDay()];
+  const val = emp.schedule?.[empDayKey as keyof typeof emp.schedule];
+  if (!val || val === 'Вихідний' || val === 'Off') return true;
+
+  return false;
+};
 
   const clientName = (ref: string | Client | null | undefined) => {
     if (!ref) return 'Клієнт';

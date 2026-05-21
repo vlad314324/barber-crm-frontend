@@ -11,6 +11,7 @@ import Employees from './pages/Employees';
 import Services from './pages/Services';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import BookingPage from './pages/BookingPage';
 import './index.css';
 
 function App() {
@@ -18,10 +19,9 @@ function App() {
     <AuthProvider>
       <Router>
         <Routes>
-          {/* Публічний маршрут */}
           <Route path="/login" element={<Login />} />
+          <Route path="/book" element={<BookingPage />} />
 
-          {/* Захищені маршрути */}
           <Route path="/" element={
             <ProtectedRoute>
               <Layout />
