@@ -3,6 +3,9 @@ import { Scissors, CheckCircle } from 'lucide-react';
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import api from '../api';
+import { useLocale } from '../i18n/LocaleContext';
+import LanguageToggle from '../components/LanguageToggle';
+import { getErrorMessage } from '../utils/errors';
 
 interface Service { _id: string; name: string; price: number; duration: number; category: string; }
 interface Employee { _id: string; name: string; role: string; }
@@ -10,6 +13,7 @@ interface Employee { _id: string; name: string; role: string; }
 type Step = 1 | 2 | 3 | 4 | 5;
 
 const BookingPage = () => {
+  const { t } = useLocale();
   const [step, setStep] = useState<Step>(1);
 
   const [services, setServices]   = useState<Service[]>([]);
@@ -33,7 +37,7 @@ const BookingPage = () => {
   const validateEmail = (email: string) => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!re.test(email)) {
-      setEmailError('Введіть коректний email (наприклад: ivan@gmail.com)');
+      setEmailError(t('booking.invalidEmail'));
       return false;
     }
     setEmailError('');
@@ -79,7 +83,7 @@ const BookingPage = () => {
   const todayStr = new Date().toISOString().split('T')[0];
 
   const handleSubmit = async () => {
-    if (!clientName || !clientPhone || !clientEmail) { setError('Заповніть всі поля'); return; }
+    if (!clientName || !clientPhone || !clientEmail) { setError(t('booking.fillAll')); return; }
     if (!validateEmail(clientEmail)) return;
     setLoading(true); setError('');
     try {
@@ -93,23 +97,26 @@ const BookingPage = () => {
         clientEmail,
       });
       setDone(true);
-    } catch (err: any) {
-      setError(err.response?.data?.msg || 'Помилка при бронюванні');
+    } catch (err) {
+      setError(getErrorMessage(err) || t('booking.bookingError'));
     } finally {
       setLoading(false);
     }
   };
 
   if (done) return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-canvas flex items-center justify-center px-4">
+      <div className="absolute top-4 right-4">
+        <LanguageToggle />
+      </div>
       <div className="text-center max-w-md">
-        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-          <CheckCircle size={40} className="text-green-500"/>
+        <div className="w-20 h-20 bg-brand-soft rounded-full flex items-center justify-center mx-auto mb-6">
+          <CheckCircle size={40} className="text-brand"/>
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Запис підтверджено!</h2>
-        <p className="text-gray-500 mb-1">Майстер: <strong>{selectedEmployee?.name}</strong></p>
-        <p className="text-gray-500 mb-1">Дата: <strong>{selectedDate}</strong> о <strong>{selectedTime}</strong></p>
-        <p className="text-gray-500 mb-6">Сума: <strong>{totalPrice} грн</strong></p>
+        <h2 className="text-2xl font-extrabold text-ink tracking-tight mb-2">{t('booking.confirmed')}</h2>
+        <p className="text-ink-secondary mb-1">{t('booking.masterLabel')}: <strong className="text-ink">{selectedEmployee?.name}</strong></p>
+        <p className="text-ink-secondary mb-1">{t('booking.dateLabel')}: <strong className="text-ink">{selectedDate}</strong> о <strong className="text-ink">{selectedTime}</strong></p>
+        <p className="text-ink-secondary mb-6">{t('booking.sumLabel')}: <strong className="text-ink">{totalPrice} грн</strong></p>
         <button
           onClick={() => {
             setDone(false); setStep(1);
@@ -117,38 +124,44 @@ const BookingPage = () => {
             setSelectedDate(''); setSelectedTime('');
             setClientName(''); setClientPhone(''); setClientEmail('');
           }}
-          className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition">
-          Записатись ще раз
+          className="btn btn-primary">
+          {t('booking.bookAgain')}
         </button>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-gray-900 text-white py-6 px-4 text-center">
+    <div className="min-h-screen bg-canvas">
+      <div className="bg-ink text-white py-6 px-4 text-center relative">
+        <div className="absolute top-4 right-4">
+          <LanguageToggle variant="dark" />
+        </div>
         <div className="flex items-center justify-center gap-2 mb-1">
           <Scissors size={24}/>
-          <h1 className="text-2xl font-bold">BarberCRM</h1>
+          <h1 className="text-2xl font-extrabold inline-flex items-baseline" style={{ letterSpacing: '-0.03em' }}>
+            hirnix
+            <span className="w-1.5 h-1.5 rounded-full bg-brand ml-1 self-end mb-1" />
+          </h1>
         </div>
-        <p className="text-gray-400 text-sm">Онлайн-запис</p>
+        <p className="text-canvas/60 text-sm">{t('booking.onlineBooking')}</p>
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-8">
           {[
-            { n: 1, label: 'Послуга' },
-            { n: 2, label: 'Майстер' },
-            { n: 3, label: 'Час' },
-            { n: 4, label: 'Контакти' },
-            { n: 5, label: 'Підтвердження' },
+            { n: 1, label: t('booking.stepService') },
+            { n: 2, label: t('booking.stepMaster') },
+            { n: 3, label: t('booking.stepTime') },
+            { n: 4, label: t('booking.stepContacts') },
+            { n: 5, label: t('booking.stepConfirm') },
           ].map(({ n, label }) => (
             <div key={n} className="flex flex-col items-center">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold
-                ${step === n ? 'bg-indigo-600 text-white' : step > n ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                ${step === n ? 'bg-brand text-white' : step > n ? 'bg-brand-dark text-white' : 'bg-canvas-soft text-ink-muted'}`}>
                 {step > n ? '✓' : n}
               </div>
-              <span className="text-xs mt-1 text-gray-500 hidden sm:block">{label}</span>
+              <span className="text-xs mt-1 text-ink-muted hidden sm:block">{label}</span>
             </div>
           ))}
         </div>
@@ -156,36 +169,36 @@ const BookingPage = () => {
         {/* Step 1 — Послуги */}
         {step === 1 && (
           <div>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Оберіть послугу</h2>
+            <h2 className="text-xl font-bold text-ink tracking-tight mb-4">{t('booking.chooseService')}</h2>
             <div className="space-y-3">
               {services.map(s => (
                 <div key={s._id}
                   onClick={() => toggleService(s)}
-                  className={`p-4 rounded-xl border-2 cursor-pointer transition
+                  className={`p-4 rounded-md border-2 cursor-pointer transition-colors
                     ${selectedServices.find(x => x._id === s._id)
-                      ? 'border-indigo-500 bg-indigo-50'
-                      : 'border-gray-200 bg-white hover:border-gray-300'}`}>
+                      ? 'border-brand bg-brand-extra-soft'
+                      : 'border-line bg-surface hover:border-line-medium'}`}>
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="font-medium text-gray-900">{s.name}</p>
-                      <p className="text-sm text-gray-500">{s.duration} хв</p>
+                      <p className="font-medium text-ink">{s.name}</p>
+                      <p className="text-sm text-ink-muted">{s.duration} {t('booking.minutes')}</p>
                     </div>
-                    <p className="font-semibold text-indigo-600">{s.price} грн</p>
+                    <p className="font-semibold text-brand-dark">{s.price} грн</p>
                   </div>
                 </div>
               ))}
             </div>
             {selectedServices.length > 0 && (
-              <div className="mt-4 p-3 bg-indigo-50 rounded-lg flex justify-between items-center">
-                <span className="text-sm text-gray-600">Обрано: {selectedServices.length} послуг • {totalDuration} хв</span>
-                <span className="font-semibold text-indigo-600">{totalPrice} грн</span>
+              <div className="mt-4 p-3 bg-brand-extra-soft rounded-sm flex justify-between items-center">
+                <span className="text-sm text-ink-secondary">{t('booking.selectedCount', { count: selectedServices.length, duration: totalDuration })}</span>
+                <span className="font-semibold text-brand-dark">{totalPrice} грн</span>
               </div>
             )}
             <button
               disabled={selectedServices.length === 0}
               onClick={() => setStep(2)}
-              className="mt-6 w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-40">
-              Далі
+              className="btn btn-primary w-full mt-6 py-3">
+              {t('booking.next')}
             </button>
           </div>
         )}
@@ -193,36 +206,34 @@ const BookingPage = () => {
         {/* Step 2 — Майстер */}
         {step === 2 && (
           <div>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Оберіть майстра</h2>
+            <h2 className="text-xl font-bold text-ink tracking-tight mb-4">{t('booking.chooseMaster')}</h2>
             <div className="space-y-3">
               {employees.map(e => {
                 const initials = e.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
                 return (
                   <div key={e._id}
                     onClick={() => setSelectedEmployee(e)}
-                    className={`p-4 rounded-xl border-2 cursor-pointer transition flex items-center gap-4
+                    className={`p-4 rounded-md border-2 cursor-pointer transition-colors flex items-center gap-4
                       ${selectedEmployee?._id === e._id
-                        ? 'border-indigo-500 bg-indigo-50'
-                        : 'border-gray-200 bg-white hover:border-gray-300'}`}>
-                    <div className="w-12 h-12 rounded-full bg-indigo-500 flex items-center justify-center flex-shrink-0">
+                        ? 'border-brand bg-brand-extra-soft'
+                        : 'border-line bg-surface hover:border-line-medium'}`}>
+                    <div className="w-12 h-12 rounded-full bg-brand flex items-center justify-center flex-shrink-0">
                       <span className="text-white font-semibold">{initials}</span>
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">{e.name}</p>
-                      <p className="text-sm text-gray-500">{e.role}</p>
+                      <p className="font-medium text-ink">{e.name}</p>
+                      <p className="text-sm text-ink-muted">{t(`roles.${e.role}`)}</p>
                     </div>
                   </div>
                 );
               })}
             </div>
             <div className="flex gap-3 mt-6">
-              <button onClick={() => setStep(1)}
-                className="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-50 transition">
-                Назад
+              <button onClick={() => setStep(1)} className="btn btn-secondary flex-1 py-3">
+                {t('booking.back')}
               </button>
-              <button disabled={!selectedEmployee} onClick={() => setStep(3)}
-                className="flex-1 bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-40">
-                Далі
+              <button disabled={!selectedEmployee} onClick={() => setStep(3)} className="btn btn-primary flex-1 py-3">
+                {t('booking.next')}
               </button>
             </div>
           </div>
@@ -231,31 +242,31 @@ const BookingPage = () => {
         {/* Step 3 — Дата і час */}
         {step === 3 && (
           <div>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Оберіть дату та час</h2>
+            <h2 className="text-xl font-bold text-ink tracking-tight mb-4">{t('booking.chooseDateTime')}</h2>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Дата</label>
+              <label className="field-label">{t('booking.dateLabel')}</label>
               <input type="date" min={todayStr} value={selectedDate}
                 onChange={e => { setSelectedDate(e.target.value); setSelectedTime(''); setIsClosed(false); }}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+                className="field-input py-3"/>
             </div>
             {selectedDate && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Вільний час</label>
+                <label className="field-label">{t('booking.availableTimeLabel')}</label>
                 {isClosed ? (
-                  <div className="bg-orange-50 border border-orange-200 rounded-lg px-4 py-3">
-                    <p className="text-sm text-orange-600">🚫 Заклад не працює в цей день</p>
+                  <div className="bg-amber-50 border border-amber-200 rounded-sm px-4 py-3">
+                    <p className="text-sm text-amber-700">{t('booking.closedMessage')}</p>
                   </div>
                 ) : slots.length === 0 ? (
-                  <p className="text-gray-500 text-sm">Немає вільних слотів на цю дату</p>
+                  <p className="text-ink-muted text-sm">{t('booking.noSlots')}</p>
                 ) : (
                   <div className="grid grid-cols-4 gap-2">
                     {slots.map(slot => (
                       <button key={slot}
                         onClick={() => setSelectedTime(slot)}
-                        className={`py-2 rounded-lg text-sm font-medium border transition
+                        className={`py-2 rounded-sm text-sm font-medium border transition-colors
                           ${selectedTime === slot
-                            ? 'bg-indigo-600 text-white border-indigo-600'
-                            : 'border-gray-200 text-gray-700 hover:border-indigo-300'}`}>
+                            ? 'bg-brand text-white border-brand'
+                            : 'border-line text-ink-secondary hover:border-brand/50'}`}>
                         {slot}
                       </button>
                     ))}
@@ -264,13 +275,11 @@ const BookingPage = () => {
               </div>
             )}
             <div className="flex gap-3 mt-6">
-              <button onClick={() => setStep(2)}
-                className="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-50 transition">
-                Назад
+              <button onClick={() => setStep(2)} className="btn btn-secondary flex-1 py-3">
+                {t('booking.back')}
               </button>
-              <button disabled={!selectedDate || !selectedTime || isClosed} onClick={() => setStep(4)}
-                className="flex-1 bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-40">
-                Далі
+              <button disabled={!selectedDate || !selectedTime || isClosed} onClick={() => setStep(4)} className="btn btn-primary flex-1 py-3">
+                {t('booking.next')}
               </button>
             </div>
           </div>
@@ -279,16 +288,16 @@ const BookingPage = () => {
         {/* Step 4 — Контакти */}
         {step === 4 && (
           <div>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Ваші контакти</h2>
+            <h2 className="text-xl font-bold text-ink tracking-tight mb-4">{t('booking.contactsTitle')}</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Імʼя *</label>
+                <label className="field-label">{t('booking.nameLabel')}</label>
                 <input type="text" value={clientName} onChange={e => setClientName(e.target.value)}
-                  placeholder="Іван Петренко"
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+                  placeholder={t('booking.namePlaceholder')}
+                  className="field-input py-3"/>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Телефон *</label>
+                <label className="field-label">{t('booking.phoneLabel')}</label>
                 <PhoneInput
                   international
                   defaultCountry="UA"
@@ -298,7 +307,7 @@ const BookingPage = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Email *</label>
+                <label className="field-label">{t('booking.emailLabel')}</label>
                 <input
                   type="email"
                   value={clientEmail}
@@ -308,22 +317,20 @@ const BookingPage = () => {
                   }}
                   onBlur={() => clientEmail && validateEmail(clientEmail)}
                   placeholder="ivan@gmail.com"
-                  className={`w-full border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 transition
-                    ${emailError ? 'border-red-400 focus:ring-red-400' : 'border-gray-300 focus:ring-indigo-500'}`}
+                  className={`field-input py-3 ${emailError ? 'border-red-400 focus:border-red-400 focus:ring-red-400/15' : ''}`}
                 />
                 {emailError && <p className="text-xs text-red-500 mt-1">{emailError}</p>}
               </div>
             </div>
             <div className="flex gap-3 mt-6">
-              <button onClick={() => setStep(3)}
-                className="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-50 transition">
-                Назад
+              <button onClick={() => setStep(3)} className="btn btn-secondary flex-1 py-3">
+                {t('booking.back')}
               </button>
               <button
                 disabled={!clientName || !clientPhone || !clientEmail}
                 onClick={() => { if (!validateEmail(clientEmail)) return; setStep(5); }}
-                className="flex-1 bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-40">
-                Далі
+                className="btn btn-primary flex-1 py-3">
+                {t('booking.next')}
               </button>
             </div>
           </div>
@@ -332,46 +339,44 @@ const BookingPage = () => {
         {/* Step 5 — Підтвердження */}
         {step === 5 && (
           <div>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Підтвердження запису</h2>
-            <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-3 mb-6">
+            <h2 className="text-xl font-bold text-ink tracking-tight mb-4">{t('booking.confirmTitle')}</h2>
+            <div className="ds-card p-5 space-y-3 mb-6">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Майстер</span>
-                <span className="font-medium">{selectedEmployee?.name}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Послуги</span>
-                <span className="font-medium text-right">{selectedServices.map(s => s.name).join(', ')}</span>
+                <span className="text-ink-muted">{t('booking.masterLabel')}</span>
+                <span className="font-medium text-ink">{selectedEmployee?.name}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Дата і час</span>
-                <span className="font-medium">{selectedDate} о {selectedTime}</span>
+                <span className="text-ink-muted">{t('booking.servicesLabel')}</span>
+                <span className="font-medium text-ink text-right">{selectedServices.map(s => s.name).join(', ')}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Тривалість</span>
-                <span className="font-medium">{totalDuration} хв</span>
+                <span className="text-ink-muted">{t('booking.dateTimeLabel')}</span>
+                <span className="font-medium text-ink">{selectedDate} о {selectedTime}</span>
               </div>
-              <div className="border-t pt-3 flex justify-between">
-                <span className="font-semibold">Сума</span>
-                <span className="font-bold text-indigo-600 text-lg">{totalPrice} грн</span>
+              <div className="flex justify-between text-sm">
+                <span className="text-ink-muted">{t('booking.durationLabel')}</span>
+                <span className="font-medium text-ink">{totalDuration} {t('booking.minutes')}</span>
               </div>
-              <div className="border-t pt-3 text-sm text-gray-500">
+              <div className="border-t border-line pt-3 flex justify-between">
+                <span className="font-semibold text-ink">{t('booking.sumLabel')}</span>
+                <span className="font-bold text-brand-dark text-lg">{totalPrice} грн</span>
+              </div>
+              <div className="border-t border-line pt-3 text-sm text-ink-muted">
                 <p>{clientName} • {clientPhone}</p>
                 {clientEmail && <p>{clientEmail}</p>}
               </div>
             </div>
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4">
+              <div className="bg-red-50 border border-red-200 rounded-sm px-4 py-3 mb-4">
                 <p className="text-sm text-red-600">{error}</p>
               </div>
             )}
             <div className="flex gap-3">
-              <button onClick={() => setStep(4)}
-                className="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-50 transition">
-                Назад
+              <button onClick={() => setStep(4)} className="btn btn-secondary flex-1 py-3">
+                {t('booking.back')}
               </button>
-              <button onClick={handleSubmit} disabled={loading}
-                className="flex-1 bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-50">
-                {loading ? 'Бронюємо...' : 'Підтвердити запис'}
+              <button onClick={handleSubmit} disabled={loading} className="btn btn-primary flex-1 py-3">
+                {loading ? t('booking.booking') : t('booking.confirmBtn')}
               </button>
             </div>
           </div>

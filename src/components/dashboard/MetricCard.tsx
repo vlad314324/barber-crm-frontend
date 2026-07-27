@@ -4,24 +4,21 @@ interface MetricCardProps {
   title: string;
   value: string;
   icon: React.ReactNode;
-  color: string;
+  color?: string;
 }
 
-const MetricCard: React.FC<MetricCardProps> = ({ title, value, icon, color }) => {
+const MetricCard: React.FC<MetricCardProps> = ({ title, value, icon }) => {
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden transition-all duration-300 hover:shadow-md">
-      <div className="p-5">
-        <div className="flex items-center">
-          <div className={`${color} rounded-full p-3 text-white`}>
-            {icon}
-          </div>
-          <div className="ml-5">
-            <p className="text-sm font-medium text-gray-500">{title}</p>
-            <p className="text-2xl font-semibold text-gray-900">{value}</p>
-          </div>
+    <div className="ds-card p-5">
+      <div className="flex items-center">
+        <div className="w-11 h-11 rounded-sm bg-brand-soft text-brand flex items-center justify-center flex-shrink-0">
+          {icon}
+        </div>
+        <div className="ml-4">
+          <p className="text-sm font-medium text-ink-secondary">{title}</p>
+          <p className="text-2xl font-bold text-ink tracking-tight">{value}</p>
         </div>
       </div>
-      <div className={`h-1 ${color}`}></div>
     </div>
   );
 };
