@@ -2,35 +2,119 @@
 @tailwind components;
 @tailwind utilities;
 
+body {
+  @apply bg-canvas text-ink font-sans;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================================
+   hirnix component vocabulary — buttons, cards, badges, fields
+   ============================================================ */
+
+@layer components {
+  /* ---------- Buttons ---------- */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 font-semibold text-sm rounded-md px-5 py-2.5
+           border border-transparent leading-none cursor-pointer
+           transition-colors duration-200 ease-out
+           disabled:opacity-50 disabled:cursor-not-allowed active:translate-y-px;
+  }
+  .btn-sm {
+    @apply text-xs rounded-sm px-4 py-2;
+  }
+  .btn-primary {
+    @apply bg-brand text-white hover:bg-brand-dark;
+  }
+  .btn-secondary {
+    @apply bg-surface text-ink border-line hover:bg-canvas-soft hover:border-line-medium;
+  }
+  .btn-ghost {
+    @apply bg-transparent text-ink hover:bg-canvas-soft;
+  }
+  .btn-danger {
+    @apply bg-white text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300;
+  }
+  .btn-danger-solid {
+    @apply bg-red-600 text-white hover:bg-red-700;
+  }
+
+  /* ---------- Cards ---------- */
+  .ds-card {
+    @apply bg-surface border border-line rounded-lg shadow-sm;
+  }
+  .ds-card-interactive {
+    @apply ds-card transition-all duration-200 ease-out hover:shadow-md hover:border-line-medium hover:-translate-y-0.5;
+  }
+  .ds-card-header {
+    @apply px-5 py-4 border-b border-line flex items-center justify-between;
+  }
+
+  /* ---------- Badges / status pills ---------- */
+  .badge {
+    @apply inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full leading-none;
+  }
+  .badge-success {
+    @apply bg-brand-soft text-brand-dark;
+  }
+  .badge-neutral {
+    @apply bg-surface text-ink border border-line;
+  }
+  .badge-muted {
+    @apply bg-canvas-soft text-ink-muted;
+  }
+  .badge-danger {
+    @apply bg-red-50 text-red-600;
+  }
+  .badge-solid {
+    @apply bg-ink text-canvas;
+  }
+
+  /* ---------- Fields ---------- */
+  .field-label {
+    @apply block text-sm font-semibold text-ink mb-1.5;
+  }
+  .field-input {
+    @apply w-full bg-surface border border-line rounded-sm px-3.5 py-2.5 text-sm text-ink
+           placeholder:text-ink-muted outline-none
+           transition-shadow duration-150
+           focus:border-brand focus:ring-4 focus:ring-brand/15;
+  }
+
+  /* ---------- Tables ---------- */
+  .table-head {
+    @apply bg-canvas-soft text-ink-muted text-xs font-semibold uppercase tracking-wide;
+  }
+}
 
 .phone-input {
-    display: flex;
-    align-items: center;
-    border: 1px solid #d1d5db;
-    border-radius: 0.5rem;
-    padding: 0.75rem 1rem;
-    font-size: 0.875rem;
-    gap: 0.5rem;
-  }
-  
-  .phone-input:focus-within {
-    outline: none;
-    ring: 2px;
-    border-color: #6366f1;
-    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
-  }
-  
-  .phone-input .PhoneInputInput {
-    border: none;
-    outline: none;
-    width: 100%;
-    font-size: 0.875rem;
-  }
-  
-  .phone-input .PhoneInputCountrySelect {
-    border: none;
-    outline: none;
-    background: transparent;
-    font-size: 0.875rem;
-    cursor: pointer;
-  }
+  display: flex;
+  align-items: center;
+  border: 1px solid #DEDED8;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  gap: 0.5rem;
+  background: #fff;
+}
+
+.phone-input:focus-within {
+  outline: none;
+  border-color: #2F8F6B;
+  box-shadow: 0 0 0 3px rgba(47, 143, 107, 0.15);
+}
+
+.phone-input .PhoneInputInput {
+  border: none;
+  outline: none;
+  width: 100%;
+  font-size: 0.875rem;
+  background: transparent;
+}
+
+.phone-input .PhoneInputCountrySelect {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.875rem;
+  cursor: pointer;
+}

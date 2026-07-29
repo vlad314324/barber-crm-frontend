@@ -1,23 +1,29 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { LocaleProvider } from './i18n/LocaleContext';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Clients from './pages/Clients';
-import ClientDetails from './pages/ClientDetails';
-import Appointments from './pages/Appointments';
-import Employees from './pages/Employees';
-import Services from './pages/Services';
-import Reports from './pages/Reports';
-import Settings from './pages/Settings';
-import BookingPage from './pages/BookingPage';
+import PageLoader from './components/PageLoader';
 import './index.css';
+
+const Login = lazy(() => import('./pages/Login'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Clients = lazy(() => import('./pages/Clients'));
+const ClientDetails = lazy(() => import('./pages/ClientDetails'));
+const Appointments = lazy(() => import('./pages/Appointments'));
+const Employees = lazy(() => import('./pages/Employees'));
+const Services = lazy(() => import('./pages/Services'));
+const Reports = lazy(() => import('./pages/Reports'));
+const Settings = lazy(() => import('./pages/Settings'));
+const BookingPage = lazy(() => import('./pages/BookingPage'));
 
 function App() {
   return (
+    <LocaleProvider>
     <AuthProvider>
       <Router>
+        <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/book" element={<BookingPage />} />
@@ -71,8 +77,10 @@ function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
       </Router>
     </AuthProvider>
+    </LocaleProvider>
   );
 }
 

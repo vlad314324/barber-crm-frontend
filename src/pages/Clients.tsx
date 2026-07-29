@@ -1,12 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Users, Plus, Search, Pencil, Trash2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { clientApi } from '../api';
 import { Client } from '../api/types';
 import Modal from '../components/Modal';
+import { useLocale } from '../i18n/LocaleContext';
+import { getErrorMessage } from '../utils/errors';
 
 const Clients = () => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const { t } = useLocale();
+  const [searchParams] = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') || '');
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -17,19 +21,19 @@ const Clients = () => {
   const [formData, setFormData] = useState({ name: '', phone: '', email: '' });
   const [saving, setSaving] = useState(false);
 
-  const fetchClients = async () => {
+  const fetchClients = useCallback(async () => {
     try {
       setLoading(true);
       const data = await clientApi.getAll();
       setClients(data);
-    } catch (err) {
-      setError('Не вдалося завантажити клієнтів.');
+    } catch {
+      setError(t('clients.fetchError'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
 
-  useEffect(() => { fetchClients(); }, []);
+  useEffect(() => { fetchClients(); }, [fetchClients]);
 
   const filteredClients = clients.filter(c =>
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -38,11 +42,9 @@ const Clients = () => {
   );
 
   const openAddModal = () => {
-    console.log('openAddModal called, setting isModalOpen to true');
     setEditingClient(null);
     setFormData({ name: '', phone: '', email: '' });
     setIsModalOpen(true);
-    console.log('isModalOpen should now be true');
   };
 
   const openEditModal = (client: Client) => {
@@ -53,7 +55,7 @@ const Clients = () => {
 
   const handleSave = async () => {
     if (!formData.name || !formData.phone || !formData.email) {
-      alert('Заповніть всі поля');
+      alert(t('clients.fillAll'));
       return;
     }
     setSaving(true);
@@ -65,48 +67,45 @@ const Clients = () => {
       }
       setIsModalOpen(false);
       fetchClients();
-    } catch (err: any) {
-      alert(err.response?.data?.msg || 'Помилка збереження');
+    } catch (err) {
+      alert(getErrorMessage(err) || t('clients.saveError'));
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Видалити клієнта?')) return;
+    if (!confirm(t('clients.deleteConfirm'))) return;
     try {
       await clientApi.delete(id);
       setClients(prev => prev.filter(c => c._id !== id));
-    } catch (err) {
-      alert('Помилка видалення');
+    } catch {
+      alert(t('clients.deleteError'));
     }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-          <Users size={24} className="mr-2 text-indigo-600" />
-          Clients
+        <h1 className="text-2xl font-extrabold text-ink tracking-tight flex items-center">
+          <Users size={24} className="mr-2 text-brand" />
+          {t('clients.title')}
         </h1>
-        <button
-          onClick={openAddModal}
-          className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-        >
-          <Plus size={20} className="mr-2 -ml-1" />
-          Add New Client
+        <button onClick={openAddModal} className="btn btn-primary">
+          <Plus size={18} />
+          {t('clients.addNew')}
         </button>
       </div>
 
-      <div className="bg-white shadow sm:rounded-lg">
-        <div className="px-4 py-5 sm:px-6">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
+      <div className="ds-card overflow-hidden">
+        <div className="px-5 py-4">
+          <div className="relative max-w-sm">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-ink-muted" />
             </div>
             <input
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              placeholder="Search clients..."
+              className="field-input pl-10"
+              placeholder={t('clients.searchPlaceholder')}
               type="search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -114,48 +113,48 @@ const Clients = () => {
           </div>
         </div>
 
-        <div className="border-t border-gray-200 overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+        <div className="border-t border-line overflow-x-auto">
+          <table className="min-w-full divide-y divide-line">
+            <thead className="table-head">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Visits</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Visit</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-6 py-3 text-left">{t('clients.tableClient')}</th>
+                <th className="px-6 py-3 text-left">{t('clients.tablePhone')}</th>
+                <th className="px-6 py-3 text-left">{t('clients.tableVisits')}</th>
+                <th className="px-6 py-3 text-left">{t('clients.tableLastVisit')}</th>
+                <th className="px-6 py-3 text-right">{t('clients.tableActions')}</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-surface divide-y divide-line">
               {loading ? (
-                <tr><td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">Завантаження...</td></tr>
+                <tr><td colSpan={5} className="px-6 py-4 text-center text-sm text-ink-muted">{t('common.loading')}</td></tr>
               ) : error ? (
-                <tr><td colSpan={5} className="px-6 py-4 text-center text-sm text-red-500">{error}</td></tr>
+                <tr><td colSpan={5} className="px-6 py-4 text-center text-sm text-red-600">{error}</td></tr>
               ) : filteredClients.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">Клієнтів не знайдено</td></tr>
+                <tr><td colSpan={5} className="px-6 py-4 text-center text-sm text-ink-muted">{t('clients.notFound')}</td></tr>
               ) : filteredClients.map((client) => (
-                <tr key={client._id} className="hover:bg-gray-50">
+                <tr key={client._id} className="hover:bg-canvas-soft transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <img
-                        className="h-10 w-10 rounded-full"
+                        className="h-10 w-10 rounded-full ring-1 ring-line"
                         src={`https://ui-avatars.com/api/?name=${encodeURIComponent(client.name)}&background=random`}
                         alt={client.name}
                       />
                       <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">{client.name}</div>
-                        <div className="text-sm text-gray-500">{client.email}</div>
+                        <div className="text-sm font-medium text-ink">{client.name}</div>
+                        <div className="text-sm text-ink-muted">{client.email}</div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{client.phone}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{client.visits || 0}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {client.lastVisit ? new Date(client.lastVisit).toLocaleDateString() : 'N/A'}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-ink">{client.phone}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-secondary">{client.visits || 0}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-secondary">
+                    {client.lastVisit ? new Date(client.lastVisit).toLocaleDateString() : t('common.na')}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex items-center justify-end gap-3">
-                      <Link to={`/clients/${client._id}`} className="text-indigo-600 hover:text-indigo-900">View</Link>
-                      <button onClick={() => openEditModal(client)} className="text-gray-600 hover:text-gray-900">
+                      <Link to={`/clients/${client._id}`} className="text-brand hover:text-brand-dark">{t('clients.view')}</Link>
+                      <button onClick={() => openEditModal(client)} className="text-ink-secondary hover:text-ink">
                         <Pencil size={16} />
                       </button>
                       <button onClick={() => handleDelete(client._id)} className="text-red-500 hover:text-red-700">
@@ -173,52 +172,45 @@ const Clients = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingClient ? 'Edit Client' : 'Add New Client'}
+        title={editingClient ? t('clients.editModalTitle') : t('clients.addModalTitle')}
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+            <label className="field-label">{t('common.name')}</label>
             <input
               type="text"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              className="field-input"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Client name"
+              placeholder={t('clients.namePlaceholder')}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+            <label className="field-label">{t('common.phone')}</label>
             <input
               type="tel"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              className="field-input"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               placeholder="+380..."
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="field-label">{t('common.email')}</label>
             <input
               type="email"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              className="field-input"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              placeholder="email@example.com"
+              placeholder={t('clients.emailPlaceholder')}
             />
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <button
-              onClick={() => setIsModalOpen(false)}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-            >
-              Cancel
+            <button onClick={() => setIsModalOpen(false)} className="btn btn-secondary">
+              {t('common.cancel')}
             </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {saving ? 'Saving...' : editingClient ? 'Save Changes' : 'Add Client'}
+            <button onClick={handleSave} disabled={saving} className="btn btn-primary">
+              {saving ? t('common.saving') : editingClient ? t('common.save') : t('clients.addNew')}
             </button>
           </div>
         </div>

@@ -9,6 +9,7 @@ export interface Client {
   image?: string; // Зробимо необов'язковим, якщо зображення не завжди є
   visits?: number; // Зробимо необов'язковим, якщо це розрахункове поле або ще не реалізовано на бекенді
   lastVisit?: string; // Зробимо необов'язковим, якщо ще не реалізовано на бекенді
+  createdAt?: string;
 }
 
 export interface Employee {
@@ -135,4 +136,15 @@ export interface CreateReviewDto {
   employee: string; // employee ID
   rating: number;
   comment?: string;
+}
+
+// Shop settings
+export interface WorkingDay { isOpen: boolean; from: string; to: string; }
+
+export interface ShopSettings {
+  shopName: string;
+  address: string;
+  phone: string;
+  email: string;
+  workingHours: Record<string, WorkingDay>;
 }

@@ -1,8 +1,13 @@
-import { useState, useEffect } from 'react';
-import { Scissors, Plus, Search, Pencil, Trash2, Clock, DollarSign } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import {
+  Scissors, ScissorsLineDashed, Droplet, ShowerHead, Wind, Sparkles,
+  Plus, Search, Pencil, Trash2, Clock, DollarSign,
+} from 'lucide-react';
 import { serviceApi } from '../api';
 import { Service } from '../api/types';
 import Modal from '../components/Modal';
+import { useLocale } from '../i18n/LocaleContext';
+import { getErrorMessage } from '../utils/errors';
 
 const CATEGORIES = ['Haircut', 'Beard Trim', 'Shave', 'Hair Wash', 'Styling', 'Other'] as const;
 
@@ -12,34 +17,17 @@ const defaultForm = {
   isAvailable: true,
 };
 
-const categoryColors: Record<string, string> = {
-  'Haircut': 'bg-blue-100 text-blue-700',
-  'Beard Trim': 'bg-amber-100 text-amber-700',
-  'Shave': 'bg-green-100 text-green-700',
-  'Hair Wash': 'bg-cyan-100 text-cyan-700',
-  'Styling': 'bg-purple-100 text-purple-700',
-  'Other': 'bg-gray-100 text-gray-700',
-};
-
-const categoryEmoji: Record<string, string> = {
-  'Haircut': '✂️',
-  'Beard Trim': '🪒',
-  'Shave': '🪭',
-  'Hair Wash': '🚿',
-  'Styling': '💈',
-  'Other': '💇',
-};
-
-const categoryGradient: Record<string, string> = {
-  'Haircut': 'from-blue-50 to-indigo-100',
-  'Beard Trim': 'from-amber-50 to-orange-100',
-  'Shave': 'from-green-50 to-emerald-100',
-  'Hair Wash': 'from-cyan-50 to-sky-100',
-  'Styling': 'from-purple-50 to-violet-100',
-  'Other': 'from-gray-50 to-slate-100',
+const categoryIcon: Record<string, typeof Scissors> = {
+  'Haircut': Scissors,
+  'Beard Trim': ScissorsLineDashed,
+  'Shave': Droplet,
+  'Hair Wash': ShowerHead,
+  'Styling': Wind,
+  'Other': Sparkles,
 };
 
 const Services = () => {
+  const { t } = useLocale();
   const [searchTerm, setSearchTerm] = useState('');
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,19 +37,19 @@ const Services = () => {
   const [formData, setFormData] = useState(defaultForm);
   const [saving, setSaving] = useState(false);
 
-  const fetchServices = async () => {
+  const fetchServices = useCallback(async () => {
     try {
       setLoading(true);
       const data = await serviceApi.getAll();
       setServices(data);
     } catch {
-      setError('Не вдалося завантажити послуги.');
+      setError(t('services.fetchError'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
 
-  useEffect(() => { fetchServices(); }, []);
+  useEffect(() => { fetchServices(); }, [fetchServices]);
 
   const filteredServices = services.filter(s =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -89,7 +77,7 @@ const Services = () => {
 
   const handleSave = async () => {
     if (!formData.name || !formData.description) {
-      alert('Заповніть обовʼязкові поля');
+      alert(t('services.fillRequired'));
       return;
     }
     setSaving(true);
@@ -101,26 +89,26 @@ const Services = () => {
       }
       setIsModalOpen(false);
       fetchServices();
-    } catch (err: any) {
-      alert(err.response?.data?.msg || 'Помилка збереження');
+    } catch (err) {
+      alert(getErrorMessage(err) || t('services.saveError'));
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Видалити послугу?')) return;
+    if (!confirm(t('services.deleteConfirm'))) return;
     try {
       await serviceApi.delete(id);
       setServices(prev => prev.filter(s => s._id !== id));
     } catch {
-      alert('Помилка видалення');
+      alert(t('services.deleteError'));
     }
   };
 
   if (loading) return (
     <div className="flex justify-center items-center py-12">
-      <div className="text-gray-500">Завантаження...</div>
+      <div className="text-ink-muted">{t('common.loading')}</div>
     </div>
   );
 
@@ -133,26 +121,23 @@ const Services = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-          <Scissors size={24} className="mr-2 text-indigo-600" />
-          Services
+        <h1 className="text-2xl font-extrabold text-ink tracking-tight flex items-center">
+          <Scissors size={24} className="mr-2 text-brand" />
+          {t('services.title')}
         </h1>
-        <button
-          onClick={openAddModal}
-          className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-        >
-          <Plus size={16} className="mr-2" />
-          Add New Service
+        <button onClick={openAddModal} className="btn btn-primary">
+          <Plus size={16} />
+          {t('services.addNew')}
         </button>
       </div>
 
-      <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Search className="h-5 w-5 text-gray-400" />
+      <div className="relative max-w-sm">
+        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+          <Search className="h-4 w-4 text-ink-muted" />
         </div>
         <input
-          className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-          placeholder="Search services..."
+          className="field-input pl-10"
+          placeholder={t('services.searchPlaceholder')}
           type="search"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -160,105 +145,106 @@ const Services = () => {
       </div>
 
       {filteredServices.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">Послуг не знайдено</div>
+        <div className="text-center py-12 text-ink-muted">{t('services.notFound')}</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredServices.map((service) => (
-            <div key={service._id} className="bg-white shadow rounded-lg overflow-hidden flex flex-col">
-              
-              {/* Замість картинки — кольоровий блок з emoji */}
-              <div className={`h-32 flex items-center justify-center bg-gradient-to-br ${categoryGradient[service.category] || 'from-gray-50 to-slate-100'}`}>
-                <span className="text-6xl select-none">
-                  {categoryEmoji[service.category] || '✂️'}
-                </span>
+          {filteredServices.map((service) => {
+            const CategoryIcon = categoryIcon[service.category] || Scissors;
+            return (
+            <div key={service._id} className="ds-card overflow-hidden flex flex-col">
+
+              {/* Замість картинки — мінімалістична іконка */}
+              <div className="h-32 flex items-center justify-center bg-brand-extra-soft">
+                <CategoryIcon size={40} strokeWidth={1.5} className="text-brand" />
               </div>
 
               <div className="p-5 flex-1">
                 <div className="flex justify-between items-start mb-2">
                   <div>
-                    <h3 className="text-base font-semibold text-gray-900">{service.name}</h3>
-                    <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${categoryColors[service.category] || 'bg-gray-100 text-gray-700'}`}>
-                      {service.category}
+                    <h3 className="text-base font-semibold text-ink">{service.name}</h3>
+                    <span className="badge badge-neutral mt-1">
+                      {t(`categories.${service.category}`)}
                     </span>
                   </div>
-                  <span className={`text-xs px-2 py-1 rounded-full ${service.isAvailable ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                    {service.isAvailable ? 'Active' : 'Inactive'}
+                  <span className={`badge ${service.isAvailable ? 'badge-success' : 'badge-muted'}`}>
+                    {service.isAvailable ? t('services.active') : t('services.inactive')}
                   </span>
                 </div>
-                <p className="text-sm text-gray-500 mt-2">{service.description}</p>
+                <p className="text-sm text-ink-muted mt-2">{service.description}</p>
                 <div className="flex items-center gap-4 mt-4">
-                  <div className="flex items-center text-sm text-gray-700">
-                    <DollarSign size={14} className="mr-1 text-green-500" />
+                  <div className="flex items-center text-sm text-ink-secondary">
+                    <DollarSign size={14} className="mr-1 text-brand" />
                     <span className="font-semibold">${service.price.toFixed(2)}</span>
                   </div>
-                  <div className="flex items-center text-sm text-gray-500">
+                  <div className="flex items-center text-sm text-ink-muted">
                     <Clock size={14} className="mr-1" />
-                    {service.duration} min
+                    {service.duration} {t('services.minutes')}
                   </div>
                 </div>
               </div>
 
-              <div className="px-5 py-3 border-t border-gray-100 flex justify-end gap-3">
+              <div className="px-5 py-3 border-t border-line flex justify-end gap-3">
                 <button
                   onClick={() => openEditModal(service)}
-                  className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800"
+                  className="inline-flex items-center text-sm text-brand hover:text-brand-dark"
                 >
-                  <Pencil size={14} className="mr-1" /> Edit
+                  <Pencil size={14} className="mr-1" /> {t('common.edit')}
                 </button>
                 <button
                   onClick={() => handleDelete(service._id)}
                   className="inline-flex items-center text-sm text-red-500 hover:text-red-700"
                 >
-                  <Trash2 size={14} className="mr-1" /> Delete
+                  <Trash2 size={14} className="mr-1" /> {t('common.delete')}
                 </button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingService ? 'Edit Service' : 'Add New Service'}
+        title={editingService ? t('services.editModalTitle') : t('services.addModalTitle')}
       >
         <div className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+            <label className="field-label">{t('services.fieldName')}</label>
             <input
               type="text"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              className="field-input"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Service name"
+              placeholder={t('services.fieldNamePlaceholder')}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <label className="field-label">{t('services.fieldDescription')}</label>
             <textarea
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              className="field-input"
               rows={2}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Service description"
+              placeholder={t('services.fieldDescriptionPlaceholder')}
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Price ($)</label>
+              <label className="field-label">{t('services.fieldPrice')}</label>
               <input
                 type="number"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="field-input"
                 value={formData.price}
                 onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
                 min="0"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Duration (min)</label>
+              <label className="field-label">{t('services.fieldDuration')}</label>
               <input
                 type="number"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="field-input"
                 value={formData.duration}
                 onChange={(e) => setFormData({ ...formData, duration: Number(e.target.value) })}
                 min="5"
@@ -267,13 +253,13 @@ const Services = () => {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+            <label className="field-label">{t('services.fieldCategory')}</label>
             <select
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              className="field-input"
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value as Service['category'] })}
             >
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              {CATEGORIES.map(c => <option key={c} value={c}>{t(`categories.${c}`)}</option>)}
             </select>
           </div>
           <div className="flex items-center gap-2">
@@ -282,23 +268,16 @@ const Services = () => {
               id="isAvailable"
               checked={formData.isAvailable}
               onChange={(e) => setFormData({ ...formData, isAvailable: e.target.checked })}
-              className="rounded border-gray-300 text-indigo-600"
+              className="rounded border-line text-brand focus:ring-brand"
             />
-            <label htmlFor="isAvailable" className="text-sm text-gray-700">Available</label>
+            <label htmlFor="isAvailable" className="text-sm text-ink-secondary">{t('services.fieldAvailable')}</label>
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <button
-              onClick={() => setIsModalOpen(false)}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-            >
-              Cancel
+            <button onClick={() => setIsModalOpen(false)} className="btn btn-secondary">
+              {t('common.cancel')}
             </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {saving ? 'Saving...' : editingService ? 'Save Changes' : 'Add Service'}
+            <button onClick={handleSave} disabled={saving} className="btn btn-primary">
+              {saving ? t('common.saving') : editingService ? t('common.save') : t('services.addNew')}
             </button>
           </div>
         </div>
