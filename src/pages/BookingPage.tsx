@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useParams } from 'react-router-dom';
+import axios from 'axios';
 import { Scissors, CheckCircle } from 'lucide-react';
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
-import api from '../api';
+import { API_BASE_URL } from '../api';
 import { useLocale } from '../i18n/LocaleContext';
 import LanguageToggle from '../components/LanguageToggle';
 import { getErrorMessage } from '../utils/errors';
@@ -12,8 +14,19 @@ interface Employee { _id: string; name: string; role: string; }
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
+const DEFAULT_SALON_SLUG = 'barbershop';
+
 const BookingPage = () => {
   const { t } = useLocale();
+  const { salonSlug } = useParams<{ salonSlug?: string }>();
+  // Standalone client, scoped to this salon's slug — deliberately not the
+  // shared authenticated `api` instance, so this public page never touches
+  // (or gets touched by) an admin session's tenant in another tab.
+  const api = useMemo(() => axios.create({
+    baseURL: `${API_BASE_URL}/${salonSlug || DEFAULT_SALON_SLUG}`,
+    headers: { 'Content-Type': 'application/json' },
+  }), [salonSlug]);
+
   const [step, setStep] = useState<Step>(1);
 
   const [services, setServices]   = useState<Service[]>([]);
@@ -47,7 +60,7 @@ const BookingPage = () => {
   useEffect(() => {
     api.get('/booking/services').then(r => setServices(r.data));
     api.get('/booking/employees').then(r => setEmployees(r.data));
-  }, []);
+  }, [api]);
 
   useEffect(() => {
     if (selectedEmployee && selectedDate) {
@@ -69,7 +82,7 @@ const BookingPage = () => {
           setSlots(available);
         });
     }
-  }, [selectedEmployee, selectedDate]);
+  }, [selectedEmployee, selectedDate, api]);
 
   const toggleService = (s: Service) => {
     setSelectedServices(prev =>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { User, Plus, Star, Scissors, Pencil, Trash2 } from 'lucide-react';
-import { employeeApi, reviewApi, clientApi } from '../api';
+import { employeeApi, reviewApi, clientApi, authApi } from '../api';
 import { Employee, Client, Review } from '../api/types';
 import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
@@ -13,11 +13,20 @@ const DAY_LABELS: Record<'uk' | 'en', Record<typeof DAY_KEYS[number], string>> =
   en: { mon: 'Mo', tue: 'Tu', wed: 'We', thu: 'Th', fri: 'Fr', sat: 'Sa', sun: 'Su' },
 };
 
-const OFF = 'Вихідний';
+const defaultSchedule: Record<typeof DAY_KEYS[number], { isOpen: boolean; from: string; to: string }> = {
+  mon: { isOpen: true,  from: '09:00', to: '18:00' },
+  tue: { isOpen: true,  from: '09:00', to: '18:00' },
+  wed: { isOpen: true,  from: '09:00', to: '18:00' },
+  thu: { isOpen: true,  from: '09:00', to: '18:00' },
+  fri: { isOpen: true,  from: '09:00', to: '18:00' },
+  sat: { isOpen: true,  from: '10:00', to: '16:00' },
+  sun: { isOpen: false, from: '10:00', to: '16:00' },
+};
 
-const defaultSchedule = {
-  mon: '09:00-18:00', tue: '09:00-18:00', wed: '09:00-18:00',
-  thu: '09:00-18:00', fri: '09:00-18:00', sat: '10:00-16:00', sun: OFF,
+const formatRange = (d: { from: string; to: string }) => `${d.from}-${d.to}`;
+const parseRange = (value: string) => {
+  const [from, to] = value.split('-').map(s => s.trim());
+  return { from: from || '09:00', to: to || '18:00' };
 };
 
 const defaultForm = {
@@ -58,6 +67,11 @@ const Employees = () => {
   const [newReview,     setNewReview]     = useState({ rating: 5, text: '', clientId: '' });
   const [addingReview,  setAddingReview]  = useState(false);
 
+  // create login modal
+  const [loginEmp,    setLoginEmp]    = useState<Employee|null>(null);
+  const [loginForm,   setLoginForm]   = useState({ name: '', email: '', password: '', confirmPassword: '', role: 'barber' as 'admin' | 'barber' });
+  const [loginSaving, setLoginSaving] = useState(false);
+
   const fetchEmployees = useCallback(async () => {
     try {
       setLoading(true);
@@ -92,12 +106,11 @@ const Employees = () => {
 
   // ── schedule helpers ───────────────────────────────────────────────────────
   const toggleDay = (day: keyof typeof defaultSchedule) => {
-    const cur = formData.schedule[day];
     setFormData(p => ({
       ...p,
       schedule: {
         ...p.schedule,
-        [day]: cur === OFF ? '09:00-18:00' : OFF,
+        [day]: { ...p.schedule[day], isOpen: !p.schedule[day].isOpen },
       },
     }));
   };
@@ -105,7 +118,7 @@ const Employees = () => {
   const setDayHours = (day: keyof typeof defaultSchedule, value: string) => {
     setFormData(p => ({
       ...p,
-      schedule: { ...p.schedule, [day]: value },
+      schedule: { ...p.schedule, [day]: { ...p.schedule[day], ...parseRange(value) } },
     }));
   };
 
@@ -138,6 +151,60 @@ const Employees = () => {
       await employeeApi.delete(id);
       setEmployees(p => p.filter(e => e._id !== id));
     } catch { alert(t('employees.deleteError')); }
+  };
+
+  // ── create / manage login ───────────────────────────────────────────────────
+  const isManageMode = !!loginEmp?.userId;
+
+  const openLogin = (emp: Employee) => {
+    setLoginEmp(emp);
+    setLoginForm({
+      name: emp.name,
+      email: emp.email,
+      password: '',
+      confirmPassword: '',
+      role: emp.role === 'Manager' ? 'admin' : 'barber',
+    });
+  };
+
+  const submitLogin = async () => {
+    if (!loginEmp) return;
+
+    if (isManageMode) {
+      if (loginForm.password && loginForm.password !== loginForm.confirmPassword) {
+        alert(t('employees.passwordMismatch')); return;
+      }
+      setLoginSaving(true);
+      try {
+        await authApi.updateStaffLogin(loginEmp._id, {
+          role: loginForm.role,
+          password: loginForm.password || undefined,
+        });
+        setLoginEmp(null);
+      } catch (err) {
+        alert(getErrorMessage(err) || t('employees.updateLoginError'));
+      } finally { setLoginSaving(false); }
+      return;
+    }
+
+    if (!loginForm.email || !loginForm.password) { alert(t('employees.fillRequired')); return; }
+    if (loginForm.password !== loginForm.confirmPassword) { alert(t('employees.passwordMismatch')); return; }
+    setLoginSaving(true);
+    try {
+      const { user } = await authApi.createStaffLogin({
+        name: loginForm.name,
+        email: loginForm.email,
+        password: loginForm.password,
+        role: loginForm.role,
+        employeeId: loginEmp._id,
+      });
+      // Токен у відповіді належить щойно створеному співробітнику, а не
+      // поточному адміну — свідомо не чіпаємо localStorage/AuthContext тут.
+      setEmployees(prev => prev.map(e => e._id === loginEmp._id ? { ...e, userId: user.id } : e));
+      setLoginEmp(null);
+    } catch (err) {
+      alert(getErrorMessage(err) || t('employees.createLoginError'));
+    } finally { setLoginSaving(false); }
   };
 
   // ── reviews ────────────────────────────────────────────────────────────────
@@ -243,8 +310,8 @@ const Employees = () => {
               <div className="px-5 pb-4">
                 <div className="grid grid-cols-7 gap-0.5 text-center">
                   {DAYS.map(({ key, label }) => {
-                    const val = emp.schedule?.[key as keyof typeof emp.schedule] || '';
-                    const isOff = val === OFF || val === 'Off' || val === '';
+                    const daySchedule = emp.schedule?.[key as keyof typeof emp.schedule];
+                    const isOff = !daySchedule || !daySchedule.isOpen;
                     return (
                       <div key={key}>
                         <p className="text-xs font-medium text-ink-muted">{label}</p>
@@ -262,7 +329,10 @@ const Employees = () => {
                 <span className={`badge ${emp.isAvailable ? 'badge-success' : 'badge-muted'}`}>
                   {emp.isAvailable ? t('employees.available') : t('employees.unavailable')}
                 </span>
-                <div className="flex gap-3">
+                <div className="flex gap-3 items-center">
+                  <button onClick={() => openLogin(emp)} className="text-xs text-brand hover:text-brand-dark font-medium">
+                    {emp.userId ? t('employees.manageLogin') : t('employees.createLogin')}
+                  </button>
                   <button onClick={() => openEdit(emp)} className="text-ink-secondary hover:text-ink">
                     <Pencil size={15}/>
                   </button>
@@ -322,8 +392,8 @@ const Employees = () => {
             <label className="field-label mb-2">{t('employees.schedule')}</label>
             <div className="space-y-2">
               {DAYS.map(({ key, label }) => {
-                const val = formData.schedule[key] || OFF;
-                const isOff = val === OFF;
+                const day = formData.schedule[key];
+                const isOff = !day.isOpen;
                 return (
                   <div key={key} className="flex items-center gap-3">
                     <span className="text-sm text-ink-secondary w-6">{label}</span>
@@ -339,9 +409,9 @@ const Employees = () => {
                     ) : (
                       <input type="text"
                         className="flex-1 border border-line rounded-xs px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-brand/15 focus:border-brand"
-                        value={val}
+                        defaultValue={formatRange(day)}
                         placeholder="09:00-18:00"
-                        onChange={e => setDayHours(key, e.target.value)}/>
+                        onBlur={e => setDayHours(key, e.target.value)}/>
                     )}
                   </div>
                 );
@@ -427,6 +497,60 @@ const Employees = () => {
               onChange={e => setNewReview(p => ({ ...p, text: e.target.value }))}/>
             <button onClick={submitReview} disabled={addingReview} className="btn btn-primary w-full">
               {addingReview ? t('common.saving') : t('employees.leaveReview')}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── CREATE / MANAGE LOGIN MODAL ── */}
+      <Modal isOpen={!!loginEmp} onClose={() => setLoginEmp(null)}
+        title={isManageMode
+          ? t('employees.manageLoginModalTitle', { name: loginEmp?.name || '' })
+          : t('employees.createLoginModalTitle', { name: loginEmp?.name || '' })}>
+        <div className="space-y-3">
+          {!isManageMode && (
+            <>
+              <div>
+                <label className="field-label">{t('employees.fieldName')}</label>
+                <input className="field-input" value={loginForm.name}
+                  onChange={e => setLoginForm(p => ({ ...p, name: e.target.value }))}/>
+              </div>
+              <div>
+                <label className="field-label">{t('employees.fieldEmail')}</label>
+                <input type="email" className="field-input" value={loginForm.email}
+                  onChange={e => setLoginForm(p => ({ ...p, email: e.target.value }))}/>
+              </div>
+            </>
+          )}
+          <div>
+            <label className="field-label">{t('employees.fieldLoginRole')}</label>
+            <select className="field-input" value={loginForm.role}
+              onChange={e => setLoginForm(p => ({ ...p, role: e.target.value as 'admin' | 'barber' }))}>
+              <option value="barber">{t('employees.loginRoleBarber')}</option>
+              <option value="admin">{t('employees.loginRoleAdmin')}</option>
+            </select>
+          </div>
+          <div>
+            <label className="field-label">
+              {isManageMode ? t('employees.fieldNewPassword') : t('employees.fieldPassword')}
+            </label>
+            <input type="password" className="field-input" value={loginForm.password}
+              placeholder={isManageMode ? t('employees.leavePasswordBlank') : ''}
+              onChange={e => setLoginForm(p => ({ ...p, password: e.target.value }))}/>
+          </div>
+          {(!isManageMode || loginForm.password) && (
+            <div>
+              <label className="field-label">{t('employees.fieldConfirmPassword')}</label>
+              <input type="password" className="field-input" value={loginForm.confirmPassword}
+                onChange={e => setLoginForm(p => ({ ...p, confirmPassword: e.target.value }))}/>
+            </div>
+          )}
+          <div className="flex justify-end gap-3 pt-2">
+            <button onClick={() => setLoginEmp(null)} className="btn btn-secondary">
+              {t('common.cancel')}
+            </button>
+            <button onClick={submitLogin} disabled={loginSaving} className="btn btn-primary">
+              {loginSaving ? t('common.saving') : isManageMode ? t('common.save') : t('employees.createLogin')}
             </button>
           </div>
         </div>

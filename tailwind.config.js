@@ -1,28 +1,31 @@
 /** @type {import('tailwindcss').Config} */
+const withOpacity = (varName) => `rgb(var(${varName}) / <alpha-value>)`;
+
 export default {
+  darkMode: 'class',
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
         canvas: {
-          DEFAULT: '#FAFAF7',
-          soft: '#F4F3EF',
+          DEFAULT: withOpacity('--color-canvas'),
+          soft: withOpacity('--color-canvas-soft'),
         },
-        surface: '#FFFFFF',
+        surface: withOpacity('--color-surface'),
         ink: {
-          DEFAULT: '#1F2420',
-          secondary: '#5F665F',
-          muted: '#8A918A',
+          DEFAULT: withOpacity('--color-ink'),
+          secondary: withOpacity('--color-ink-secondary'),
+          muted: withOpacity('--color-ink-muted'),
         },
         brand: {
-          DEFAULT: '#2F8F6B',
-          dark: '#17694C',
-          soft: '#E5F5EE',
-          'extra-soft': '#F1FAF5',
+          DEFAULT: withOpacity('--color-brand'),
+          dark: withOpacity('--color-brand-dark'),
+          soft: withOpacity('--color-brand-soft'),
+          'extra-soft': withOpacity('--color-brand-extra-soft'),
         },
         line: {
-          DEFAULT: '#DEDED8',
-          medium: '#C9CBC4',
+          DEFAULT: withOpacity('--color-line'),
+          medium: withOpacity('--color-line-medium'),
         },
       },
       fontFamily: {

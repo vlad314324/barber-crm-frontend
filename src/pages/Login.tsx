@@ -1,31 +1,49 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { Scissors, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../i18n/LocaleContext';
 import LanguageToggle from '../components/LanguageToggle';
 import { defaultRouteForRole } from '../utils/roleRoutes';
-import { getErrorMessage } from '../utils/errors';
+import { resolveErrorMessage } from '../utils/errors';
+import { getSalonSlug } from '../utils/tenant';
+
+const DEFAULT_SLUG = 'barbershop';
 
 const Login = () => {
   const { t } = useLocale();
+  const { salonSlug: slugParam } = useParams<{ salonSlug?: string }>();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { login } = useAuth();
+
+  const [slugInput, setSlugInput] = useState(slugParam || getSalonSlug() || DEFAULT_SLUG);
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [error,    setError]    = useState('');
   const [loading,  setLoading]  = useState(false);
-  const { login } = useAuth();
-  const navigate  = useNavigate();
+
+  const reason = searchParams.get('reason');
+  const notice = !slugParam && reason === 'tenant_mismatch' ? t('login.tenantMismatchNotice')
+    : !slugParam && reason === 'session_expired' ? t('login.sessionExpired')
+    : '';
+
+  const handleSlugSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!slugInput.trim()) return;
+    navigate(`/login/${slugInput.trim()}`, { replace: true });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) { setError(t('login.fillAll')); return; }
+    if (!email || !password || !slugParam) { setError(t('login.fillAll')); return; }
     setLoading(true); setError('');
     try {
-      const loggedInUser = await login(email, password);
+      const loggedInUser = await login(slugParam, email, password);
       navigate(defaultRouteForRole(loggedInUser.role));
     } catch (err) {
-      setError(getErrorMessage(err) || t('login.invalidCredentials'));
+      setError(resolveErrorMessage(err, t, t('login.invalidCredentials')));
     } finally {
       setLoading(false);
     }
@@ -51,51 +69,85 @@ const Login = () => {
 
         {/* Card */}
         <div className="bg-surface rounded-lg shadow-lg p-8">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="field-label">{t('login.email')}</label>
-              <input
-                type="email"
-                className="field-input py-3"
-                placeholder="your@email.com"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                autoComplete="email"
-              />
+          {notice && (
+            <div className="bg-amber-50 border border-amber-200 rounded-sm px-4 py-3 mb-5">
+              <p className="text-sm text-amber-700">{notice}</p>
             </div>
+          )}
 
-            <div>
-              <label className="field-label">{t('login.password')}</label>
-              <div className="relative">
+          {!slugParam ? (
+            <form onSubmit={handleSlugSubmit} className="space-y-5">
+              <div>
+                <label className="field-label">{t('login.salonLabel')}</label>
                 <input
-                  type={showPass ? 'text' : 'password'}
-                  className="field-input py-3 pr-12"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  autoComplete="current-password"
+                  type="text"
+                  className="field-input py-3"
+                  placeholder={t('login.salonPlaceholder')}
+                  value={slugInput}
+                  onChange={e => setSlugInput(e.target.value)}
+                  autoFocus
                 />
-                <button type="button"
-                  onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink-secondary">
-                  {showPass ? <EyeOff size={18}/> : <Eye size={18}/>}
-                </button>
+                <p className="text-xs text-ink-muted mt-1.5">{t('login.salonHint')}</p>
               </div>
-            </div>
-
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-sm px-4 py-3">
-                <p className="text-sm text-red-600">{error}</p>
+              <button type="submit" disabled={!slugInput.trim()} className="btn btn-primary w-full py-3">
+                {t('login.continue')}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="flex items-center justify-between text-sm">
+                <span className="badge badge-neutral">{t('login.salonBadge')}: {slugParam}</span>
+                <Link to="/login" className="text-brand hover:text-brand-dark font-medium">
+                  {t('login.changeSalon')}
+                </Link>
               </div>
-            )}
 
-            <button type="submit" disabled={loading} className="btn btn-primary w-full py-3">
-              {loading ? t('login.loggingIn') : t('login.submit')}
-            </button>
-          </form>
+              <div>
+                <label className="field-label">{t('login.email')}</label>
+                <input
+                  type="email"
+                  className="field-input py-3"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  autoComplete="email"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="field-label">{t('login.password')}</label>
+                <div className="relative">
+                  <input
+                    type={showPass ? 'text' : 'password'}
+                    className="field-input py-3 pr-12"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                  />
+                  <button type="button"
+                    onClick={() => setShowPass(!showPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink-secondary">
+                    {showPass ? <EyeOff size={18}/> : <Eye size={18}/>}
+                  </button>
+                </div>
+              </div>
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-sm px-4 py-3">
+                  <p className="text-sm text-red-600">{error}</p>
+                </div>
+              )}
+
+              <button type="submit" disabled={loading} className="btn btn-primary w-full py-3">
+                {loading ? t('login.loggingIn') : t('login.submit')}
+              </button>
+            </form>
+          )}
 
           {/* Demo credentials — dev-only, never shipped in a production build */}
-          {import.meta.env.DEV && (
+          {import.meta.env.DEV && slugParam && (
             <div className="mt-6 pt-5 border-t border-line">
               <p className="text-xs text-ink-muted text-center mb-3">{t('login.demoAccounts')}</p>
               <div className="space-y-2">
@@ -114,6 +166,12 @@ const Login = () => {
             </div>
           )}
 
+          <div className="mt-6 pt-5 border-t border-line text-center text-sm text-ink-secondary">
+            {t('login.noSalonYet')}{' '}
+            <Link to="/register-salon" className="text-brand hover:text-brand-dark font-semibold">
+              {t('login.createSalon')}
+            </Link>
+          </div>
         </div>
       </div>
     </div>

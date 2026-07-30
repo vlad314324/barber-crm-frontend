@@ -1,6 +1,7 @@
 import { Menu } from 'lucide-react';
 import { useLocale } from '../i18n/LocaleContext';
 import LanguageToggle from './LanguageToggle';
+import ThemeToggle from './ThemeToggle';
 import NotificationsMenu from './NotificationsMenu';
 
 interface HeaderProps { onToggleSidebar: () => void; }
@@ -21,6 +22,10 @@ const Header = ({ onToggleSidebar }: HeaderProps) => {
 
         <div className="flex items-center space-x-4">
           <LanguageToggle />
+
+          <div className="h-8 w-px bg-line"></div>
+
+          <ThemeToggle />
 
           <div className="h-8 w-px bg-line"></div>
 

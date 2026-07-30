@@ -251,7 +251,7 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
   // Перевірка 2 — вихідний конкретного майстра
   const empDayKey = DAY_KEYS[date.getDay()];
   const val = emp.schedule?.[empDayKey as keyof typeof emp.schedule];
-  if (!val || val === 'Вихідний' || val === 'Off') return true;
+  if (!val || !val.isOpen) return true;
 
   return false;
 };

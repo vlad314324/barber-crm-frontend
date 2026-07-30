@@ -40,12 +40,12 @@ interface RfmClientRow {
 interface RfmData { summary: RfmSegmentSummary[]; segments: RfmClientRow[]; }
 
 const SEGMENT_COLORS: Record<string, string> = {
-  Champions:       'bg-purple-100 text-purple-700 border-purple-200',
-  Loyal:           'bg-blue-100 text-blue-700 border-blue-200',
-  'At Risk':       'bg-orange-100 text-orange-700 border-orange-200',
-  Lost:            'bg-red-100 text-red-700 border-red-200',
-  'New Customers': 'bg-green-100 text-green-700 border-green-200',
-  Promising:       'bg-yellow-100 text-yellow-700 border-yellow-200',
+  Champions:       'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800',
+  Loyal:           'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800',
+  'At Risk':       'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800',
+  Lost:            'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800',
+  'New Customers': 'bg-green-100 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-800',
+  Promising:       'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-950/40 dark:text-yellow-300 dark:border-yellow-800',
 };
 
 const SEGMENT_KEY: Record<string, string> = {
@@ -295,7 +295,7 @@ const Reports = () => {
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             {rfm.summary.map((s) => (
               <div key={s.segment}
-                className={`rounded-lg border p-4 ${SEGMENT_COLORS[s.segment] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                className={`rounded-lg border p-4 ${SEGMENT_COLORS[s.segment] || 'bg-canvas-soft text-ink-secondary border-line'}`}>
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="font-semibold text-sm">{segmentLabel(s.segment)}</p>

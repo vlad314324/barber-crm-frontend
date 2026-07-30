@@ -2,19 +2,71 @@ import axios from 'axios';
 import type {
   Client, Employee, Service, Appointment, Review,
   CreateClientDto, CreateEmployeeDto, CreateServiceDto,
-  CreateAppointmentDto, CreateReviewDto
+  CreateAppointmentDto, CreateReviewDto,
+  RegisterSalonDto, RegisterSalonResponse,
+  CreateStaffLoginDto, CreateStaffLoginResponse,
+  UpdateStaffLoginDto, UpdateStaffLoginResponse
 } from './types';
+import { getSalonSlug, clearSalonSlug } from '../utils/tenant';
+
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+// Endpoints that live outside the salon-slug namespace.
+const TENANT_LESS_PREFIXES = ['/salons/register'];
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+
+  const isTenantLess = TENANT_LESS_PREFIXES.some(p => config.url?.startsWith(p));
+  if (!isTenantLess) {
+    const slug = getSalonSlug();
+    if (slug && config.url) config.url = `/${slug}${config.url}`;
+  }
+
   return config;
 });
+
+api.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    if (axios.isAxiosError(error) && error.response && !TENANT_LESS_PREFIXES.some(p => error.config?.url?.includes(p))) {
+      const code = (error.response.data as { code?: string } | undefined)?.code;
+      const isLoginRequest = error.config?.url?.includes('/auth/login');
+
+      if (code === 'TENANT_MISMATCH' && !isLoginRequest) {
+        localStorage.removeItem('token');
+        clearSalonSlug();
+        if (!window.location.pathname.startsWith('/login')) {
+          window.location.href = '/login?reason=tenant_mismatch';
+        }
+      } else if (error.response.status === 401 && !isLoginRequest) {
+        localStorage.removeItem('token');
+        if (!window.location.pathname.startsWith('/login')) {
+          window.location.href = '/login?reason=session_expired';
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+export const salonApi = {
+  register: async (data: RegisterSalonDto): Promise<RegisterSalonResponse> =>
+    (await api.post('/salons/register', data)).data,
+};
+
+export const authApi = {
+  createStaffLogin: async (data: CreateStaffLoginDto): Promise<CreateStaffLoginResponse> =>
+    (await api.post('/auth/register', data)).data,
+  updateStaffLogin: async (employeeId: string, data: UpdateStaffLoginDto): Promise<UpdateStaffLoginResponse> =>
+    (await api.put(`/auth/staff/${employeeId}`, data)).data,
+};
 
 export const clientApi = {
   getAll: async (): Promise<Client[]> => (await api.get('/clients')).data,

@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { LocaleProvider } from './i18n/LocaleContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
@@ -8,6 +9,7 @@ import PageLoader from './components/PageLoader';
 import './index.css';
 
 const Login = lazy(() => import('./pages/Login'));
+const RegisterSalon = lazy(() => import('./pages/RegisterSalon'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Clients = lazy(() => import('./pages/Clients'));
 const ClientDetails = lazy(() => import('./pages/ClientDetails'));
@@ -20,13 +22,17 @@ const BookingPage = lazy(() => import('./pages/BookingPage'));
 
 function App() {
   return (
+    <ThemeProvider>
     <LocaleProvider>
     <AuthProvider>
       <Router>
         <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/login/:salonSlug" element={<Login />} />
+          <Route path="/register-salon" element={<RegisterSalon />} />
           <Route path="/book" element={<BookingPage />} />
+          <Route path="/book/:salonSlug" element={<BookingPage />} />
 
           <Route path="/" element={
             <ProtectedRoute>
@@ -81,6 +87,7 @@ function App() {
       </Router>
     </AuthProvider>
     </LocaleProvider>
+    </ThemeProvider>
   );
 }
 

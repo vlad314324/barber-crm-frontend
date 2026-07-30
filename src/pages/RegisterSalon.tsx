@@ -1,0 +1,186 @@
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Scissors, Eye, EyeOff } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useLocale } from '../i18n/LocaleContext';
+import LanguageToggle from '../components/LanguageToggle';
+import { defaultRouteForRole } from '../utils/roleRoutes';
+import { resolveErrorMessage } from '../utils/errors';
+
+const slugify = (value: string): string =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+const RegisterSalon = () => {
+  const { t } = useLocale();
+  const navigate = useNavigate();
+  const { registerSalon } = useAuth();
+
+  const [salonName, setSalonName] = useState('');
+  const [slug, setSlug]           = useState('');
+  const [slugTouched, setSlugTouched] = useState(false);
+  const [ownerName, setOwnerName]   = useState('');
+  const [ownerEmail, setOwnerEmail] = useState('');
+  const [ownerPassword, setOwnerPassword]   = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [error, setError]     = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSalonNameChange = (value: string) => {
+    setSalonName(value);
+    if (!slugTouched) setSlug(slugify(value));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!salonName || !ownerName || !ownerEmail || !ownerPassword) {
+      setError(t('registerSalon.fillAll'));
+      return;
+    }
+    if (ownerPassword !== confirmPassword) {
+      setError(t('registerSalon.passwordMismatch'));
+      return;
+    }
+    setLoading(true); setError('');
+    try {
+      const user = await registerSalon({
+        salonName,
+        slug: slug.trim() || undefined,
+        ownerName,
+        ownerEmail,
+        ownerPassword,
+      });
+      navigate(defaultRouteForRole(user.role));
+    } catch (err) {
+      setError(resolveErrorMessage(err, t, t('registerSalon.fillAll')));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-ink flex items-center justify-center px-4 py-10">
+      <div className="absolute top-4 right-4">
+        <LanguageToggle variant="dark" />
+      </div>
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-brand rounded-lg mb-4 shadow-brand">
+            <Scissors size={32} className="text-white"/>
+          </div>
+          <h1 className="text-3xl font-extrabold text-white inline-flex items-baseline" style={{ letterSpacing: '-0.03em' }}>
+            hirnix
+            <span className="w-1.5 h-1.5 rounded-full bg-brand ml-1 self-end mb-1.5" />
+          </h1>
+          <p className="text-canvas/60 mt-2">{t('registerSalon.subtitle')}</p>
+        </div>
+
+        <div className="bg-surface rounded-lg shadow-lg p-8">
+          <h2 className="text-lg font-bold text-ink mb-5">{t('registerSalon.title')}</h2>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="field-label">{t('registerSalon.salonNameLabel')}</label>
+              <input
+                type="text"
+                className="field-input py-3"
+                placeholder={t('registerSalon.salonNamePlaceholder')}
+                value={salonName}
+                onChange={e => handleSalonNameChange(e.target.value)}
+                autoFocus
+              />
+            </div>
+
+            <div>
+              <label className="field-label">{t('registerSalon.slugLabel')}</label>
+              <input
+                type="text"
+                className="field-input py-3"
+                placeholder="barbershop"
+                value={slug}
+                onChange={e => { setSlug(slugify(e.target.value)); setSlugTouched(true); }}
+              />
+              <p className="text-xs text-ink-muted mt-1.5">{t('registerSalon.slugHint')}</p>
+            </div>
+
+            <div>
+              <label className="field-label">{t('registerSalon.ownerNameLabel')}</label>
+              <input
+                type="text"
+                className="field-input py-3"
+                placeholder={t('registerSalon.ownerNamePlaceholder')}
+                value={ownerName}
+                onChange={e => setOwnerName(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="field-label">{t('registerSalon.ownerEmailLabel')}</label>
+              <input
+                type="email"
+                className="field-input py-3"
+                placeholder="your@email.com"
+                value={ownerEmail}
+                onChange={e => setOwnerEmail(e.target.value)}
+                autoComplete="email"
+              />
+            </div>
+
+            <div>
+              <label className="field-label">{t('registerSalon.ownerPasswordLabel')}</label>
+              <div className="relative">
+                <input
+                  type={showPass ? 'text' : 'password'}
+                  className="field-input py-3 pr-12"
+                  placeholder="••••••••"
+                  value={ownerPassword}
+                  onChange={e => setOwnerPassword(e.target.value)}
+                  autoComplete="new-password"
+                />
+                <button type="button"
+                  onClick={() => setShowPass(!showPass)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink-secondary">
+                  {showPass ? <EyeOff size={18}/> : <Eye size={18}/>}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="field-label">{t('registerSalon.confirmPasswordLabel')}</label>
+              <input
+                type={showPass ? 'text' : 'password'}
+                className="field-input py-3"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
+              />
+            </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-sm px-4 py-3">
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            )}
+
+            <button type="submit" disabled={loading} className="btn btn-primary w-full py-3">
+              {loading ? t('registerSalon.submitting') : t('registerSalon.submit')}
+            </button>
+          </form>
+
+          <div className="mt-6 pt-5 border-t border-line text-center text-sm text-ink-secondary">
+            {t('registerSalon.haveSalon')}{' '}
+            <Link to="/login" className="text-brand hover:text-brand-dark font-semibold">
+              {t('registerSalon.signIn')}
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default RegisterSalon;

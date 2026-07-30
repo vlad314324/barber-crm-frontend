@@ -13,8 +13,8 @@ const ProtectedRoute = ({ children, allowedRoles }: Props) => {
   const { t } = useLocale();
 
   if (loading) return (
-    <div className="flex items-center justify-center h-screen">
-      <div className="text-gray-500">{t('common.loading')}</div>
+    <div className="flex items-center justify-center h-screen bg-canvas">
+      <div className="text-ink-muted">{t('common.loading')}</div>
     </div>
   );
 

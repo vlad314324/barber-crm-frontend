@@ -21,13 +21,13 @@ export interface Employee {
   hourlyRate: number;
   isAvailable: boolean;
   schedule: {
-    mon: string;
-    tue: string;
-    wed: string;
-    thu: string;
-    fri: string;
-    sat: string;
-    sun: string;
+    mon: WorkingDay;
+    tue: WorkingDay;
+    wed: WorkingDay;
+    thu: WorkingDay;
+    fri: WorkingDay;
+    sat: WorkingDay;
+    sun: WorkingDay;
   };
   specialties: string[];
   rating?: number;
@@ -35,6 +35,7 @@ export interface Employee {
   joinDate?: string;
   bio?: string;
   image?: string;
+  userId?: string | null;
 }
 
 export interface Service {
@@ -99,13 +100,13 @@ export interface CreateEmployeeDto {
   hourlyRate: number;
   isAvailable: boolean;
   schedule?: {
-    mon: string;
-    tue: string;
-    wed: string;
-    thu: string;
-    fri: string;
-    sat: string;
-    sun: string;
+    mon: WorkingDay;
+    tue: WorkingDay;
+    wed: WorkingDay;
+    thu: WorkingDay;
+    fri: WorkingDay;
+    sat: WorkingDay;
+    sun: WorkingDay;
   };
   specialties?: string[];
 }
@@ -136,6 +137,51 @@ export interface CreateReviewDto {
   employee: string; // employee ID
   rating: number;
   comment?: string;
+}
+
+// Salon registration (multi-tenant onboarding)
+export interface RegisterSalonDto {
+  salonName: string;
+  slug?: string;
+  ownerName: string;
+  ownerEmail: string;
+  ownerPassword: string;
+}
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'barber' | 'client';
+}
+
+export interface RegisterSalonResponse {
+  token: string;
+  salon: { id: string; name: string; slug: string };
+  user: AuthUser;
+}
+
+// Staff login accounts (created by an admin from the Employees page)
+export interface CreateStaffLoginDto {
+  name: string;
+  email: string;
+  password: string;
+  role: 'admin' | 'barber';
+  employeeId?: string;
+}
+
+export interface CreateStaffLoginResponse {
+  token: string;
+  user: AuthUser;
+}
+
+export interface UpdateStaffLoginDto {
+  role?: 'admin' | 'barber';
+  password?: string;
+}
+
+export interface UpdateStaffLoginResponse {
+  user: AuthUser;
 }
 
 // Shop settings
