@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Users, Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Users, Plus, Search, Pencil, Trash2, Download, Upload } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { clientApi } from '../api';
-import { Client } from '../api/types';
+import { Client, ImportResult } from '../api/types';
 import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
+import { downloadBlob } from '../utils/download';
 
 const Clients = () => {
   const { t } = useLocale();
@@ -20,6 +21,11 @@ const Clients = () => {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [formData, setFormData] = useState({ name: '', phone: '', email: '' });
   const [saving, setSaving] = useState(false);
+
+  // Import/export
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchClients = useCallback(async () => {
     try {
@@ -84,6 +90,29 @@ const Clients = () => {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      downloadBlob(await clientApi.export(), `clients-${Date.now()}.xlsx`);
+    } catch {
+      alert(t('common.exportError'));
+    }
+  };
+
+  const handleImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      setImportResult(await clientApi.import(file));
+      fetchClients();
+    } catch (err) {
+      alert(getErrorMessage(err) || t('common.importError'));
+    } finally {
+      setImporting(false);
+      e.target.value = '';
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -91,10 +120,19 @@ const Clients = () => {
           <Users size={24} className="mr-2 text-brand" />
           {t('clients.title')}
         </h1>
-        <button onClick={openAddModal} className="btn btn-primary">
-          <Plus size={18} />
-          {t('clients.addNew')}
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={handleExport} className="btn btn-secondary">
+            <Download size={16} /> {t('common.export')}
+          </button>
+          <button onClick={() => fileInputRef.current?.click()} className="btn btn-secondary" disabled={importing}>
+            <Upload size={16} /> {importing ? t('common.importing') : t('common.import')}
+          </button>
+          <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFileChange} />
+          <button onClick={openAddModal} className="btn btn-primary">
+            <Plus size={18} />
+            {t('clients.addNew')}
+          </button>
+        </div>
       </div>
 
       <div className="ds-card overflow-hidden">
@@ -212,6 +250,28 @@ const Clients = () => {
             <button onClick={handleSave} disabled={saving} className="btn btn-primary">
               {saving ? t('common.saving') : editingClient ? t('common.save') : t('clients.addNew')}
             </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={!!importResult} onClose={() => setImportResult(null)} title={t('common.importResultTitle')}>
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+          <div className="flex gap-4 text-sm">
+            <span className="text-green-600 font-medium">{t('common.importCreated', { count: importResult?.created ?? 0 })}</span>
+            <span className="text-brand font-medium">{t('common.importUpdated', { count: importResult?.updated ?? 0 })}</span>
+            <span className="text-red-500 font-medium">{t('common.importFailed', { count: importResult?.failed ?? 0 })}</span>
+          </div>
+          {importResult && importResult.errors.length > 0 && (
+            <div className="border-t border-line pt-2 space-y-1">
+              {importResult.errors.map((e, i) => (
+                <p key={i} className="text-xs text-red-500">
+                  {t('common.importRowError', { row: e.row })}: {e.message}
+                </p>
+              ))}
+            </div>
+          )}
+          <div className="flex justify-end pt-2">
+            <button onClick={() => setImportResult(null)} className="btn btn-secondary">{t('common.close')}</button>
           </div>
         </div>
       </Modal>

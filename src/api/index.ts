@@ -1,18 +1,19 @@
 import axios from 'axios';
 import type {
-  Client, Employee, Service, Appointment, Review,
+  Client, Employee, Service, Category, Appointment, Review, Notification,
   CreateClientDto, CreateEmployeeDto, CreateServiceDto,
   CreateAppointmentDto, CreateReviewDto,
   RegisterSalonDto, RegisterSalonResponse,
   CreateStaffLoginDto, CreateStaffLoginResponse,
-  UpdateStaffLoginDto, UpdateStaffLoginResponse
+  UpdateStaffLoginDto, UpdateStaffLoginResponse,
+  ImportResult
 } from './types';
 import { getSalonSlug, clearSalonSlug } from '../utils/tenant';
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // Endpoints that live outside the salon-slug namespace.
-const TENANT_LESS_PREFIXES = ['/salons/register'];
+const TENANT_LESS_PREFIXES = ['/salons/register', '/salons/invitations'];
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -56,9 +57,17 @@ api.interceptors.response.use(
   }
 );
 
+async function importFile(url: string, file: File): Promise<ImportResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return (await api.post(url, formData, { headers: { 'Content-Type': 'multipart/form-data' } })).data;
+}
+
 export const salonApi = {
   register: async (data: RegisterSalonDto): Promise<RegisterSalonResponse> =>
     (await api.post('/salons/register', data)).data,
+  validateInvitation: async (token: string): Promise<{ email: string }> =>
+    (await api.get(`/salons/invitations/${token}`)).data,
 };
 
 export const authApi = {
@@ -74,6 +83,8 @@ export const clientApi = {
   create: async (data: CreateClientDto): Promise<Client> => (await api.post('/clients', data)).data,
   update: async (id: string, data: Partial<CreateClientDto>): Promise<Client> => (await api.put(`/clients/${id}`, data)).data,
   delete: async (id: string): Promise<void> => { await api.delete(`/clients/${id}`); },
+  export: async (): Promise<Blob> => (await api.get('/clients/export', { responseType: 'blob' })).data,
+  import: (file: File): Promise<ImportResult> => importFile('/clients/import', file),
 };
 
 export const employeeApi = {
@@ -82,6 +93,10 @@ export const employeeApi = {
   create: async (data: CreateEmployeeDto): Promise<Employee> => (await api.post('/employees', data)).data,
   update: async (id: string, data: Partial<CreateEmployeeDto>): Promise<Employee> => (await api.put(`/employees/${id}`, data)).data,
   delete: async (id: string): Promise<void> => { await api.delete(`/employees/${id}`); },
+  deactivate: async (id: string): Promise<Employee> => (await api.post(`/employees/${id}/deactivate`)).data,
+  reactivate: async (id: string): Promise<Employee> => (await api.post(`/employees/${id}/reactivate`)).data,
+  export: async (): Promise<Blob> => (await api.get('/employees/export', { responseType: 'blob' })).data,
+  import: (file: File): Promise<ImportResult> => importFile('/employees/import', file),
 };
 
 export const appointmentApi = {
@@ -90,6 +105,10 @@ export const appointmentApi = {
   create: async (data: CreateAppointmentDto): Promise<Appointment> => (await api.post('/appointments', data)).data,
   update: async (id: string, data: Partial<CreateAppointmentDto>): Promise<Appointment> => (await api.put(`/appointments/${id}`, data)).data,
   delete: async (id: string): Promise<void> => { await api.delete(`/appointments/${id}`); },
+  export: async (): Promise<Blob> => (await api.get('/appointments/export', { responseType: 'blob' })).data,
+  import: (file: File): Promise<ImportResult> => importFile('/appointments/import', file),
+  addNote: async (id: string, text: string): Promise<Appointment> =>
+    (await api.post(`/appointments/${id}/notes`, { text })).data,
 };
 
 export const serviceApi = {
@@ -98,6 +117,20 @@ export const serviceApi = {
   create: async (data: CreateServiceDto): Promise<Service> => (await api.post('/services', data)).data,
   update: async (id: string, data: Partial<CreateServiceDto>): Promise<Service> => (await api.put(`/services/${id}`, data)).data,
   delete: async (id: string): Promise<void> => { await api.delete(`/services/${id}`); },
+  export: async (): Promise<Blob> => (await api.get('/services/export', { responseType: 'blob' })).data,
+  import: (file: File): Promise<ImportResult> => importFile('/services/import', file),
+};
+
+export const categoryApi = {
+  getAll: async (): Promise<Category[]> => (await api.get('/categories')).data,
+  create: async (data: { name: string; icon?: string }): Promise<Category> => (await api.post('/categories', data)).data,
+  update: async (id: string, data: { name: string; icon?: string }): Promise<Category> => (await api.put(`/categories/${id}`, data)).data,
+  delete: async (id: string): Promise<void> => { await api.delete(`/categories/${id}`); },
+};
+
+export const notificationApi = {
+  getAll: async (): Promise<Notification[]> => (await api.get('/notifications')).data,
+  markRead: async (id: string): Promise<Notification> => (await api.patch(`/notifications/${id}/read`)).data,
 };
 
 export const reviewApi = {

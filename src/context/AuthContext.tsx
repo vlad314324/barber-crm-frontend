@@ -16,6 +16,8 @@ interface AuthContextType {
   salonSlug: string | null;
   login: (salonSlug: string, email: string, password: string) => Promise<User>;
   registerSalon: (data: RegisterSalonDto) => Promise<User>;
+  forgotPassword: (salonSlug: string, email: string, lang: string) => Promise<void>;
+  resetPassword: (salonSlug: string, token: string, password: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
 }
@@ -78,6 +80,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return res.user;
   };
 
+  const forgotPassword = async (slug: string, email: string, lang: string): Promise<void> => {
+    setSalonSlug(slug);
+    setSalonSlugState(slug);
+    await api.post('/auth/forgot-password', { email, lang });
+  };
+
+  const resetPassword = async (slug: string, token: string, password: string): Promise<void> => {
+    setSalonSlug(slug);
+    setSalonSlugState(slug);
+    await api.post('/auth/reset-password', { token, password });
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     clearSalonSlug();
@@ -87,7 +101,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, salonSlug, login, registerSalon, logout, loading }}>
+    <AuthContext.Provider value={{ user, token, salonSlug, login, registerSalon, forgotPassword, resetPassword, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

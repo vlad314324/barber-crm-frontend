@@ -21,6 +21,12 @@ const Sidebar = ({ closeSidebar }: SidebarProps) => {
   const isAdmin  = user?.role === 'admin';
   const isBarber = user?.role === 'barber';
 
+  // Закривати сайдбар по кліку треба лише в мобільному drawer-режимі (<lg) —
+  // на десктопі той самий sidebarOpen керує шириною колонки, і клік не має її згортати.
+  const handleNavClick = () => {
+    if (window.innerWidth < 1024) closeSidebar();
+  };
+
   const navItems = [
     { name: t('sidebar.nav.dashboard'),    path: '/',            icon: <LayoutDashboard size={20}/>, show: isAdmin },
     { name: t('sidebar.nav.clients'),      path: '/clients',     icon: <Users size={20}/>,           show: isAdmin },
@@ -59,7 +65,7 @@ const Sidebar = ({ closeSidebar }: SidebarProps) => {
         <ul className="space-y-1 px-2">
           {navItems.map(item => (
             <li key={item.path}>
-              <NavLink to={item.path} onClick={closeSidebar}
+              <NavLink to={item.path} onClick={handleNavClick}
                 className={({ isActive }) =>
                   `flex items-center px-3 py-2.5 text-sm rounded-sm font-medium transition-colors ${
                     isActive

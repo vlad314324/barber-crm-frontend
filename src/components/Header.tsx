@@ -1,4 +1,5 @@
 import { Menu } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { useLocale } from '../i18n/LocaleContext';
 import LanguageToggle from './LanguageToggle';
 import ThemeToggle from './ThemeToggle';
@@ -8,6 +9,8 @@ interface HeaderProps { onToggleSidebar: () => void; }
 
 const Header = ({ onToggleSidebar }: HeaderProps) => {
   const { t, lang } = useLocale();
+  const { pathname } = useLocation();
+  const isSettingsPage = pathname === '/settings';
 
   return (
     <header className="sticky top-0 z-30 bg-canvas/85 backdrop-blur-md border-b border-line">
@@ -21,13 +24,17 @@ const Header = ({ onToggleSidebar }: HeaderProps) => {
         </button>
 
         <div className="flex items-center space-x-4">
-          <LanguageToggle />
+          {isSettingsPage && (
+            <>
+              <LanguageToggle />
 
-          <div className="h-8 w-px bg-line"></div>
+              <div className="h-8 w-px bg-line"></div>
 
-          <ThemeToggle />
+              <ThemeToggle />
 
-          <div className="h-8 w-px bg-line"></div>
+              <div className="h-8 w-px bg-line"></div>
+            </>
+          )}
 
           <NotificationsMenu />
 

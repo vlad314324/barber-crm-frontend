@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, Plus, UserPlus, ChevronDown } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Calendar, ChevronLeft, ChevronRight, Plus, UserPlus, ChevronDown, Download, Upload, MessageSquare } from 'lucide-react';
 import { appointmentApi, clientApi, employeeApi, serviceApi } from '../api';
 import api from '../api';
-import { Appointment, Client, Employee, Service, ShopSettings } from '../api/types';
+import { Appointment, Client, Employee, Service, ShopSettings, ImportResult } from '../api/types';
 import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
+import { downloadBlob } from '../utils/download';
 
 const COUNTRIES = [
   { code: '+380', flag: '🇺🇦', name: 'Україна' },
@@ -92,7 +94,7 @@ const PhoneInput = ({ value, onChange }: { value: string; onChange: (v: string) 
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  Scheduled: 'bg-ink border-ink',
+  Scheduled: 'bg-slate-500 border-slate-600',
   Completed:  'bg-brand border-brand-dark',
   Cancelled:  'bg-red-400 border-red-500',
   'No-show':  'bg-ink-muted border-ink-muted',
@@ -201,6 +203,7 @@ const defaultEdit: EditApptForm = {
 
 const Appointments = () => {
   const { t, lang } = useLocale();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [clients,      setClients]      = useState<Client[]>([]);
@@ -219,6 +222,12 @@ const Appointments = () => {
   const [editAppt,   setEditAppt]   = useState<Appointment|null>(null);
   const [editForm,   setEditForm]   = useState<EditApptForm>(defaultEdit);
   const [editSaving, setEditSaving] = useState(false);
+  const [noteText,   setNoteText]   = useState('');
+  const [addingNote, setAddingNote] = useState(false);
+
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const importFileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -234,7 +243,40 @@ const Appointments = () => {
   }, []);
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
+  const handleExport = async () => {
+    try {
+      downloadBlob(await appointmentApi.export(), `appointments-${Date.now()}.xlsx`);
+    } catch {
+      alert(t('common.exportError'));
+    }
+  };
+
+  const handleImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      setImportResult(await appointmentApi.import(file));
+      fetchAll();
+    } catch (err) {
+      alert(getErrorMessage(err) || t('common.importError'));
+    } finally {
+      setImporting(false);
+      e.target.value = '';
+    }
+  };
+
   const barbers = employees.filter(e => e.role === 'Barber');
+  // Деактивованих не можна призначати на нові/існуючі записи — окрім випадку,
+  // коли редагується запис, вже призначений на деактивованого майстра (щоб
+  // не втратити можливість переглянути/зберегти цей запис без примусової
+  // зміни майстра).
+  const assignableBarbers = barbers.filter(e => e.isActive !== false);
+  const editAssignedEmployee = editAppt && typeof editAppt.employee === 'object' ? editAppt.employee : null;
+  const editBarbers = editAssignedEmployee && editAssignedEmployee.isActive === false
+    && !assignableBarbers.some(b => b._id === editAssignedEmployee._id)
+    ? [...assignableBarbers, editAssignedEmployee]
+    : assignableBarbers;
 
   // ── day off check ─────────────────────────────────────────────────────────
   const DAY_KEYS_FULL = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -278,6 +320,19 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
     const eid = typeof a.employee==='object' ? a.employee._id : a.employee;
     return eid === id;
   });
+
+  // Деактивований майстер зникає з колонок календаря на майбутні дати (щоб
+  // на нього не можна було записати клієнта надалі), але лишається видимим
+  // на сьогодні й у минулих датах — щоб історія записів у календарі не
+  // зникала заднім числом. Якщо в деактивованого майстра вже є нескасований
+  // запис саме на цю майбутню дату — колонка теж лишається, щоб цей запис
+  // не загубився з очей.
+  const todayNormalized = new Date(); todayNormalized.setHours(0,0,0,0);
+  const currentDateNormalized = new Date(currentDate); currentDateNormalized.setHours(0,0,0,0);
+  const isFutureDate = currentDateNormalized.getTime() > todayNormalized.getTime();
+  const calendarBarbers = isFutureDate
+    ? barbers.filter(e => e.isActive !== false || apptsByBarber(e._id).some(a => a.status !== 'Cancelled'))
+    : barbers;
 
   const isSlotBusy = (empId: string, slotTime: string, excludeId?: string): boolean => {
     const [sh, sm] = slotTime.split(':').map(Number);
@@ -357,7 +412,21 @@ if (selectedBarber) {
       totalPrice:appt.totalPrice, status:appt.status,
     });
     setEditAppt(appt);
+    setNoteText('');
   };
+
+  // Дозволяє відкрити конкретний запис при переході з посилання на
+  // сповіщення про нове бронювання (`/appointments?appointmentId=...`).
+  useEffect(() => {
+    const id = searchParams.get('appointmentId');
+    if (!id || appointments.length === 0) return;
+    const appt = appointments.find(a => a._id === id);
+    if (appt) {
+      setCurrentDate(new Date(appt.date));
+      openEdit(appt);
+    }
+    setSearchParams(prev => { prev.delete('appointmentId'); return prev; }, { replace: true });
+  }, [appointments, searchParams]);
 
   const handleEditSave = async () => {
     if (!editAppt) return;
@@ -387,6 +456,17 @@ if (selectedBarber) {
     } catch { alert(t('appointments.genericError')); }
   };
 
+  const handleAddNote = async () => {
+    if (!editAppt || !noteText.trim()) return;
+    setAddingNote(true);
+    try {
+      const updated = await appointmentApi.addNote(editAppt._id, noteText.trim());
+      setEditAppt(updated);
+      setNoteText('');
+    } catch (err) { alert(getErrorMessage(err) || t('appointments.genericError')); }
+    finally { setAddingNote(false); }
+  };
+
   const toggleService = (ids: string[], svcId: string, isAdd: boolean) => {
     const next = isAdd ? [...ids, svcId] : ids.filter(id => id !== svcId);
     const price = next.reduce((s,id) => s + (services.find(sv=>sv._id===id)?.price||0), 0);
@@ -404,11 +484,20 @@ if (selectedBarber) {
         <h1 className="text-2xl font-extrabold text-ink tracking-tight flex items-center">
           <Calendar size={24} className="mr-2 text-brand"/> {t('appointments.title')}
         </h1>
-        <button
-          onClick={() => { setAddForm({...defaultAdd, date:dateStr(currentDate)}); setAddingNC(false); setIsAddOpen(true); }}
-          className="btn btn-primary">
-          <Plus size={16}/> {t('appointments.addNew')}
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={handleExport} className="btn btn-secondary">
+            <Download size={16}/> {t('common.export')}
+          </button>
+          <button onClick={() => importFileInputRef.current?.click()} className="btn btn-secondary" disabled={importing}>
+            <Upload size={16}/> {importing ? t('common.importing') : t('common.import')}
+          </button>
+          <input ref={importFileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFileChange}/>
+          <button
+            onClick={() => { setAddForm({...defaultAdd, date:dateStr(currentDate)}); setAddingNC(false); setIsAddOpen(true); }}
+            className="btn btn-primary">
+            <Plus size={16}/> {t('appointments.addNew')}
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-4 items-start">
@@ -450,9 +539,9 @@ if (selectedBarber) {
               <thead>
                 <tr className="bg-canvas-soft border-b border-line">
                   <th className="w-16 border-r border-line"/>
-                  {barbers.length === 0
+                  {calendarBarbers.length === 0
                     ? <th className="py-4 text-sm text-ink-muted font-normal">{t('appointments.noBarbers')}</th>
-                    : barbers.map(emp => {
+                    : calendarBarbers.map(emp => {
                       const off = isDayOff(emp, currentDate);
                       return (
                         <th key={emp._id} className={`border-l border-line py-2 px-2 text-center font-normal ${off ? 'bg-canvas-soft' : ''}`}>
@@ -476,7 +565,7 @@ if (selectedBarber) {
                         <span className="text-xs text-ink-muted leading-none">{slot}</span>
                       )}
                     </td>
-                    {barbers.map(emp => {
+                    {calendarBarbers.map(emp => {
                       const off = isDayOff(emp, currentDate);
 
                       // ── вихідний день ──────────────────────────────────────
@@ -524,7 +613,10 @@ if (selectedBarber) {
                                 onClick={e => { e.stopPropagation(); openEdit(apptHere); }}
                                 style={{ height:`${height}px`, position:'absolute', top:0, left:4, right:4, zIndex:5 }}
                                 className={`rounded border-l-4 px-1.5 py-0.5 text-white text-xs cursor-pointer hover:opacity-90 shadow-sm overflow-hidden ${color}`}>
-                                <p className="font-semibold truncate leading-tight">{clientName(apptHere.client)}</p>
+                                <p className="font-semibold truncate leading-tight flex items-center gap-1">
+                                  {clientName(apptHere.client)}
+                                  {(apptHere.notes?.length ?? 0) > 0 && <MessageSquare size={11} className="shrink-0 opacity-90"/>}
+                                </p>
                                 <p className="truncate opacity-90 leading-tight">{svcNames(apptHere.services)}</p>
                                 {height > 40 && <p className="opacity-75 leading-tight">{apptHere.startTime} · ${apptHere.totalPrice}</p>}
                               </div>
@@ -542,66 +634,68 @@ if (selectedBarber) {
       </div>
 
       {/* ── ADD MODAL ── */}
-      <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title={t('appointments.newModalTitle')}>
-        <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-sm font-semibold text-ink">{t('appointments.client')}</label>
-              <button type="button" onClick={() => { setAddingNC(!addingNC); setPhoneMatch(null); setNewClient(defaultNC); }}
-                className="text-xs text-brand hover:text-brand-dark flex items-center gap-1">
-                <UserPlus size={12}/> {addingNC ? t('appointments.chooseExisting') : t('appointments.newClient')}
-              </button>
-            </div>
-            {addingNC ? (
-              <div className="border border-line rounded-sm p-3 bg-canvas-soft space-y-2">
-                <div>
-                  <label className="text-xs text-ink-muted mb-1 block">{t('appointments.phoneLabel')}</label>
-                  <PhoneInput value={newClient.phone} onChange={handlePhoneChange}/>
-                </div>
-                {phoneMatch ? (
-                  <div className="bg-brand-soft border border-brand/30 rounded-xs p-2">
-                    <p className="text-brand-dark text-sm font-medium">✓ {t('appointments.found', { name: phoneMatch.name })}</p>
-                    <p className="text-brand-dark text-xs">{phoneMatch.email}</p>
-                    <p className="text-ink-muted text-xs mt-0.5">{t('appointments.willUseExisting')}</p>
-                  </div>
-                ) : (
-                  <>
-                    <div>
-                      <label className="text-xs text-ink-muted mb-0.5 block">{t('appointments.nameLabel')}</label>
-                      <input type="text" className="field-input py-1.5"
-                        placeholder={t('clients.namePlaceholder')} value={newClient.name}
-                        onChange={e => setNewClient(p => ({...p, name:e.target.value}))}/>
-                    </div>
-                    <div>
-                      <label className="text-xs text-ink-muted mb-0.5 block">{t('appointments.emailLabel')}</label>
-                      <input type="email" className="field-input py-1.5"
-                        placeholder="email@example.com" value={newClient.email}
-                        onChange={e => setNewClient(p => ({...p, email:e.target.value}))}/>
-                    </div>
-                  </>
-                )}
+      <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title={t('appointments.newModalTitle')} size="xl">
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-sm font-semibold text-ink">{t('appointments.client')}</label>
+                <button type="button" onClick={() => { setAddingNC(!addingNC); setPhoneMatch(null); setNewClient(defaultNC); }}
+                  className="text-xs text-brand hover:text-brand-dark flex items-center gap-1">
+                  <UserPlus size={12}/> {addingNC ? t('appointments.chooseExisting') : t('appointments.newClient')}
+                </button>
               </div>
-            ) : (
-              <select className="field-input"
-                value={addForm.clientId} onChange={e => setAddForm({...addForm, clientId:e.target.value})}>
-                <option value="">{t('appointments.choosePlaceholder')}</option>
-                {clients.map(c => <option key={c._id} value={c._id}>{c.name} · {c.phone}</option>)}
-              </select>
-            )}
-          </div>
+              {addingNC ? (
+                <div className="border border-line rounded-sm p-3 bg-canvas-soft space-y-2">
+                  <div>
+                    <label className="text-xs text-ink-muted mb-1 block">{t('appointments.phoneLabel')}</label>
+                    <PhoneInput value={newClient.phone} onChange={handlePhoneChange}/>
+                  </div>
+                  {phoneMatch ? (
+                    <div className="bg-brand-soft border border-brand/30 rounded-xs p-2">
+                      <p className="text-brand-dark text-sm font-medium">✓ {t('appointments.found', { name: phoneMatch.name })}</p>
+                      <p className="text-brand-dark text-xs">{phoneMatch.email}</p>
+                      <p className="text-ink-muted text-xs mt-0.5">{t('appointments.willUseExisting')}</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <label className="text-xs text-ink-muted mb-0.5 block">{t('appointments.nameLabel')}</label>
+                        <input type="text" className="field-input py-1.5"
+                          placeholder={t('clients.namePlaceholder')} value={newClient.name}
+                          onChange={e => setNewClient(p => ({...p, name:e.target.value}))}/>
+                      </div>
+                      <div>
+                        <label className="text-xs text-ink-muted mb-0.5 block">{t('appointments.emailLabel')}</label>
+                        <input type="email" className="field-input py-1.5"
+                          placeholder="email@example.com" value={newClient.email}
+                          onChange={e => setNewClient(p => ({...p, email:e.target.value}))}/>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <select className="field-input"
+                  value={addForm.clientId} onChange={e => setAddForm({...addForm, clientId:e.target.value})}>
+                  <option value="">{t('appointments.choosePlaceholder')}</option>
+                  {clients.map(c => <option key={c._id} value={c._id}>{c.name} · {c.phone}</option>)}
+                </select>
+              )}
+            </div>
 
-          <div>
-            <label className="field-label">{t('appointments.master')}</label>
-            <select className="field-input"
-              value={addForm.employeeId} onChange={e => setAddForm({...addForm, employeeId:e.target.value})}>
-              <option value="">{t('appointments.masterChoosePlaceholder')}</option>
-              {barbers.map(e => <option key={e._id} value={e._id}>{e.name}</option>)}
-            </select>
+            <div>
+              <label className="field-label">{t('appointments.master')}</label>
+              <select className="field-input"
+                value={addForm.employeeId} onChange={e => setAddForm({...addForm, employeeId:e.target.value})}>
+                <option value="">{t('appointments.masterChoosePlaceholder')}</option>
+                {assignableBarbers.map(e => <option key={e._id} value={e._id}>{e.name}</option>)}
+              </select>
+            </div>
           </div>
 
           <div>
             <label className="field-label">{t('appointments.services')}</label>
-            <div className="border border-line rounded-sm p-2 max-h-32 overflow-y-auto space-y-1">
+            <div className="border border-line rounded-sm p-2 max-h-56 overflow-y-auto space-y-1">
               {services.filter(s=>s.isAvailable).map(s => (
                 <label key={s._id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-canvas-soft p-1 rounded-xs">
                   <input type="checkbox" className="rounded border-line text-brand focus:ring-brand"
@@ -654,26 +748,30 @@ if (selectedBarber) {
       </Modal>
 
       {/* ── EDIT MODAL ── */}
-      <Modal isOpen={!!editAppt} onClose={() => setEditAppt(null)} title={t('appointments.editModalTitle')}>
+      <Modal isOpen={!!editAppt} onClose={() => setEditAppt(null)} title={t('appointments.editModalTitle')} size="xl">
         {editAppt && (
-          <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-            <div>
-              <label className="field-label">{t('appointments.client')}</label>
-              <select className="field-input"
-                value={editForm.clientId} onChange={e => setEditForm({...editForm, clientId:e.target.value})}>
-                {clients.map(c => <option key={c._id} value={c._id}>{c.name} · {c.phone}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="field-label">{t('appointments.master')}</label>
-              <select className="field-input"
-                value={editForm.employeeId} onChange={e => setEditForm({...editForm, employeeId:e.target.value})}>
-                {barbers.map(e => <option key={e._id} value={e._id}>{e.name}</option>)}
-              </select>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="field-label">{t('appointments.client')}</label>
+                <select className="field-input"
+                  value={editForm.clientId} onChange={e => setEditForm({...editForm, clientId:e.target.value})}>
+                  {clients.map(c => <option key={c._id} value={c._id}>{c.name} · {c.phone}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="field-label">{t('appointments.master')}</label>
+                <select className="field-input"
+                  value={editForm.employeeId} onChange={e => setEditForm({...editForm, employeeId:e.target.value})}>
+                  {editBarbers.map(e => (
+                    <option key={e._id} value={e._id}>{e.name}{e.isActive === false ? ` (${t('employees.deactivated')})` : ''}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div>
               <label className="field-label">{t('appointments.services')}</label>
-              <div className="border border-line rounded-sm p-2 max-h-32 overflow-y-auto space-y-1">
+              <div className="border border-line rounded-sm p-2 max-h-56 overflow-y-auto space-y-1">
                 {services.filter(s=>s.isAvailable).map(s => (
                   <label key={s._id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-canvas-soft p-1 rounded-xs">
                     <input type="checkbox" className="rounded border-line text-brand focus:ring-brand"
@@ -724,6 +822,35 @@ if (selectedBarber) {
                 ))}
               </div>
             </div>
+            <div>
+              <label className="field-label mb-2">{t('appointments.notes')}</label>
+              {editAppt.notes && editAppt.notes.length > 0 ? (
+                <div className="space-y-2 max-h-40 overflow-y-auto mb-2 pr-1">
+                  {editAppt.notes.map((n, i) => (
+                    <div key={n._id || i} className="bg-canvas-soft rounded-sm p-2 text-sm">
+                      <div className="flex justify-between items-baseline mb-0.5 gap-2">
+                        <span className="font-medium text-ink">{n.authorName}</span>
+                        <span className="text-xs text-ink-muted shrink-0">
+                          {new Date(n.createdAt).toLocaleString(lang === 'uk' ? 'uk-UA' : 'en-US')}
+                        </span>
+                      </div>
+                      <p className="text-ink-secondary whitespace-pre-wrap">{n.text}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-ink-muted mb-2">{t('appointments.noNotes')}</p>
+              )}
+              <div className="flex gap-2">
+                <textarea rows={2} className="field-input flex-1 resize-none"
+                  placeholder={t('appointments.notesPlaceholder')}
+                  value={noteText} onChange={e => setNoteText(e.target.value)}/>
+                <button onClick={handleAddNote} disabled={addingNote || !noteText.trim()}
+                  className="btn btn-secondary self-end">
+                  {t('appointments.addNote')}
+                </button>
+              </div>
+            </div>
             <div className="flex justify-between pt-2 border-t border-line">
               <button onClick={() => handleDelete(editAppt._id)}
                 className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 font-medium">
@@ -740,6 +867,28 @@ if (selectedBarber) {
             </div>
           </div>
         )}
+      </Modal>
+
+      <Modal isOpen={!!importResult} onClose={() => setImportResult(null)} title={t('common.importResultTitle')}>
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+          <div className="flex gap-4 text-sm">
+            <span className="text-green-600 font-medium">{t('common.importCreated', { count: importResult?.created ?? 0 })}</span>
+            <span className="text-brand font-medium">{t('common.importUpdated', { count: importResult?.updated ?? 0 })}</span>
+            <span className="text-red-500 font-medium">{t('common.importFailed', { count: importResult?.failed ?? 0 })}</span>
+          </div>
+          {importResult && importResult.errors.length > 0 && (
+            <div className="border-t border-line pt-2 space-y-1">
+              {importResult.errors.map((e, i) => (
+                <p key={i} className="text-xs text-red-500">
+                  {t('common.importRowError', { row: e.row })}: {e.message}
+                </p>
+              ))}
+            </div>
+          )}
+          <div className="flex justify-end pt-2">
+            <button onClick={() => setImportResult(null)} className="btn btn-secondary">{t('common.close')}</button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

@@ -1,41 +1,89 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Scissors, ScissorsLineDashed, Droplet, ShowerHead, Wind, Sparkles,
-  Plus, Search, Pencil, Trash2, Clock, DollarSign,
+  Heart, Flower2, Palette, Waves, Sun, Gem, Brush, Hand, Zap, SprayCan,
+  Plus, Search, Pencil, Trash2, Clock, DollarSign, Download, Upload, Tags, X, Check,
 } from 'lucide-react';
-import { serviceApi } from '../api';
-import { Service } from '../api/types';
+import { serviceApi, categoryApi } from '../api';
+import { Service, Category, ImportResult } from '../api/types';
 import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
-
-const CATEGORIES = ['Haircut', 'Beard Trim', 'Shave', 'Hair Wash', 'Styling', 'Other'] as const;
+import { downloadBlob } from '../utils/download';
 
 const defaultForm = {
   name: '', description: '', price: 0, duration: 30,
-  category: 'Haircut' as Service['category'],
+  category: '',
   isAvailable: true,
 };
 
-const categoryIcon: Record<string, typeof Scissors> = {
-  'Haircut': Scissors,
-  'Beard Trim': ScissorsLineDashed,
-  'Shave': Droplet,
-  'Hair Wash': ShowerHead,
-  'Styling': Wind,
-  'Other': Sparkles,
+const DEFAULT_ICON = 'Sparkles';
+
+// Набір іконок, з яких адміністратор обирає для власної категорії — той
+// самий список, що бекенд валідує у `routes/categoryRoutes.js` (VALID_ICONS).
+const ICON_OPTIONS: Record<string, typeof Scissors> = {
+  Scissors, ScissorsLineDashed, Droplet, ShowerHead, Wind, Sparkles,
+  Heart, Flower2, Palette, Waves, Sun, Gem, Brush, Hand, Zap, SprayCan,
 };
+
+const IconPicker = ({ value, onChange }: { value: string; onChange: (icon: string) => void }) => (
+  <div className="flex flex-wrap gap-1.5">
+    {Object.entries(ICON_OPTIONS).map(([key, Icon]) => (
+      <button
+        key={key}
+        type="button"
+        onClick={() => onChange(key)}
+        className={`p-2 rounded-sm border transition-colors ${
+          value === key ? 'border-brand bg-brand-extra-soft text-brand' : 'border-line text-ink-secondary hover:border-line-medium'
+        }`}
+      >
+        <Icon size={16} />
+      </button>
+    ))}
+  </div>
+);
 
 const Services = () => {
   const { t } = useLocale();
   const [searchTerm, setSearchTerm] = useState('');
   const [services, setServices] = useState<Service[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [formData, setFormData] = useState(defaultForm);
   const [saving, setSaving] = useState(false);
+
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryIcon, setNewCategoryIcon] = useState(DEFAULT_ICON);
+  const [savingCategory, setSavingCategory] = useState(false);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editCategoryName, setEditCategoryName] = useState('');
+  const [editCategoryIcon, setEditCategoryIcon] = useState(DEFAULT_ICON);
+
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const categoryLabel = (name: string) => {
+    const translated = t(`categories.${name}`);
+    return translated === `categories.${name}` ? name : translated;
+  };
+
+  const iconForCategory = (categoryName: string) => {
+    const iconKey = categories.find(c => c.name === categoryName)?.icon || DEFAULT_ICON;
+    return ICON_OPTIONS[iconKey] || Sparkles;
+  };
+
+  const fetchCategories = useCallback(async () => {
+    try {
+      setCategories(await categoryApi.getAll());
+    } catch {
+      setCategories([]);
+    }
+  }, []);
 
   const fetchServices = useCallback(async () => {
     try {
@@ -49,7 +97,7 @@ const Services = () => {
     }
   }, [t]);
 
-  useEffect(() => { fetchServices(); }, [fetchServices]);
+  useEffect(() => { fetchServices(); fetchCategories(); }, [fetchServices, fetchCategories]);
 
   const filteredServices = services.filter(s =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -58,7 +106,7 @@ const Services = () => {
 
   const openAddModal = () => {
     setEditingService(null);
-    setFormData(defaultForm);
+    setFormData({ ...defaultForm, category: categories[0]?.name || '' });
     setIsModalOpen(true);
   };
 
@@ -106,6 +154,78 @@ const Services = () => {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      downloadBlob(await serviceApi.export(), `services-${Date.now()}.xlsx`);
+    } catch {
+      alert(t('common.exportError'));
+    }
+  };
+
+  const handleImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      setImportResult(await serviceApi.import(file));
+      fetchServices();
+      fetchCategories();
+    } catch (err) {
+      alert(getErrorMessage(err) || t('common.importError'));
+    } finally {
+      setImporting(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleAddCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name) return;
+    setSavingCategory(true);
+    try {
+      const created = await categoryApi.create({ name, icon: newCategoryIcon });
+      setCategories(prev => [...prev, created]);
+      setNewCategoryName('');
+      setNewCategoryIcon(DEFAULT_ICON);
+    } catch (err) {
+      alert(getErrorMessage(err) || t('services.categorySaveError'));
+    } finally {
+      setSavingCategory(false);
+    }
+  };
+
+  const startEditCategory = (cat: Category) => {
+    setEditingCategoryId(cat._id);
+    setEditCategoryName(cat.name);
+    setEditCategoryIcon(cat.icon || DEFAULT_ICON);
+  };
+
+  const cancelEditCategory = () => setEditingCategoryId(null);
+
+  const saveEditCategory = async () => {
+    if (!editingCategoryId) return;
+    const name = editCategoryName.trim();
+    if (!name) return;
+    try {
+      const updated = await categoryApi.update(editingCategoryId, { name, icon: editCategoryIcon });
+      setCategories(prev => prev.map(c => c._id === editingCategoryId ? updated : c));
+      setEditingCategoryId(null);
+      fetchServices();
+    } catch (err) {
+      alert(getErrorMessage(err) || t('services.categorySaveError'));
+    }
+  };
+
+  const handleDeleteCategory = async (cat: Category) => {
+    if (!confirm(t('services.categoryDeleteConfirm', { name: categoryLabel(cat.name) }))) return;
+    try {
+      await categoryApi.delete(cat._id);
+      setCategories(prev => prev.filter(c => c._id !== cat._id));
+    } catch (err) {
+      alert(getErrorMessage(err) || t('services.categoryDeleteError'));
+    }
+  };
+
   if (loading) return (
     <div className="flex justify-center items-center py-12">
       <div className="text-ink-muted">{t('common.loading')}</div>
@@ -125,10 +245,22 @@ const Services = () => {
           <Scissors size={24} className="mr-2 text-brand" />
           {t('services.title')}
         </h1>
-        <button onClick={openAddModal} className="btn btn-primary">
-          <Plus size={16} />
-          {t('services.addNew')}
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={handleExport} className="btn btn-secondary">
+            <Download size={16} /> {t('common.export')}
+          </button>
+          <button onClick={() => fileInputRef.current?.click()} className="btn btn-secondary" disabled={importing}>
+            <Upload size={16} /> {importing ? t('common.importing') : t('common.import')}
+          </button>
+          <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFileChange} />
+          <button onClick={() => setIsCategoryModalOpen(true)} className="btn btn-secondary">
+            <Tags size={16} /> {t('services.categoriesBtn')}
+          </button>
+          <button onClick={openAddModal} className="btn btn-primary">
+            <Plus size={16} />
+            {t('services.addNew')}
+          </button>
+        </div>
       </div>
 
       <div className="relative max-w-sm">
@@ -149,7 +281,7 @@ const Services = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredServices.map((service) => {
-            const CategoryIcon = categoryIcon[service.category] || Scissors;
+            const CategoryIcon = iconForCategory(service.category);
             return (
             <div key={service._id} className="ds-card overflow-hidden flex flex-col">
 
@@ -163,7 +295,7 @@ const Services = () => {
                   <div>
                     <h3 className="text-base font-semibold text-ink">{service.name}</h3>
                     <span className="badge badge-neutral mt-1">
-                      {t(`categories.${service.category}`)}
+                      {categoryLabel(service.category)}
                     </span>
                   </div>
                   <span className={`badge ${service.isAvailable ? 'badge-success' : 'badge-muted'}`}>
@@ -257,9 +389,10 @@ const Services = () => {
             <select
               className="field-input"
               value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value as Service['category'] })}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
             >
-              {CATEGORIES.map(c => <option key={c} value={c}>{t(`categories.${c}`)}</option>)}
+              {categories.length === 0 && <option value="">{t('services.noCategoriesYet')}</option>}
+              {categories.map(c => <option key={c._id} value={c.name}>{categoryLabel(c.name)}</option>)}
             </select>
           </div>
           <div className="flex items-center gap-2">
@@ -279,6 +412,93 @@ const Services = () => {
             <button onClick={handleSave} disabled={saving} className="btn btn-primary">
               {saving ? t('common.saving') : editingService ? t('common.save') : t('services.addNew')}
             </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={!!importResult} onClose={() => setImportResult(null)} title={t('common.importResultTitle')}>
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+          <div className="flex gap-4 text-sm">
+            <span className="text-green-600 font-medium">{t('common.importCreated', { count: importResult?.created ?? 0 })}</span>
+            <span className="text-brand font-medium">{t('common.importUpdated', { count: importResult?.updated ?? 0 })}</span>
+            <span className="text-red-500 font-medium">{t('common.importFailed', { count: importResult?.failed ?? 0 })}</span>
+          </div>
+          {importResult && importResult.errors.length > 0 && (
+            <div className="border-t border-line pt-2 space-y-1">
+              {importResult.errors.map((e, i) => (
+                <p key={i} className="text-xs text-red-500">
+                  {t('common.importRowError', { row: e.row })}: {e.message}
+                </p>
+              ))}
+            </div>
+          )}
+          <div className="flex justify-end pt-2">
+            <button onClick={() => setImportResult(null)} className="btn btn-secondary">{t('common.close')}</button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={isCategoryModalOpen} onClose={() => setIsCategoryModalOpen(false)} title={t('services.manageCategoriesTitle')} size="lg">
+        <div className="space-y-4">
+          <div className="border border-line rounded-sm p-3 space-y-2">
+            <input
+              type="text"
+              className="field-input"
+              placeholder={t('services.categoryNamePlaceholder')}
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleAddCategory(); }}
+            />
+            <IconPicker value={newCategoryIcon} onChange={setNewCategoryIcon} />
+            <div className="flex justify-end">
+              <button onClick={handleAddCategory} disabled={savingCategory || !newCategoryName.trim()} className="btn btn-primary">
+                <Plus size={16} /> {t('services.addCategory')}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-1 max-h-[45vh] overflow-y-auto">
+            {categories.length === 0 ? (
+              <p className="text-sm text-ink-muted py-2">{t('services.noCategoriesYet')}</p>
+            ) : categories.map(c => {
+              const Icon = ICON_OPTIONS[c.icon] || Sparkles;
+              return editingCategoryId === c._id ? (
+                <div key={c._id} className="border border-brand/30 bg-brand-extra-soft rounded-sm p-3 space-y-2">
+                  <input
+                    type="text"
+                    className="field-input"
+                    value={editCategoryName}
+                    onChange={(e) => setEditCategoryName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') saveEditCategory(); }}
+                    autoFocus
+                  />
+                  <IconPicker value={editCategoryIcon} onChange={setEditCategoryIcon} />
+                  <div className="flex justify-end gap-2">
+                    <button onClick={cancelEditCategory} className="btn btn-secondary">{t('common.cancel')}</button>
+                    <button onClick={saveEditCategory} disabled={!editCategoryName.trim()} className="btn btn-primary">
+                      <Check size={16} /> {t('common.save')}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div key={c._id} className="flex items-center justify-between py-1.5 px-2 rounded-xs hover:bg-canvas-soft">
+                  <span className="flex items-center gap-2 text-sm text-ink">
+                    <Icon size={16} className="text-brand flex-shrink-0" /> {categoryLabel(c.name)}
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => startEditCategory(c)} className="text-ink-secondary hover:text-brand">
+                      <Pencil size={14} />
+                    </button>
+                    <button onClick={() => handleDeleteCategory(c)} className="text-red-400 hover:text-red-600">
+                      <X size={16} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex justify-end pt-2">
+            <button onClick={() => setIsCategoryModalOpen(false)} className="btn btn-secondary">{t('common.close')}</button>
           </div>
         </div>
       </Modal>

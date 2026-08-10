@@ -335,7 +335,7 @@ const Reports = () => {
                     {rfm.segments.map((c) => (
                       <tr key={c.clientId} className="hover:bg-canvas-soft transition-colors">
                         <td className="px-4 py-3 text-sm font-medium text-ink">{c.name}</td>
-                        <td className="px-4 py-3 text-sm text-ink-secondary">{c.R}д</td>
+                        <td className="px-4 py-3 text-sm text-ink-secondary">{c.R}{t('reports.daysShort')}</td>
                         <td className="px-4 py-3 text-sm text-ink-secondary">{c.F}</td>
                         <td className="px-4 py-3 text-sm text-ink-secondary">${c.M}</td>
                         <td className="px-4 py-3 text-sm font-semibold text-brand-dark">{c.rfm}</td>

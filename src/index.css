@@ -38,6 +38,21 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.97) translateY(4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes modal-backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-modal-in {
+  animation: modal-in 150ms ease-out;
+}
+.animate-modal-backdrop-in {
+  animation: modal-backdrop-in 150ms ease-out;
+}
+
 /* ============================================================
    hirnix component vocabulary — buttons, cards, badges, fields
    ============================================================ */
@@ -97,6 +112,9 @@ body {
   .badge-danger {
     @apply bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400;
   }
+  .badge-warning {
+    @apply bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400;
+  }
   .badge-solid {
     @apply bg-ink text-canvas;
   }
@@ -107,7 +125,7 @@ body {
   }
   .field-input {
     @apply w-full bg-surface border border-line rounded-sm px-3.5 py-2.5 text-sm text-ink
-           placeholder:text-ink-muted outline-none
+           placeholder:text-ink-muted dark:placeholder:text-ink-secondary outline-none
            transition-shadow duration-150
            focus:border-brand focus:ring-4 focus:ring-brand/15;
   }

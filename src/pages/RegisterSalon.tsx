@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Scissors, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { salonApi } from '../api';
 import { useLocale } from '../i18n/LocaleContext';
 import LanguageToggle from '../components/LanguageToggle';
 import { defaultRouteForRole } from '../utils/roleRoutes';
@@ -18,6 +19,10 @@ const RegisterSalon = () => {
   const { t } = useLocale();
   const navigate = useNavigate();
   const { registerSalon } = useAuth();
+  const [searchParams] = useSearchParams();
+  const invitationToken = searchParams.get('token') || '';
+
+  const [invitationStatus, setInvitationStatus] = useState<'checking' | 'valid' | 'invalid'>('checking');
 
   const [salonName, setSalonName] = useState('');
   const [slug, setSlug]           = useState('');
@@ -29,6 +34,19 @@ const RegisterSalon = () => {
   const [showPass, setShowPass] = useState(false);
   const [error, setError]     = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!invitationToken) {
+      setInvitationStatus('invalid');
+      return;
+    }
+    salonApi.validateInvitation(invitationToken)
+      .then(res => {
+        setOwnerEmail(res.email);
+        setInvitationStatus('valid');
+      })
+      .catch(() => setInvitationStatus('invalid'));
+  }, [invitationToken]);
 
   const handleSalonNameChange = (value: string) => {
     setSalonName(value);
@@ -53,6 +71,7 @@ const RegisterSalon = () => {
         ownerName,
         ownerEmail,
         ownerPassword,
+        token: invitationToken,
       });
       navigate(defaultRouteForRole(user.role));
     } catch (err) {
@@ -80,6 +99,19 @@ const RegisterSalon = () => {
         </div>
 
         <div className="bg-surface rounded-lg shadow-lg p-8">
+          {invitationStatus === 'checking' && (
+            <p className="text-center text-sm text-ink-secondary py-6">{t('registerSalon.invitationCheckingTitle')}</p>
+          )}
+
+          {invitationStatus === 'invalid' && (
+            <div className="text-center py-4">
+              <h2 className="text-lg font-bold text-ink mb-2">{t('registerSalon.invitationInvalidTitle')}</h2>
+              <p className="text-sm text-ink-secondary">{t('registerSalon.invitationInvalidDesc')}</p>
+            </div>
+          )}
+
+          {invitationStatus === 'valid' && (
+          <>
           <h2 className="text-lg font-bold text-ink mb-5">{t('registerSalon.title')}</h2>
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
@@ -126,7 +158,9 @@ const RegisterSalon = () => {
                 value={ownerEmail}
                 onChange={e => setOwnerEmail(e.target.value)}
                 autoComplete="email"
+                readOnly
               />
+              <p className="text-xs text-ink-muted mt-1.5">{t('registerSalon.emailLockedHint')}</p>
             </div>
 
             <div>
@@ -170,6 +204,8 @@ const RegisterSalon = () => {
               {loading ? t('registerSalon.submitting') : t('registerSalon.submit')}
             </button>
           </form>
+          </>
+          )}
 
           <div className="mt-6 pt-5 border-t border-line text-center text-sm text-ink-secondary">
             {t('registerSalon.haveSalon')}{' '}

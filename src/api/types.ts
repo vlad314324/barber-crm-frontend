@@ -20,6 +20,7 @@ export interface Employee {
   role: 'Barber' | 'Receptionist' | 'Manager';
   hourlyRate: number;
   isAvailable: boolean;
+  isActive?: boolean;
   schedule: {
     mon: WorkingDay;
     tue: WorkingDay;
@@ -44,10 +45,36 @@ export interface Service {
   description: string;
   price: number;
   duration: number; // in minutes
-  category: 'Haircut' | 'Beard Trim' | 'Shave' | 'Hair Wash' | 'Styling' | 'Other';
+  category: string;
   isAvailable: boolean;
 }
 
+export interface Category {
+  _id: string;
+  name: string;
+  icon: string;
+}
+
+export interface Notification {
+  _id: string;
+  type: string;
+  isRead: boolean;
+  createdAt: string;
+  appointmentId?: string;
+  clientName?: string;
+  employeeName?: string;
+  date?: string;
+  startTime?: string;
+}
+
+
+export interface AppointmentNote {
+  _id?: string;
+  text: string;
+  authorName: string;
+  authorRole?: string;
+  createdAt: string;
+}
 
 // Тип, який використовуєш у фронтенді
 export interface Appointment {
@@ -60,6 +87,7 @@ export interface Appointment {
   totalDuration: number;
   totalPrice: number;
   status: 'Scheduled' | 'Completed' | 'Cancelled' | 'No-show';
+  notes?: AppointmentNote[];
 }
 
 export interface AppointmentResponse {
@@ -116,7 +144,7 @@ export interface CreateServiceDto {
   description: string;
   price: number;
   duration: number;
-  category: 'Haircut' | 'Beard Trim' | 'Shave' | 'Hair Wash' | 'Styling' | 'Other';
+  category: string;
   isAvailable: boolean;
 }
 
@@ -146,6 +174,7 @@ export interface RegisterSalonDto {
   ownerName: string;
   ownerEmail: string;
   ownerPassword: string;
+  token: string;
 }
 
 export interface AuthUser {
@@ -184,6 +213,19 @@ export interface UpdateStaffLoginResponse {
   user: AuthUser;
 }
 
+// Excel import/export
+export interface ImportRowError {
+  row: number;
+  message: string;
+}
+
+export interface ImportResult {
+  created: number;
+  updated: number;
+  failed: number;
+  errors: ImportRowError[];
+}
+
 // Shop settings
 export interface WorkingDay { isOpen: boolean; from: string; to: string; }
 
@@ -192,5 +234,27 @@ export interface ShopSettings {
   address: string;
   phone: string;
   email: string;
+  coverImageUrl?: string;
+  logoUrl?: string;
+  tagline?: string;
+  accentColor?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  websiteUrl?: string;
   workingHours: Record<string, WorkingDay>;
+}
+
+// Публічний підмножина ShopSettings, яку віддає /booking/settings
+export interface PublicBookingSettings {
+  shopName: string;
+  coverImageUrl?: string;
+  logoUrl?: string;
+  tagline?: string;
+  accentColor?: string;
+  address?: string;
+  phone?: string;
+  workingHours?: Record<string, WorkingDay>;
+  latitude?: number | null;
+  longitude?: number | null;
+  websiteUrl?: string;
 }

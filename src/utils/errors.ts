@@ -19,6 +19,9 @@ const CODE_MESSAGE_KEYS: Record<string, string> = {
   SALON_SLUG_TAKEN: 'errors.salonSlugTaken',
   INVALID_SLUG: 'errors.invalidSlug',
   TENANT_MISMATCH: 'errors.tenantMismatch',
+  RESET_TOKEN_INVALID: 'resetPassword.invalidToken',
+  PASSWORD_TOO_SHORT: 'resetPassword.passwordTooShort',
+  ACCOUNT_DEACTIVATED: 'login.accountDeactivated',
 };
 
 export const resolveErrorMessage = (

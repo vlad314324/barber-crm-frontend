@@ -3,13 +3,17 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { LocaleProvider } from './i18n/LocaleContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
+import { PlatformAuthProvider } from './context/PlatformAuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import PageLoader from './components/PageLoader';
 import './index.css';
 
 const Login = lazy(() => import('./pages/Login'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const RegisterSalon = lazy(() => import('./pages/RegisterSalon'));
+const PlatformAdmin = lazy(() => import('./pages/PlatformAdmin'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Clients = lazy(() => import('./pages/Clients'));
 const ClientDetails = lazy(() => import('./pages/ClientDetails'));
@@ -18,6 +22,7 @@ const Employees = lazy(() => import('./pages/Employees'));
 const Services = lazy(() => import('./pages/Services'));
 const Reports = lazy(() => import('./pages/Reports'));
 const Settings = lazy(() => import('./pages/Settings'));
+const OnboardingGuide = lazy(() => import('./pages/OnboardingGuide'));
 const BookingPage = lazy(() => import('./pages/BookingPage'));
 
 function App() {
@@ -25,12 +30,16 @@ function App() {
     <ThemeProvider>
     <LocaleProvider>
     <AuthProvider>
+    <PlatformAuthProvider>
       <Router>
         <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/login/:salonSlug" element={<Login />} />
+          <Route path="/forgot-password/:salonSlug" element={<ForgotPassword />} />
+          <Route path="/reset-password/:salonSlug/:token" element={<ResetPassword />} />
           <Route path="/register-salon" element={<RegisterSalon />} />
+          <Route path="/platform-admin" element={<PlatformAdmin />} />
           <Route path="/book" element={<BookingPage />} />
           <Route path="/book/:salonSlug" element={<BookingPage />} />
 
@@ -79,12 +88,18 @@ function App() {
                 <Settings />
               </ProtectedRoute>
             }/>
+            <Route path="onboarding" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <OnboardingGuide />
+              </ProtectedRoute>
+            }/>
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         </Suspense>
       </Router>
+    </PlatformAuthProvider>
     </AuthProvider>
     </LocaleProvider>
     </ThemeProvider>

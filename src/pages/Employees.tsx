@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
-import { User, Plus, Star, Scissors, Pencil, Trash2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { User, Plus, Star, Scissors, Pencil, UserX, UserCheck, Download, Upload } from 'lucide-react';
 import { employeeApi, reviewApi, clientApi, authApi } from '../api';
-import { Employee, Client, Review } from '../api/types';
+import { Employee, Client, Review, ImportResult } from '../api/types';
 import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
+import { downloadBlob } from '../utils/download';
 
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 
@@ -53,6 +54,7 @@ const Employees = () => {
   const [clients,   setClients]   = useState<Client[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState<string|null>(null);
+  const [activeTab, setActiveTab] = useState<'active' | 'deactivated'>('active');
 
   // add/edit modal
   const [isModalOpen,    setIsModalOpen]    = useState(false);
@@ -71,6 +73,11 @@ const Employees = () => {
   const [loginEmp,    setLoginEmp]    = useState<Employee|null>(null);
   const [loginForm,   setLoginForm]   = useState({ name: '', email: '', password: '', confirmPassword: '', role: 'barber' as 'admin' | 'barber' });
   const [loginSaving, setLoginSaving] = useState(false);
+
+  // import/export
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchEmployees = useCallback(async () => {
     try {
@@ -145,12 +152,43 @@ const Employees = () => {
     } finally { setSaving(false); }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm(t('employees.deleteConfirm'))) return;
+  const handleDeactivate = async (id: string) => {
+    if (!confirm(t('employees.deactivateConfirm'))) return;
     try {
-      await employeeApi.delete(id);
-      setEmployees(p => p.filter(e => e._id !== id));
-    } catch { alert(t('employees.deleteError')); }
+      const updated = await employeeApi.deactivate(id);
+      setEmployees(p => p.map(e => e._id === id ? updated : e));
+    } catch (err) { alert(getErrorMessage(err) || t('employees.deactivateError')); }
+  };
+
+  const handleReactivate = async (id: string) => {
+    try {
+      const updated = await employeeApi.reactivate(id);
+      setEmployees(p => p.map(e => e._id === id ? updated : e));
+    } catch (err) { alert(getErrorMessage(err) || t('employees.reactivateError')); }
+  };
+
+  // ── import / export ─────────────────────────────────────────────────────────
+  const handleExport = async () => {
+    try {
+      downloadBlob(await employeeApi.export(), `employees-${Date.now()}.xlsx`);
+    } catch {
+      alert(t('common.exportError'));
+    }
+  };
+
+  const handleImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      setImportResult(await employeeApi.import(file));
+      fetchEmployees();
+    } catch (err) {
+      alert(getErrorMessage(err) || t('common.importError'));
+    } finally {
+      setImporting(false);
+      e.target.value = '';
+    }
   };
 
   // ── create / manage login ───────────────────────────────────────────────────
@@ -244,24 +282,48 @@ const Employees = () => {
   };
 
   // ── render ─────────────────────────────────────────────────────────────────
+  const visibleEmployees = employees.filter(e =>
+    activeTab === 'active' ? e.isActive !== false : e.isActive === false
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-extrabold text-ink tracking-tight flex items-center">
           <User size={24} className="mr-2 text-brand"/> {t('employees.title')}
         </h1>
-        <button onClick={openAdd} className="btn btn-primary">
-          <Plus size={18}/> {t('employees.addNew')}
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={handleExport} className="btn btn-secondary">
+            <Download size={16}/> {t('common.export')}
+          </button>
+          <button onClick={() => fileInputRef.current?.click()} className="btn btn-secondary" disabled={importing}>
+            <Upload size={16}/> {importing ? t('common.importing') : t('common.import')}
+          </button>
+          <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFileChange}/>
+          <button onClick={openAdd} className="btn btn-primary">
+            <Plus size={18}/> {t('employees.addNew')}
+          </button>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 bg-canvas-soft p-1 rounded-sm w-fit">
+        {([['active', t('employees.tabActive')], ['deactivated', t('employees.tabDeactivated')]] as const).map(([tab, label]) => (
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 rounded-xs text-sm font-medium transition-all
+              ${activeTab === tab ? 'bg-surface text-brand-dark shadow-sm' : 'text-ink-secondary hover:text-ink'}`}>
+            {label}
+          </button>
+        ))}
       </div>
 
       {loading ? <div className="text-center py-8 text-ink-muted">{t('common.loading')}</div>
       : error   ? <div className="text-center py-8 text-red-500">{error}</div>
-      : employees.length === 0 ? <div className="text-center py-8 text-ink-muted">{t('employees.notFound')}</div>
+      : visibleEmployees.length === 0 ? <div className="text-center py-8 text-ink-muted">{t('employees.notFound')}</div>
       : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {employees.map(emp => (
-            <div key={emp._id} className="ds-card overflow-hidden flex flex-col">
+          {visibleEmployees.map(emp => (
+            <div key={emp._id} className={`ds-card overflow-hidden flex flex-col ${emp.isActive === false ? 'opacity-70' : ''}`}>
 
               {/* Header */}
               <div className="p-5 flex items-start gap-4">
@@ -326,19 +388,32 @@ const Employees = () => {
 
               {/* Footer */}
               <div className="px-5 py-3 border-t border-line flex justify-between items-center mt-auto">
-                <span className={`badge ${emp.isAvailable ? 'badge-success' : 'badge-muted'}`}>
-                  {emp.isAvailable ? t('employees.available') : t('employees.unavailable')}
-                </span>
+                <div className="flex gap-1.5 flex-wrap">
+                  <span className={`badge ${emp.isAvailable ? 'badge-success' : 'badge-muted'}`}>
+                    {emp.isAvailable ? t('employees.available') : t('employees.unavailable')}
+                  </span>
+                  {emp.isActive === false && (
+                    <span className="badge badge-danger">{t('employees.deactivated')}</span>
+                  )}
+                </div>
                 <div className="flex gap-3 items-center">
-                  <button onClick={() => openLogin(emp)} className="text-xs text-brand hover:text-brand-dark font-medium">
-                    {emp.userId ? t('employees.manageLogin') : t('employees.createLogin')}
-                  </button>
+                  {emp.isActive !== false && (
+                    <button onClick={() => openLogin(emp)} className="text-xs text-brand hover:text-brand-dark font-medium">
+                      {emp.userId ? t('employees.manageLogin') : t('employees.createLogin')}
+                    </button>
+                  )}
                   <button onClick={() => openEdit(emp)} className="text-ink-secondary hover:text-ink">
                     <Pencil size={15}/>
                   </button>
-                  <button onClick={() => handleDelete(emp._id)} className="text-red-400 hover:text-red-600">
-                    <Trash2 size={15}/>
-                  </button>
+                  {emp.isActive === false ? (
+                    <button onClick={() => handleReactivate(emp._id)} className="text-emerald-500 hover:text-emerald-700" title={t('employees.reactivate')}>
+                      <UserCheck size={15}/>
+                    </button>
+                  ) : (
+                    <button onClick={() => handleDeactivate(emp._id)} className="text-red-400 hover:text-red-600" title={t('employees.deactivate')}>
+                      <UserX size={15}/>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -348,74 +423,77 @@ const Employees = () => {
 
       {/* ── ADD/EDIT MODAL ── */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}
-        title={editingEmployee ? t('employees.editModalTitle') : t('employees.addModalTitle')}>
-        <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+        title={editingEmployee ? t('employees.editModalTitle') : t('employees.addModalTitle')} size="xl">
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-3">
+              {[
+                { label: t('employees.fieldName'),         key: 'name' as const,       type: 'text',   placeholder: 'Employee name' },
+                { label: t('employees.fieldPhone'),        key: 'phone' as const,      type: 'tel',    placeholder: '+380...' },
+                { label: t('employees.fieldEmail'),        key: 'email' as const,      type: 'email',  placeholder: 'email@example.com' },
+                { label: t('employees.fieldHourlyRate'),key: 'hourlyRate' as const, type: 'number', placeholder: '0' },
+                { label: t('employees.fieldSpecialties'), key: 'specialties' as const, type: 'text', placeholder: t('employees.fieldSpecialtiesPlaceholder') },
+                { label: t('employees.fieldBio'),            key: 'bio' as const,        type: 'text',   placeholder: t('employees.fieldBioPlaceholder') },
+              ].map(({ label, key, type, placeholder }) => (
+                <div key={key}>
+                  <label className="field-label">{label}</label>
+                  <input type={type}
+                    className="field-input"
+                    value={String(formData[key])}
+                    placeholder={placeholder}
+                    onChange={e => setFormData({ ...formData, [key]: type === 'number' ? Number(e.target.value) : e.target.value })}/>
+                </div>
+              ))}
 
-          {[
-            { label: t('employees.fieldName'),         key: 'name' as const,       type: 'text',   placeholder: 'Employee name' },
-            { label: t('employees.fieldPhone'),        key: 'phone' as const,      type: 'tel',    placeholder: '+380...' },
-            { label: t('employees.fieldEmail'),        key: 'email' as const,      type: 'email',  placeholder: 'email@example.com' },
-            { label: t('employees.fieldHourlyRate'),key: 'hourlyRate' as const, type: 'number', placeholder: '0' },
-            { label: t('employees.fieldSpecialties'), key: 'specialties' as const, type: 'text', placeholder: t('employees.fieldSpecialtiesPlaceholder') },
-            { label: t('employees.fieldBio'),            key: 'bio' as const,        type: 'text',   placeholder: t('employees.fieldBioPlaceholder') },
-          ].map(({ label, key, type, placeholder }) => (
-            <div key={key}>
-              <label className="field-label">{label}</label>
-              <input type={type}
-                className="field-input"
-                value={String(formData[key])}
-                placeholder={placeholder}
-                onChange={e => setFormData({ ...formData, [key]: type === 'number' ? Number(e.target.value) : e.target.value })}/>
+              <div>
+                <label className="field-label">{t('employees.fieldRole')}</label>
+                <select className="field-input"
+                  value={formData.role}
+                  onChange={e => setFormData({ ...formData, role: e.target.value as Employee['role'] })}>
+                  <option value="Barber">{t('roles.Barber')}</option>
+                  <option value="Receptionist">{t('roles.Receptionist')}</option>
+                  <option value="Manager">{t('roles.Manager')}</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="isAvailable" checked={formData.isAvailable}
+                  onChange={e => setFormData({ ...formData, isAvailable: e.target.checked })}
+                  className="rounded border-line text-brand focus:ring-brand"/>
+                <label htmlFor="isAvailable" className="text-sm text-ink-secondary">{t('employees.availableForAppointments')}</label>
+              </div>
             </div>
-          ))}
 
-          <div>
-            <label className="field-label">{t('employees.fieldRole')}</label>
-            <select className="field-input"
-              value={formData.role}
-              onChange={e => setFormData({ ...formData, role: e.target.value as Employee['role'] })}>
-              <option value="Barber">{t('roles.Barber')}</option>
-              <option value="Receptionist">{t('roles.Receptionist')}</option>
-              <option value="Manager">{t('roles.Manager')}</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input type="checkbox" id="isAvailable" checked={formData.isAvailable}
-              onChange={e => setFormData({ ...formData, isAvailable: e.target.checked })}
-              className="rounded border-line text-brand focus:ring-brand"/>
-            <label htmlFor="isAvailable" className="text-sm text-ink-secondary">{t('employees.availableForAppointments')}</label>
-          </div>
-
-          {/* Schedule editor */}
-          <div>
-            <label className="field-label mb-2">{t('employees.schedule')}</label>
-            <div className="space-y-2">
-              {DAYS.map(({ key, label }) => {
-                const day = formData.schedule[key];
-                const isOff = !day.isOpen;
-                return (
-                  <div key={key} className="flex items-center gap-3">
-                    <span className="text-sm text-ink-secondary w-6">{label}</span>
-                    <button type="button"
-                      onClick={() => toggleDay(key)}
-                      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors
-                        ${isOff ? 'bg-line-medium' : 'bg-brand'}`}>
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform
-                        ${isOff ? 'translate-x-0' : 'translate-x-4'}`}/>
-                    </button>
-                    {isOff ? (
-                      <span className="text-xs text-red-500">{t('appointments.dayOff')}</span>
-                    ) : (
-                      <input type="text"
-                        className="flex-1 border border-line rounded-xs px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-brand/15 focus:border-brand"
-                        defaultValue={formatRange(day)}
-                        placeholder="09:00-18:00"
-                        onBlur={e => setDayHours(key, e.target.value)}/>
-                    )}
-                  </div>
-                );
-              })}
+            {/* Schedule editor */}
+            <div>
+              <label className="field-label mb-2">{t('employees.schedule')}</label>
+              <div className="space-y-2">
+                {DAYS.map(({ key, label }) => {
+                  const day = formData.schedule[key];
+                  const isOff = !day.isOpen;
+                  return (
+                    <div key={key} className="flex items-center gap-3">
+                      <span className="text-sm text-ink-secondary w-6">{label}</span>
+                      <button type="button"
+                        onClick={() => toggleDay(key)}
+                        className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors
+                          ${isOff ? 'bg-line-medium' : 'bg-brand'}`}>
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform
+                          ${isOff ? 'translate-x-0' : 'translate-x-4'}`}/>
+                      </button>
+                      {isOff ? (
+                        <span className="text-xs text-red-500">{t('appointments.dayOff')}</span>
+                      ) : (
+                        <input type="text"
+                          className="flex-1 bg-surface text-ink border border-line rounded-xs px-2 py-1 text-xs placeholder:text-ink-muted dark:placeholder:text-ink-secondary focus:outline-none focus:ring-2 focus:ring-brand/15 focus:border-brand"
+                          defaultValue={formatRange(day)}
+                          placeholder="09:00-18:00"
+                          onBlur={e => setDayHours(key, e.target.value)}/>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -432,7 +510,7 @@ const Employees = () => {
 
       {/* ── REVIEWS MODAL ── */}
       <Modal isOpen={!!reviewsEmp} onClose={() => setReviewsEmp(null)}
-        title={t('employees.reviewsTitle', { name: reviewsEmp?.name || '' })}>
+        title={t('employees.reviewsTitle', { name: reviewsEmp?.name || '' })} size="lg">
         <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
 
           {/* Rating summary */}
@@ -506,7 +584,7 @@ const Employees = () => {
       <Modal isOpen={!!loginEmp} onClose={() => setLoginEmp(null)}
         title={isManageMode
           ? t('employees.manageLoginModalTitle', { name: loginEmp?.name || '' })
-          : t('employees.createLoginModalTitle', { name: loginEmp?.name || '' })}>
+          : t('employees.createLoginModalTitle', { name: loginEmp?.name || '' })} size="lg">
         <div className="space-y-3">
           {!isManageMode && (
             <>
@@ -552,6 +630,28 @@ const Employees = () => {
             <button onClick={submitLogin} disabled={loginSaving} className="btn btn-primary">
               {loginSaving ? t('common.saving') : isManageMode ? t('common.save') : t('employees.createLogin')}
             </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={!!importResult} onClose={() => setImportResult(null)} title={t('common.importResultTitle')}>
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+          <div className="flex gap-4 text-sm">
+            <span className="text-green-600 font-medium">{t('common.importCreated', { count: importResult?.created ?? 0 })}</span>
+            <span className="text-brand font-medium">{t('common.importUpdated', { count: importResult?.updated ?? 0 })}</span>
+            <span className="text-red-500 font-medium">{t('common.importFailed', { count: importResult?.failed ?? 0 })}</span>
+          </div>
+          {importResult && importResult.errors.length > 0 && (
+            <div className="border-t border-line pt-2 space-y-1">
+              {importResult.errors.map((e, i) => (
+                <p key={i} className="text-xs text-red-500">
+                  {t('common.importRowError', { row: e.row })}: {e.message}
+                </p>
+              ))}
+            </div>
+          )}
+          <div className="flex justify-end pt-2">
+            <button onClick={() => setImportResult(null)} className="btn btn-secondary">{t('common.close')}</button>
           </div>
         </div>
       </Modal>

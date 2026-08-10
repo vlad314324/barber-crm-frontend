@@ -27,6 +27,7 @@ const Login = () => {
   const reason = searchParams.get('reason');
   const notice = !slugParam && reason === 'tenant_mismatch' ? t('login.tenantMismatchNotice')
     : !slugParam && reason === 'session_expired' ? t('login.sessionExpired')
+    : reason === 'password_reset' ? t('login.passwordResetNotice')
     : '';
 
   const handleSlugSubmit = (e: React.FormEvent) => {
@@ -116,7 +117,12 @@ const Login = () => {
               </div>
 
               <div>
-                <label className="field-label">{t('login.password')}</label>
+                <div className="flex items-center justify-between">
+                  <label className="field-label">{t('login.password')}</label>
+                  <Link to={`/forgot-password/${slugParam}`} className="text-xs text-brand hover:text-brand-dark font-medium">
+                    {t('login.forgotPassword')}
+                  </Link>
+                </div>
                 <div className="relative">
                   <input
                     type={showPass ? 'text' : 'password'}

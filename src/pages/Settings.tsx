@@ -1,20 +1,24 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Clock, Lock, Save, Check } from 'lucide-react';
+import { Settings as SettingsIcon, Clock, Lock, Save, Check, Link2, Palette } from 'lucide-react';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../i18n/LocaleContext';
 import { ShopSettings, WorkingDay } from '../api/types';
 import { getErrorMessage } from '../utils/errors';
+import BookingLinkCard from '../components/BookingLinkCard';
 
 const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
 
 const Settings = () => {
-  const { user } = useAuth();
+  const { user, salonSlug } = useAuth();
   const { t } = useLocale();
   const DAYS = DAY_KEYS.map(key => ({ key, label: t(`settings.days.${key}`) }));
 
   const [settings, setSettings] = useState<ShopSettings>({
-    shopName: '', address: '', phone: '', email: '', workingHours: {},
+    shopName: '', address: '', phone: '', email: '',
+    coverImageUrl: '', logoUrl: '', tagline: '', accentColor: '',
+    latitude: null, longitude: null, websiteUrl: '',
+    workingHours: {},
   });
 
   const [passwords, setPasswords] = useState({
@@ -101,6 +105,23 @@ const Settings = () => {
         {/* Ліва колонка */}
         <div className="space-y-6">
 
+          {/* Посилання для запису */}
+          {salonSlug && (
+            <div className="ds-card overflow-hidden">
+              <div className="ds-card-header">
+                <div>
+                  <h2 className="text-base font-semibold text-ink flex items-center gap-2">
+                    <Link2 size={18} className="text-brand" /> {t('settings.bookingLink.title')}
+                  </h2>
+                  <p className="text-sm text-ink-muted mt-0.5">{t('settings.bookingLink.desc')}</p>
+                </div>
+              </div>
+              <div className="px-6 py-5">
+                <BookingLinkCard slug={salonSlug} />
+              </div>
+            </div>
+          )}
+
           {/* Загальна інформація */}
           <div className="ds-card overflow-hidden">
             <div className="ds-card-header">
@@ -112,21 +133,101 @@ const Settings = () => {
             <div className="px-6 py-5 space-y-4">
               {[
                 { label: t('settings.fieldShopName'), key: 'shopName' as const,  type: 'text',  placeholder: 'BarberShop' },
-                { label: t('settings.fieldAddress'),        key: 'address' as const,   type: 'text',  placeholder: 'вул. Франка 10, Львів' },
+                { label: t('settings.fieldAddress'),        key: 'address' as const,   type: 'text',  placeholder: t('settings.addressPlaceholder') },
                 { label: t('settings.fieldPhone'),       key: 'phone' as const,     type: 'tel',   placeholder: '+380671234567' },
                 { label: t('settings.fieldEmail'),         key: 'email' as const,     type: 'email', placeholder: 'shop@gmail.com' },
+                { label: t('settings.fieldWebsite'),         key: 'websiteUrl' as const,     type: 'text', placeholder: 'https://instagram.com/yourshop' },
               ].map(({ label, key, type, placeholder }) => (
                 <div key={key}>
                   <label className="field-label">{label}</label>
                   <input
                     type={type}
-                    value={settings[key]}
+                    value={settings[key] || ''}
                     onChange={e => setSettings(prev => ({ ...prev, [key]: e.target.value }))}
                     placeholder={placeholder}
                     className="field-input"
                   />
                 </div>
               ))}
+              <div>
+                <label className="field-label">{t('settings.fieldCoordinates')}</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="number" step="0.000001"
+                    value={settings.latitude ?? ''}
+                    onChange={e => setSettings(prev => ({ ...prev, latitude: e.target.value === '' ? null : Number(e.target.value) }))}
+                    placeholder={t('settings.fieldLatitude')}
+                    className="field-input"
+                  />
+                  <input
+                    type="number" step="0.000001"
+                    value={settings.longitude ?? ''}
+                    onChange={e => setSettings(prev => ({ ...prev, longitude: e.target.value === '' ? null : Number(e.target.value) }))}
+                    placeholder={t('settings.fieldLongitude')}
+                    className="field-input"
+                  />
+                </div>
+                <p className="text-xs text-ink-muted mt-1.5">{t('settings.coordinatesHint')}</p>
+              </div>
+              <div className="flex justify-end pt-2">
+                <button onClick={handleInfoSave} disabled={saving} className="btn btn-primary">
+                  {savedInfo ? <><Check size={16}/> {t('settings.saved')}</> : <><Save size={16}/> {t('common.save')}</>}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Оформлення сторінки бронювання */}
+          <div className="ds-card overflow-hidden">
+            <div className="ds-card-header">
+              <div>
+                <h2 className="text-base font-semibold text-ink flex items-center gap-2">
+                  <Palette size={18} className="text-brand" /> {t('settings.branding.title')}
+                </h2>
+                <p className="text-sm text-ink-muted mt-0.5">{t('settings.branding.desc')}</p>
+              </div>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              {[
+                { label: t('settings.branding.coverImageUrl'), key: 'coverImageUrl' as const, placeholder: 'https://.../cover.jpg' },
+                { label: t('settings.branding.logoUrl'),        key: 'logoUrl' as const,        placeholder: 'https://.../logo.png' },
+                { label: t('settings.branding.tagline'),        key: 'tagline' as const,         placeholder: t('settings.branding.taglinePlaceholder') },
+              ].map(({ label, key, placeholder }) => (
+                <div key={key}>
+                  <label className="field-label">{label}</label>
+                  <input
+                    type="text"
+                    value={settings[key] || ''}
+                    onChange={e => setSettings(prev => ({ ...prev, [key]: e.target.value }))}
+                    placeholder={placeholder}
+                    className="field-input"
+                  />
+                </div>
+              ))}
+              <div>
+                <label className="field-label">{t('settings.branding.accentColor')}</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={settings.accentColor || '#c08a34'}
+                    onChange={e => setSettings(prev => ({ ...prev, accentColor: e.target.value }))}
+                    className="h-9 w-14 rounded-xs border border-line cursor-pointer bg-transparent"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSettings(prev => ({ ...prev, accentColor: '' }))}
+                    className="text-xs text-ink-muted hover:text-ink"
+                  >
+                    {t('settings.branding.resetColor')}
+                  </button>
+                </div>
+              </div>
+              {salonSlug && (
+                <a href={`${window.location.origin}/book/${salonSlug}`} target="_blank" rel="noreferrer"
+                  className="text-xs text-brand hover:text-brand-dark font-medium w-fit block">
+                  {t('settings.branding.previewLink')}
+                </a>
+              )}
               <div className="flex justify-end pt-2">
                 <button onClick={handleInfoSave} disabled={saving} className="btn btn-primary">
                   {savedInfo ? <><Check size={16}/> {t('settings.saved')}</> : <><Save size={16}/> {t('common.save')}</>}
