@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import {
-  Layers, CheckCircle, ChevronLeft, ChevronRight,
+  CheckCircle, ChevronLeft, ChevronRight,
   User, CalendarDays, ListChecks, Info, MapPin, Phone, Globe, Copy, Check,
 } from 'lucide-react';
 import PhoneInput from 'react-phone-number-input';
@@ -226,7 +226,7 @@ const BookingPage = () => {
           <div className="flex items-center justify-center gap-2 mb-1">
             {branding?.logoUrl
               ? <img src={branding.logoUrl} alt={branding.shopName} className="h-8 max-w-[140px] object-contain"/>
-              : <Layers size={24}/>}
+              : <img src="/icon.png" alt="hirnix" className="w-8 h-8 rounded-md"/>}
             <h1 className="text-2xl font-extrabold inline-flex items-baseline" style={{ letterSpacing: '-0.03em' }}>
               {branding?.shopName || 'hirnix'}
               <span className="w-1.5 h-1.5 rounded-full bg-brand ml-1 self-end mb-1" />
@@ -298,7 +298,7 @@ const BookingPage = () => {
             <div className="flex items-center gap-3">
               {branding?.logoUrl
                 ? <img src={branding.logoUrl} alt="" className="w-11 h-11 rounded-full object-cover flex-shrink-0"/>
-                : <div className="w-11 h-11 rounded-full bg-brand flex items-center justify-center flex-shrink-0"><Layers size={18} className="text-white"/></div>}
+                : <img src="/icon.png" alt="hirnix" className="w-11 h-11 rounded-full object-cover flex-shrink-0"/>}
               <h3 className="text-lg font-bold text-ink">{branding?.shopName || 'hirnix'}</h3>
             </div>
             {branding?.address && (

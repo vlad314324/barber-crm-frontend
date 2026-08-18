@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Layers } from 'lucide-react';
 import { usePlatformAuth } from '../context/PlatformAuthContext';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
@@ -72,9 +71,7 @@ const PlatformAdmin = () => {
     <div className="min-h-screen bg-ink flex items-center justify-center px-4 py-10">
       <div className={`w-full ${admin ? 'max-w-5xl' : 'max-w-md'}`}>
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-brand rounded-lg mb-4 shadow-brand">
-            <Layers size={32} className="text-white" />
-          </div>
+          <img src="/icon.png" alt="hirnix" className="inline-block w-16 h-16 rounded-lg mb-4 shadow-brand"/>
           <h1 className="text-3xl font-extrabold text-white inline-flex items-baseline" style={{ letterSpacing: '-0.03em' }}>
             hirnix
             <span className="w-1.5 h-1.5 rounded-full bg-brand ml-1 self-end mb-1.5" />
