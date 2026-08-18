@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
-import { Scissors, Eye, EyeOff } from 'lucide-react';
+import { Layers, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../i18n/LocaleContext';
 import LanguageToggle from '../components/LanguageToggle';
@@ -51,7 +51,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-ink flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#1f2420] flex items-center justify-center px-4">
       <div className="absolute top-4 right-4">
         <LanguageToggle variant="dark" />
       </div>
@@ -59,7 +59,7 @@ const Login = () => {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-brand rounded-lg mb-4 shadow-brand">
-            <Scissors size={32} className="text-white"/>
+            <Layers size={32} className="text-white"/>
           </div>
           <h1 className="text-3xl font-extrabold text-white inline-flex items-baseline" style={{ letterSpacing: '-0.03em' }}>
             hirnix
@@ -171,13 +171,6 @@ const Login = () => {
               </div>
             </div>
           )}
-
-          <div className="mt-6 pt-5 border-t border-line text-center text-sm text-ink-secondary">
-            {t('login.noSalonYet')}{' '}
-            <Link to="/register-salon" className="text-brand hover:text-brand-dark font-semibold">
-              {t('login.createSalon')}
-            </Link>
-          </div>
         </div>
       </div>
     </div>

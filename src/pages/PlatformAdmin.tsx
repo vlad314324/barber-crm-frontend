@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Scissors } from 'lucide-react';
+import { Layers } from 'lucide-react';
 import { usePlatformAuth } from '../context/PlatformAuthContext';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
@@ -73,7 +73,7 @@ const PlatformAdmin = () => {
       <div className={`w-full ${admin ? 'max-w-5xl' : 'max-w-md'}`}>
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-brand rounded-lg mb-4 shadow-brand">
-            <Scissors size={32} className="text-white" />
+            <Layers size={32} className="text-white" />
           </div>
           <h1 className="text-3xl font-extrabold text-white inline-flex items-baseline" style={{ letterSpacing: '-0.03em' }}>
             hirnix

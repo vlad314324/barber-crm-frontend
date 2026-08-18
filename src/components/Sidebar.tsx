@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Calendar,
-  Scissors, BarChart2, Settings, User, LogOut
+  Scissors, BarChart2, Settings, User, LogOut, Layers
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../i18n/LocaleContext';
@@ -52,7 +52,7 @@ const Sidebar = ({ closeSidebar }: SidebarProps) => {
       <div className="h-16 px-4 flex items-center border-b border-line">
         <h1 className="text-xl font-extrabold text-ink flex items-center tracking-tight">
           <span className="w-8 h-8 rounded-sm bg-brand-soft text-brand flex items-center justify-center mr-2.5">
-            <Scissors size={16} />
+            <Layers size={16} />
           </span>
           <span className="inline-flex items-baseline" style={{ letterSpacing: '-0.03em' }}>
             hirnix
