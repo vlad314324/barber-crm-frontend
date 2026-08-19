@@ -1,15 +1,15 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Scissors, ScissorsLineDashed, Droplet, ShowerHead, Wind, Sparkles,
   Heart, Flower2, Palette, Waves, Sun, Gem, Brush, Hand, Zap, SprayCan,
-  Plus, Search, Pencil, Trash2, Clock, DollarSign, Download, Upload, Tags, X, Check,
+  Syringe, Sparkle, Vibrate, Stethoscope,
+  Plus, Search, Pencil, Trash2, Clock, DollarSign, Tags, X, Check,
 } from 'lucide-react';
 import { serviceApi, categoryApi } from '../api';
-import { Service, Category, ImportResult } from '../api/types';
+import { Service, Category } from '../api/types';
 import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
-import { downloadBlob } from '../utils/download';
 
 const defaultForm = {
   name: '', description: '', price: 0, duration: 30,
@@ -24,6 +24,7 @@ const DEFAULT_ICON = 'Sparkles';
 const ICON_OPTIONS: Record<string, typeof Scissors> = {
   Scissors, ScissorsLineDashed, Droplet, ShowerHead, Wind, Sparkles,
   Heart, Flower2, Palette, Waves, Sun, Gem, Brush, Hand, Zap, SprayCan,
+  Syringe, Sparkle, Vibrate, Stethoscope,
 };
 
 const IconPicker = ({ value, onChange }: { value: string; onChange: (icon: string) => void }) => (
@@ -62,10 +63,6 @@ const Services = () => {
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editCategoryName, setEditCategoryName] = useState('');
   const [editCategoryIcon, setEditCategoryIcon] = useState(DEFAULT_ICON);
-
-  const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<ImportResult | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const categoryLabel = (name: string) => {
     const translated = t(`categories.${name}`);
@@ -154,30 +151,6 @@ const Services = () => {
     }
   };
 
-  const handleExport = async () => {
-    try {
-      downloadBlob(await serviceApi.export(), `services-${Date.now()}.xlsx`);
-    } catch {
-      alert(t('common.exportError'));
-    }
-  };
-
-  const handleImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImporting(true);
-    try {
-      setImportResult(await serviceApi.import(file));
-      fetchServices();
-      fetchCategories();
-    } catch (err) {
-      alert(getErrorMessage(err) || t('common.importError'));
-    } finally {
-      setImporting(false);
-      e.target.value = '';
-    }
-  };
-
   const handleAddCategory = async () => {
     const name = newCategoryName.trim();
     if (!name) return;
@@ -246,13 +219,6 @@ const Services = () => {
           {t('services.title')}
         </h1>
         <div className="flex items-center gap-2">
-          <button onClick={handleExport} className="btn btn-secondary">
-            <Download size={16} /> {t('common.export')}
-          </button>
-          <button onClick={() => fileInputRef.current?.click()} className="btn btn-secondary" disabled={importing}>
-            <Upload size={16} /> {importing ? t('common.importing') : t('common.import')}
-          </button>
-          <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFileChange} />
           <button onClick={() => setIsCategoryModalOpen(true)} className="btn btn-secondary">
             <Tags size={16} /> {t('services.categoriesBtn')}
           </button>
@@ -412,28 +378,6 @@ const Services = () => {
             <button onClick={handleSave} disabled={saving} className="btn btn-primary">
               {saving ? t('common.saving') : editingService ? t('common.save') : t('services.addNew')}
             </button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal isOpen={!!importResult} onClose={() => setImportResult(null)} title={t('common.importResultTitle')}>
-        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-          <div className="flex gap-4 text-sm">
-            <span className="text-green-600 font-medium">{t('common.importCreated', { count: importResult?.created ?? 0 })}</span>
-            <span className="text-brand font-medium">{t('common.importUpdated', { count: importResult?.updated ?? 0 })}</span>
-            <span className="text-red-500 font-medium">{t('common.importFailed', { count: importResult?.failed ?? 0 })}</span>
-          </div>
-          {importResult && importResult.errors.length > 0 && (
-            <div className="border-t border-line pt-2 space-y-1">
-              {importResult.errors.map((e, i) => (
-                <p key={i} className="text-xs text-red-500">
-                  {t('common.importRowError', { row: e.row })}: {e.message}
-                </p>
-              ))}
-            </div>
-          )}
-          <div className="flex justify-end pt-2">
-            <button onClick={() => setImportResult(null)} className="btn btn-secondary">{t('common.close')}</button>
           </div>
         </div>
       </Modal>

@@ -51,9 +51,7 @@ const Sidebar = ({ closeSidebar }: SidebarProps) => {
     <div className="flex flex-col h-full w-64 bg-surface border-r border-line">
       <div className="h-16 px-4 flex items-center border-b border-line">
         <h1 className="text-xl font-extrabold text-ink flex items-center tracking-tight">
-          <span className="w-8 h-8 rounded-sm bg-brand-soft text-brand flex items-center justify-center mr-2.5">
-            <Scissors size={16} />
-          </span>
+          <img src="/icon.png" alt="hirnix" className="w-8 h-8 rounded-sm mr-2.5"/>
           <span className="inline-flex items-baseline" style={{ letterSpacing: '-0.03em' }}>
             hirnix
             <span className="w-1 h-1 rounded-full bg-brand ml-0.5 self-end mb-0.5" />

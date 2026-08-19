@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { User, Plus, Star, Scissors, Pencil, UserX, UserCheck, Download, Upload } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { User, Plus, Star, Scissors, Pencil, UserX, UserCheck } from 'lucide-react';
 import { employeeApi, reviewApi, clientApi, serviceApi, authApi } from '../api';
-import { Employee, Client, Review, Service, ImportResult } from '../api/types';
+import { Employee, Client, Review, Service } from '../api/types';
 import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
-import { downloadBlob } from '../utils/download';
 
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 
@@ -75,11 +74,6 @@ const Employees = () => {
   const [loginEmp,    setLoginEmp]    = useState<Employee|null>(null);
   const [loginForm,   setLoginForm]   = useState({ name: '', email: '', password: '', confirmPassword: '', role: 'barber' as 'admin' | 'barber' });
   const [loginSaving, setLoginSaving] = useState(false);
-
-  // import/export
-  const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<ImportResult | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchEmployees = useCallback(async () => {
     try {
@@ -171,30 +165,6 @@ const Employees = () => {
       const updated = await employeeApi.reactivate(id);
       setEmployees(p => p.map(e => e._id === id ? updated : e));
     } catch (err) { alert(getErrorMessage(err) || t('employees.reactivateError')); }
-  };
-
-  // ── import / export ─────────────────────────────────────────────────────────
-  const handleExport = async () => {
-    try {
-      downloadBlob(await employeeApi.export(), `employees-${Date.now()}.xlsx`);
-    } catch {
-      alert(t('common.exportError'));
-    }
-  };
-
-  const handleImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImporting(true);
-    try {
-      setImportResult(await employeeApi.import(file));
-      fetchEmployees();
-    } catch (err) {
-      alert(getErrorMessage(err) || t('common.importError'));
-    } finally {
-      setImporting(false);
-      e.target.value = '';
-    }
   };
 
   // ── create / manage login ───────────────────────────────────────────────────
@@ -299,13 +269,6 @@ const Employees = () => {
           <User size={24} className="mr-2 text-brand"/> {t('employees.title')}
         </h1>
         <div className="flex items-center gap-2">
-          <button onClick={handleExport} className="btn btn-secondary">
-            <Download size={16}/> {t('common.export')}
-          </button>
-          <button onClick={() => fileInputRef.current?.click()} className="btn btn-secondary" disabled={importing}>
-            <Upload size={16}/> {importing ? t('common.importing') : t('common.import')}
-          </button>
-          <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFileChange}/>
           <button onClick={openAdd} className="btn btn-primary">
             <Plus size={18}/> {t('employees.addNew')}
           </button>
@@ -667,28 +630,6 @@ const Employees = () => {
             <button onClick={submitLogin} disabled={loginSaving} className="btn btn-primary">
               {loginSaving ? t('common.saving') : isManageMode ? t('common.save') : t('employees.createLogin')}
             </button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal isOpen={!!importResult} onClose={() => setImportResult(null)} title={t('common.importResultTitle')}>
-        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-          <div className="flex gap-4 text-sm">
-            <span className="text-green-600 font-medium">{t('common.importCreated', { count: importResult?.created ?? 0 })}</span>
-            <span className="text-brand font-medium">{t('common.importUpdated', { count: importResult?.updated ?? 0 })}</span>
-            <span className="text-red-500 font-medium">{t('common.importFailed', { count: importResult?.failed ?? 0 })}</span>
-          </div>
-          {importResult && importResult.errors.length > 0 && (
-            <div className="border-t border-line pt-2 space-y-1">
-              {importResult.errors.map((e, i) => (
-                <p key={i} className="text-xs text-red-500">
-                  {t('common.importRowError', { row: e.row })}: {e.message}
-                </p>
-              ))}
-            </div>
-          )}
-          <div className="flex justify-end pt-2">
-            <button onClick={() => setImportResult(null)} className="btn btn-secondary">{t('common.close')}</button>
           </div>
         </div>
       </Modal>
