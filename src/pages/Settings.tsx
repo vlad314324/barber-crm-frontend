@@ -9,10 +9,14 @@ import BookingLinkCard from '../components/BookingLinkCard';
 
 const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
 
+type Tab = 'general' | 'booking' | 'security';
+
 const Settings = () => {
   const { user, salonSlug } = useAuth();
   const { t } = useLocale();
   const DAYS = DAY_KEYS.map(key => ({ key, label: t(`settings.days.${key}`) }));
+
+  const [activeTab, setActiveTab] = useState<Tab>('general');
 
   const [settings, setSettings] = useState<ShopSettings>({
     shopName: '', address: '', phone: '', email: '',
@@ -100,30 +104,27 @@ const Settings = () => {
         {t('settings.title')}
       </h1>
 
+      {/* Tabs */}
+      <div className="flex gap-1 bg-canvas-soft p-1 rounded-sm w-fit">
+        {([
+          ['general', t('settings.tabGeneral')],
+          ['booking', t('settings.tabBookingPage')],
+          ['security', t('settings.tabSecurity')],
+        ] as const).map(([tab, label]) => (
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 rounded-xs text-sm font-medium transition-all
+              ${activeTab === tab ? 'bg-surface text-brand-dark shadow-sm' : 'text-ink-secondary hover:text-ink'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Заклад: загальна інформація + години роботи */}
+      {activeTab === 'general' && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {/* Ліва колонка */}
-        <div className="space-y-6">
-
-          {/* Посилання для запису */}
-          {salonSlug && (
-            <div className="ds-card overflow-hidden">
-              <div className="ds-card-header">
-                <div>
-                  <h2 className="text-base font-semibold text-ink flex items-center gap-2">
-                    <Link2 size={18} className="text-brand" /> {t('settings.bookingLink.title')}
-                  </h2>
-                  <p className="text-sm text-ink-muted mt-0.5">{t('settings.bookingLink.desc')}</p>
-                </div>
-              </div>
-              <div className="px-6 py-5">
-                <BookingLinkCard slug={salonSlug} />
-              </div>
-            </div>
-          )}
-
           {/* Загальна інформація */}
-          <div className="ds-card overflow-hidden">
+          <div className="ds-card overflow-hidden h-fit">
             <div className="ds-card-header">
               <div>
                 <h2 className="text-base font-semibold text-ink">{t('settings.generalInfo')}</h2>
@@ -177,8 +178,86 @@ const Settings = () => {
             </div>
           </div>
 
+          {/* Години роботи */}
+          <div className="ds-card overflow-hidden h-fit">
+            <div className="ds-card-header">
+              <div>
+                <h2 className="text-base font-semibold text-ink flex items-center gap-2">
+                  <Clock size={18} className="text-brand" /> {t('settings.workingHours')}
+                </h2>
+                <p className="text-sm text-ink-muted mt-0.5">{t('settings.workingHoursDesc')}</p>
+              </div>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              {DAYS.map(({ key, label }) => {
+                const day = settings.workingHours[key] || { isOpen: true, from: '09:00', to: '19:00' };
+                return (
+                  <div key={key} className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={day.isOpen}
+                      onChange={e => updateWorkingHour(key, 'isOpen', e.target.checked)}
+                      className="w-4 h-4 text-brand rounded flex-shrink-0 focus:ring-brand"
+                    />
+                    <span className={`text-sm font-medium w-24 flex-shrink-0 ${day.isOpen ? 'text-ink-secondary' : 'text-ink-muted'}`}>
+                      {label}
+                    </span>
+                    {day.isOpen ? (
+                      <div className="flex items-center gap-2 flex-1">
+                        <input
+                          type="time"
+                          value={day.from}
+                          onChange={e => updateWorkingHour(key, 'from', e.target.value)}
+                          className="field-input flex-1 py-1.5"
+                        />
+                        <span className="text-ink-muted text-sm">—</span>
+                        <input
+                          type="time"
+                          value={day.to}
+                          onChange={e => updateWorkingHour(key, 'to', e.target.value)}
+                          className="field-input flex-1 py-1.5"
+                        />
+                      </div>
+                    ) : (
+                      <span className="text-sm text-ink-muted italic">{t('settings.dayOff')}</span>
+                    )}
+                  </div>
+                );
+              })}
+              <div className="flex justify-end pt-4 border-t border-line">
+                <button onClick={handleInfoSave} disabled={saving} className="btn btn-primary">
+                  {savedInfo ? <><Check size={16}/> {t('settings.saved')}</> : <><Save size={16}/> {t('common.save')}</>}
+                </button>
+              </div>
+            </div>
+          </div>
+
+      </div>
+      )}
+
+      {/* Сторінка бронювання: посилання/QR + оформлення */}
+      {activeTab === 'booking' && (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          {/* Посилання для запису */}
+          {salonSlug && (
+            <div className="ds-card overflow-hidden h-fit">
+              <div className="ds-card-header">
+                <div>
+                  <h2 className="text-base font-semibold text-ink flex items-center gap-2">
+                    <Link2 size={18} className="text-brand" /> {t('settings.bookingLink.title')}
+                  </h2>
+                  <p className="text-sm text-ink-muted mt-0.5">{t('settings.bookingLink.desc')}</p>
+                </div>
+              </div>
+              <div className="px-6 py-5">
+                <BookingLinkCard slug={salonSlug} />
+              </div>
+            </div>
+          )}
+
           {/* Оформлення сторінки бронювання */}
-          <div className="ds-card overflow-hidden">
+          <div className="ds-card overflow-hidden h-fit">
             <div className="ds-card-header">
               <div>
                 <h2 className="text-base font-semibold text-ink flex items-center gap-2">
@@ -236,7 +315,12 @@ const Settings = () => {
             </div>
           </div>
 
-          {/* Зміна пароля */}
+      </div>
+      )}
+
+      {/* Безпека: зміна пароля */}
+      {activeTab === 'security' && (
+      <div className="max-w-xl">
           <div className="ds-card overflow-hidden">
             <div className="ds-card-header">
               <div>
@@ -281,63 +365,8 @@ const Settings = () => {
             </div>
           </div>
 
-        </div>
-
-        {/* Права колонка — Години роботи */}
-        <div className="ds-card overflow-hidden h-fit">
-          <div className="ds-card-header">
-            <div>
-              <h2 className="text-base font-semibold text-ink flex items-center gap-2">
-                <Clock size={18} className="text-brand" /> {t('settings.workingHours')}
-              </h2>
-              <p className="text-sm text-ink-muted mt-0.5">{t('settings.workingHoursDesc')}</p>
-            </div>
-          </div>
-          <div className="px-6 py-5 space-y-4">
-            {DAYS.map(({ key, label }) => {
-              const day = settings.workingHours[key] || { isOpen: true, from: '09:00', to: '19:00' };
-              return (
-                <div key={key} className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={day.isOpen}
-                    onChange={e => updateWorkingHour(key, 'isOpen', e.target.checked)}
-                    className="w-4 h-4 text-brand rounded flex-shrink-0 focus:ring-brand"
-                  />
-                  <span className={`text-sm font-medium w-24 flex-shrink-0 ${day.isOpen ? 'text-ink-secondary' : 'text-ink-muted'}`}>
-                    {label}
-                  </span>
-                  {day.isOpen ? (
-                    <div className="flex items-center gap-2 flex-1">
-                      <input
-                        type="time"
-                        value={day.from}
-                        onChange={e => updateWorkingHour(key, 'from', e.target.value)}
-                        className="field-input flex-1 py-1.5"
-                      />
-                      <span className="text-ink-muted text-sm">—</span>
-                      <input
-                        type="time"
-                        value={day.to}
-                        onChange={e => updateWorkingHour(key, 'to', e.target.value)}
-                        className="field-input flex-1 py-1.5"
-                      />
-                    </div>
-                  ) : (
-                    <span className="text-sm text-ink-muted italic">{t('settings.dayOff')}</span>
-                  )}
-                </div>
-              );
-            })}
-            <div className="flex justify-end pt-4 border-t border-line">
-              <button onClick={handleInfoSave} disabled={saving} className="btn btn-primary">
-                {savedInfo ? <><Check size={16}/> {t('settings.saved')}</> : <><Save size={16}/> {t('common.save')}</>}
-              </button>
-            </div>
-          </div>
-        </div>
-
       </div>
+      )}
     </div>
   );
 };

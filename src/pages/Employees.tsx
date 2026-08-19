@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { User, Plus, Star, Scissors, Pencil, UserX, UserCheck, Download, Upload } from 'lucide-react';
-import { employeeApi, reviewApi, clientApi, authApi } from '../api';
-import { Employee, Client, Review, ImportResult } from '../api/types';
+import { employeeApi, reviewApi, clientApi, serviceApi, authApi } from '../api';
+import { Employee, Client, Review, Service, ImportResult } from '../api/types';
 import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
@@ -35,6 +35,7 @@ const defaultForm = {
   role: 'Barber' as Employee['role'],
   hourlyRate: 0, isAvailable: true,
   specialties: '', bio: '',
+  serviceIds: [] as string[],
   schedule: { ...defaultSchedule },
 };
 
@@ -52,6 +53,7 @@ const Employees = () => {
   const DAYS = DAY_KEYS.map(key => ({ key, label: DAY_LABELS[lang][key] }));
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [clients,   setClients]   = useState<Client[]>([]);
+  const [services,  setServices]  = useState<Service[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState<string|null>(null);
   const [activeTab, setActiveTab] = useState<'active' | 'deactivated'>('active');
@@ -88,6 +90,7 @@ const Employees = () => {
   }, [t]);
   useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
   useEffect(() => { clientApi.getAll().then(setClients).catch(() => setClients([])); }, []);
+  useEffect(() => { serviceApi.getAll().then(setServices).catch(() => setServices([])); }, []);
 
   // ── open add/edit ──────────────────────────────────────────────────────────
   const openAdd = () => {
@@ -104,6 +107,7 @@ const Employees = () => {
       isAvailable: emp.isAvailable,
       specialties: emp.specialties?.join(', ') || '',
       bio: emp.bio || '',
+      serviceIds: emp.services || [],
       schedule: emp.schedule
         ? { ...defaultSchedule, ...emp.schedule }
         : { ...defaultSchedule },
@@ -136,9 +140,11 @@ const Employees = () => {
     }
     setSaving(true);
     try {
+      const { serviceIds, ...rest } = formData;
       const payload = {
-        ...formData,
+        ...rest,
         specialties: formData.specialties.split(',').map(s => s.trim()).filter(Boolean),
+        services: serviceIds,
       };
       if (editingEmployee) {
         await employeeApi.update(editingEmployee._id, payload);
@@ -368,6 +374,19 @@ const Employees = () => {
                 </div>
               )}
 
+              {/* Призначені послуги */}
+              {(emp.services?.length || 0) > 0 && (
+                <div className="px-5 pb-3 flex flex-wrap gap-1">
+                  {emp.services!.slice(0, 3).map(id => {
+                    const svc = services.find(s => s._id === id);
+                    return svc ? <span key={id} className="badge badge-neutral">{svc.name}</span> : null;
+                  })}
+                  {emp.services!.length > 3 && (
+                    <span className="badge badge-neutral">+{emp.services!.length - 3}</span>
+                  )}
+                </div>
+              )}
+
               {/* Schedule */}
               <div className="px-5 pb-4">
                 <div className="grid grid-cols-7 gap-0.5 text-center">
@@ -444,6 +463,24 @@ const Employees = () => {
                     onChange={e => setFormData({ ...formData, [key]: type === 'number' ? Number(e.target.value) : e.target.value })}/>
                 </div>
               ))}
+
+              <div>
+                <label className="field-label">{t('employees.fieldServices')}</label>
+                <p className="text-xs text-ink-muted mb-1">{t('employees.fieldServicesHint')}</p>
+                <div className="border border-line rounded-sm p-2 max-h-40 overflow-y-auto space-y-1">
+                  {services.map(s => (
+                    <label key={s._id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-canvas-soft p-1 rounded-xs">
+                      <input type="checkbox" className="rounded border-line text-brand focus:ring-brand"
+                        checked={formData.serviceIds.includes(s._id)}
+                        onChange={e => setFormData(p => ({
+                          ...p,
+                          serviceIds: e.target.checked ? [...p.serviceIds, s._id] : p.serviceIds.filter(id => id !== s._id),
+                        }))}/>
+                      <span>{s.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
 
               <div>
                 <label className="field-label">{t('employees.fieldRole')}</label>

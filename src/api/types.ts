@@ -31,6 +31,7 @@ export interface Employee {
     sun: WorkingDay;
   };
   specialties: string[];
+  services?: string[];
   rating?: number;
   reviewCount?: number;
   joinDate?: string;
@@ -137,6 +138,7 @@ export interface CreateEmployeeDto {
     sun: WorkingDay;
   };
   specialties?: string[];
+  services?: string[];
 }
 
 export interface CreateServiceDto {
