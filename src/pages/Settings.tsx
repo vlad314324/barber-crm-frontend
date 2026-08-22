@@ -6,6 +6,7 @@ import { useLocale } from '../i18n/LocaleContext';
 import { ShopSettings, WorkingDay } from '../api/types';
 import { getErrorMessage } from '../utils/errors';
 import BookingLinkCard from '../components/BookingLinkCard';
+import { BOOKING_LANGS, BookingLang } from '../i18n/bookingTranslations';
 
 const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
 
@@ -19,6 +20,7 @@ const Settings = () => {
     coverImageUrl: '', logoUrl: '', tagline: '', accentColor: '',
     latitude: null, longitude: null, websiteUrl: '',
     workingHours: {},
+    bookingLanguages: ['uk', 'en'], defaultBookingLanguage: 'uk',
   });
 
   const [passwords, setPasswords] = useState({
@@ -35,7 +37,12 @@ const Settings = () => {
   useEffect(() => {
     api.get('/settings').then(r => {
       const data = r.data;
-      setSettings({ ...data, workingHours: data.workingHours || {} });
+      setSettings({
+        ...data,
+        workingHours: data.workingHours || {},
+        bookingLanguages: data.bookingLanguages?.length ? data.bookingLanguages : ['uk', 'en'],
+        defaultBookingLanguage: data.defaultBookingLanguage || 'uk',
+      });
       setLoading(false);
     });
   }, []);
@@ -79,6 +86,17 @@ const Settings = () => {
     } finally {
       setSavingPass(false);
     }
+  };
+
+  const toggleBookingLanguage = (l: BookingLang) => {
+    setSettings(prev => {
+      const current = prev.bookingLanguages?.length ? prev.bookingLanguages : ['uk', 'en'];
+      const isEnabled = current.includes(l);
+      if (isEnabled && current.length === 1) return prev; // at least one language must stay enabled
+      const next = isEnabled ? current.filter(x => x !== l) : [...current, l];
+      const defaultLang = next.includes(prev.defaultBookingLanguage || 'uk') ? prev.defaultBookingLanguage : next[0];
+      return { ...prev, bookingLanguages: next, defaultBookingLanguage: defaultLang };
+    });
   };
 
   const updateWorkingHour = (day: string, field: keyof WorkingDay, value: string | boolean) => {
@@ -221,6 +239,42 @@ const Settings = () => {
                     {t('settings.branding.resetColor')}
                   </button>
                 </div>
+              </div>
+              <div>
+                <label className="field-label">{t('settings.branding.languagesTitle')}</label>
+                <p className="text-xs text-ink-muted mb-2">{t('settings.branding.languagesDesc')}</p>
+                <div className="space-y-2">
+                  {BOOKING_LANGS.map(l => {
+                    const enabled = (settings.bookingLanguages?.length ? settings.bookingLanguages : ['uk', 'en']).includes(l);
+                    const isDefault = (settings.defaultBookingLanguage || 'uk') === l;
+                    return (
+                      <div key={l} className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          id={`lang-${l}`}
+                          checked={enabled}
+                          onChange={() => toggleBookingLanguage(l)}
+                          className="w-4 h-4 text-brand rounded flex-shrink-0 focus:ring-brand"
+                        />
+                        <label htmlFor={`lang-${l}`} className="text-sm text-ink-secondary flex-1">
+                          {t(`settings.branding.language${l[0].toUpperCase()}${l.slice(1)}`)}
+                        </label>
+                        <label className={`flex items-center gap-1.5 text-xs ${enabled ? 'text-ink-muted' : 'text-line-medium'}`}>
+                          <input
+                            type="radio"
+                            name="defaultBookingLanguage"
+                            disabled={!enabled}
+                            checked={isDefault}
+                            onChange={() => setSettings(prev => ({ ...prev, defaultBookingLanguage: l }))}
+                            className="w-3.5 h-3.5 text-brand focus:ring-brand"
+                          />
+                          {t('settings.branding.defaultLanguageLabel')}
+                        </label>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-ink-muted mt-1.5">{t('settings.branding.languagesMinHint')}</p>
               </div>
               {salonSlug && (
                 <a href={`${window.location.origin}/book/${salonSlug}`} target="_blank" rel="noreferrer"

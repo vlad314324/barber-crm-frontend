@@ -242,6 +242,9 @@ export interface ShopSettings {
   longitude?: number | null;
   websiteUrl?: string;
   workingHours: Record<string, WorkingDay>;
+  // Languages offered on the public booking page (subset of BookingLang) and which one loads by default
+  bookingLanguages?: string[];
+  defaultBookingLanguage?: string;
 }
 
 // Публічний підмножина ShopSettings, яку віддає /booking/settings
@@ -257,4 +260,6 @@ export interface PublicBookingSettings {
   latitude?: number | null;
   longitude?: number | null;
   websiteUrl?: string;
+  bookingLanguages?: string[];
+  defaultBookingLanguage?: string;
 }

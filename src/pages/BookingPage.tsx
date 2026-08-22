@@ -8,7 +8,7 @@ import {
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { API_BASE_URL } from '../api';
-import { useLocale } from '../i18n/LocaleContext';
+import { BOOKING_LANG_LABELS, BookingLang, tBooking } from '../i18n/bookingTranslations';
 import LanguageToggle from '../components/LanguageToggle';
 import LocationMap from '../components/LocationMap';
 import { getErrorMessage } from '../utils/errors';
@@ -22,10 +22,7 @@ const HEX_COLOR_RE = /^#([0-9a-f]{3}){1,2}$/i;
 type Screen = 'menu' | 'about' | 'services' | 'master' | 'datetime' | 'contacts' | 'confirm';
 
 const DAY_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
-const DAY_SHORT: Record<'uk' | 'en', Record<typeof DAY_ORDER[number], string>> = {
-  uk: { monday: 'Пн', tuesday: 'Вт', wednesday: 'Ср', thursday: 'Чт', friday: 'Пт', saturday: 'Сб', sunday: 'Нд' },
-  en: { monday: 'Mo', tuesday: 'Tu', wednesday: 'We', thursday: 'Th', friday: 'Fr', saturday: 'Sa', sunday: 'Su' },
-};
+const DEFAULT_BOOKING_LANGS: BookingLang[] = ['uk', 'en'];
 
 const ScreenHeader = ({ title, onBack }: { title: string; onBack: () => void }) => (
   <div className="flex items-center gap-2 mb-5">
@@ -55,8 +52,10 @@ const MenuRow = ({ icon, title, subtitle, disabled, disabledHint, onClick }: {
 );
 
 const BookingPage = () => {
-  const { t, lang } = useLocale();
   const { salonSlug } = useParams<{ salonSlug?: string }>();
+  const [lang, setLangState] = useState<BookingLang>('uk');
+  const [langTouched, setLangTouched] = useState(false);
+  const t = (path: string, vars?: Record<string, string | number>) => tBooking(lang, path, vars);
   // Standalone client, scoped to this salon's slug — deliberately not the
   // shared authenticated `api` instance, so this public page never touches
   // (or gets touched by) an admin session's tenant in another tab.
@@ -106,6 +105,19 @@ const BookingPage = () => {
 
   const accentColor = branding?.accentColor && HEX_COLOR_RE.test(branding.accentColor) ? branding.accentColor : null;
   const accentStyle = accentColor ? { backgroundColor: accentColor, borderColor: accentColor } : undefined;
+
+  const enabledLangs = (branding?.bookingLanguages?.length
+    ? branding.bookingLanguages.filter((l): l is BookingLang => (DEFAULT_BOOKING_LANGS as string[]).includes(l) || l === 'cs' || l === 'pl')
+    : DEFAULT_BOOKING_LANGS);
+
+  useEffect(() => {
+    if (langTouched || !branding) return;
+    const def = branding.defaultBookingLanguage as BookingLang | undefined;
+    if (def && enabledLangs.includes(def)) setLangState(def);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branding]);
+
+  const setLang = (l: string) => { setLangTouched(true); setLangState(l as BookingLang); };
 
   useEffect(() => {
     if (selectedEmployee && selectedDate) {
@@ -176,7 +188,7 @@ const BookingPage = () => {
   if (!salonSlug) return (
     <div className="min-h-screen bg-canvas flex items-center justify-center px-4">
       <div className="absolute top-4 right-4">
-        <LanguageToggle />
+        <LanguageToggle langs={enabledLangs} labels={BOOKING_LANG_LABELS} value={lang} onChange={setLang} />
       </div>
       <div className="text-center max-w-sm">
         <h2 className="text-xl font-bold text-ink mb-2">{t('booking.noSalonTitle')}</h2>
@@ -188,7 +200,7 @@ const BookingPage = () => {
   if (done) return (
     <div className="min-h-screen bg-canvas flex items-center justify-center px-4">
       <div className="absolute top-4 right-4">
-        <LanguageToggle />
+        <LanguageToggle langs={enabledLangs} labels={BOOKING_LANG_LABELS} value={lang} onChange={setLang} />
       </div>
       <div className="text-center max-w-md">
         <div className="w-20 h-20 bg-brand-soft rounded-full flex items-center justify-center mx-auto mb-6">
@@ -221,7 +233,7 @@ const BookingPage = () => {
             backgroundSize: 'cover', backgroundPosition: 'center',
           } : undefined}>
           <div className="absolute top-4 right-4">
-            <LanguageToggle variant="dark" />
+            <LanguageToggle variant="dark" langs={enabledLangs} labels={BOOKING_LANG_LABELS} value={lang} onChange={setLang} />
           </div>
           <div className="flex items-center justify-center gap-2 mb-1">
             {branding?.logoUrl
@@ -236,7 +248,7 @@ const BookingPage = () => {
         </div>
       ) : (
         <div className="px-4 pt-4 flex justify-end">
-          <LanguageToggle />
+          <LanguageToggle langs={enabledLangs} labels={BOOKING_LANG_LABELS} value={lang} onChange={setLang} />
         </div>
       )}
 
@@ -327,7 +339,7 @@ const BookingPage = () => {
                   const off = !d || !d.isOpen;
                   return (
                     <div key={day}>
-                      <p className="text-[11px] font-medium text-ink-muted">{DAY_SHORT[lang][day]}</p>
+                      <p className="text-[11px] font-medium text-ink-muted">{t(`days.${day}`)}</p>
                       <div className={`mt-0.5 py-1 rounded-xs text-[10px] leading-tight ${off ? 'bg-red-50 text-red-500' : 'bg-brand-soft text-brand-dark'}`}>
                         {off ? '×' : `${d.from}`}
                       </div>
@@ -343,7 +355,7 @@ const BookingPage = () => {
             {branding?.address && (
               <div className="flex items-center justify-between gap-2 mb-3">
                 <span className="text-sm text-ink-secondary">{branding.address}</span>
-                <button onClick={handleCopyAddress} className="text-ink-muted hover:text-ink flex-shrink-0" title={t('settings.bookingLink.copyBtn')}>
+                <button onClick={handleCopyAddress} className="text-ink-muted hover:text-ink flex-shrink-0" title={t('booking.copyAddress')}>
                   {addressCopied ? <Check size={15}/> : <Copy size={15}/>}
                 </button>
               </div>

@@ -414,7 +414,6 @@ const Employees = () => {
                   value={formData.role}
                   onChange={e => setFormData({ ...formData, role: e.target.value as Employee['role'] })}>
                   <option value="Barber">{t('roles.Barber')}</option>
-                  <option value="Receptionist">{t('roles.Receptionist')}</option>
                   <option value="Manager">{t('roles.Manager')}</option>
                 </select>
               </div>
