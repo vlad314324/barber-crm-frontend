@@ -15,7 +15,7 @@ import { getErrorMessage } from '../utils/errors';
 import { PublicBookingSettings } from '../api/types';
 
 interface Service { _id: string; name: string; price: number; duration: number; category: string; }
-interface Employee { _id: string; name: string; role: string; }
+interface Employee { _id: string; name: string; role: string; services?: string[]; }
 
 const HEX_COLOR_RE = /^#([0-9a-f]{3}){1,2}$/i;
 
@@ -150,6 +150,11 @@ const BookingPage = () => {
   const totalPrice    = selectedServices.reduce((sum, s) => sum + s.price, 0);
   const totalDuration = selectedServices.reduce((sum, s) => sum + s.duration, 0);
 
+  // Порожній/невизначений selectedEmployee.services означає "без обмежень".
+  const availableServices = !selectedEmployee || !selectedEmployee.services || selectedEmployee.services.length === 0
+    ? services
+    : services.filter(s => selectedEmployee.services!.includes(s._id));
+
   const todayStr = new Date().toISOString().split('T')[0];
 
   const handleCopyAddress = async () => {
@@ -271,18 +276,18 @@ const BookingPage = () => {
               onClick={() => setScreen('master')}
             />
             <MenuRow
+              icon={<ListChecks size={18}/>}
+              title={t('booking.menuServices')}
+              subtitle={selectedServices.length > 0 ? `${selectedServices.length} · ${totalPrice} ${t('common.currency')}` : undefined}
+              onClick={() => setScreen('services')}
+            />
+            <MenuRow
               icon={<CalendarDays size={18}/>}
               title={t('booking.menuDateTime')}
               subtitle={selectedDate && selectedTime ? `${selectedDate} ${t('booking.at')} ${selectedTime}` : undefined}
               disabled={!selectedEmployee}
               disabledHint={t('booking.chooseMasterFirst')}
               onClick={() => setScreen('datetime')}
-            />
-            <MenuRow
-              icon={<ListChecks size={18}/>}
-              title={t('booking.menuServices')}
-              subtitle={selectedServices.length > 0 ? `${selectedServices.length} · ${totalPrice} ${t('common.currency')}` : undefined}
-              onClick={() => setScreen('services')}
             />
             <MenuRow
               icon={<Info size={18}/>}
@@ -378,7 +383,12 @@ const BookingPage = () => {
               const initials = e.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
               return (
                 <div key={e._id}
-                  onClick={() => { setSelectedEmployee(e); setScreen('menu'); }}
+                  onClick={() => {
+                    const allowedIds = !e.services || e.services.length === 0 ? null : new Set(e.services);
+                    setSelectedServices(prev => allowedIds ? prev.filter(s => allowedIds.has(s._id)) : prev);
+                    setSelectedEmployee(e);
+                    setScreen('menu');
+                  }}
                   className={`p-4 rounded-md border-2 cursor-pointer transition-colors flex items-center gap-4
                     ${selectedEmployee?._id === e._id
                       ? 'border-brand bg-brand-extra-soft'
@@ -447,7 +457,7 @@ const BookingPage = () => {
         <div className="max-w-2xl mx-auto px-4 py-6">
           <ScreenHeader title={t('booking.chooseService')} onBack={() => setScreen('menu')} />
           <div className="space-y-3">
-            {services.map(s => (
+            {availableServices.map(s => (
               <div key={s._id}
                 onClick={() => toggleService(s)}
                 className={`p-4 rounded-md border-2 cursor-pointer transition-colors

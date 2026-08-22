@@ -17,6 +17,25 @@ platformApi.interceptors.request.use((config) => {
   return config;
 });
 
+// Протермінований чи невалідний платформний токен (напр. 7-денний JWT
+// вигас) інакше тихо провалював би кожен запит — вкладки показували б
+// порожні списки, а адмін і далі виглядав би "залогіненим" (це поле
+// читається з localStorage при завантаженні й не звіряється з бекендом).
+platformApi.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      const isLoginRequest = error.config?.url?.includes('/auth/login');
+      if (!isLoginRequest) {
+        localStorage.removeItem('platformToken');
+        localStorage.removeItem('platformAdmin');
+        window.location.reload();
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export interface PlatformAdminAccount {
   id: string;
   name: string;

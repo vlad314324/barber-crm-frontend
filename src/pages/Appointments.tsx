@@ -467,11 +467,23 @@ if (selectedBarber) {
     finally { setAddingNote(false); }
   };
 
+  const totalsFor = (ids: string[]) => {
+    const price = ids.reduce((s,id) => s + (services.find(sv=>sv._id===id)?.price||0), 0);
+    const dur   = ids.reduce((s,id) => s + (services.find(sv=>sv._id===id)?.duration||0), 0);
+    return { price, dur: dur || 30 };
+  };
+
   const toggleService = (ids: string[], svcId: string, isAdd: boolean) => {
     const next = isAdd ? [...ids, svcId] : ids.filter(id => id !== svcId);
-    const price = next.reduce((s,id) => s + (services.find(sv=>sv._id===id)?.price||0), 0);
-    const dur   = next.reduce((s,id) => s + (services.find(sv=>sv._id===id)?.duration||0), 0);
-    return { ids: next, price, dur: dur || 30 };
+    return { ids: next, ...totalsFor(next) };
+  };
+
+  // Порожній/невизначений emp.services означає "без обмежень" — майстер
+  // може виконувати всі послуги, доки адмін явно щось не призначить.
+  const allowedServices = (employeeId: string): Service[] => {
+    const emp = employees.find(e => e._id === employeeId);
+    if (!emp || !emp.services || emp.services.length === 0) return services.filter(s => s.isAvailable);
+    return services.filter(s => s.isAvailable && emp.services!.includes(s._id));
   };
 
   const statusLabel = (status: string) => t(`statuses.${status}`);
@@ -686,7 +698,12 @@ if (selectedBarber) {
             <div>
               <label className="field-label">{t('appointments.master')}</label>
               <select className="field-input"
-                value={addForm.employeeId} onChange={e => setAddForm({...addForm, employeeId:e.target.value})}>
+                value={addForm.employeeId} onChange={e => {
+                  const newEmpId = e.target.value;
+                  const allowed = allowedServices(newEmpId);
+                  const prunedIds = addForm.serviceIds.filter(id => allowed.some(s => s._id === id));
+                  setAddForm({...addForm, employeeId:newEmpId, serviceIds:prunedIds, ...totalsFor(prunedIds)});
+                }}>
                 <option value="">{t('appointments.masterChoosePlaceholder')}</option>
                 {assignableBarbers.map(e => <option key={e._id} value={e._id}>{e.name}</option>)}
               </select>
@@ -696,7 +713,7 @@ if (selectedBarber) {
           <div>
             <label className="field-label">{t('appointments.services')}</label>
             <div className="border border-line rounded-sm p-2 max-h-56 overflow-y-auto space-y-1">
-              {services.filter(s=>s.isAvailable).map(s => (
+              {allowedServices(addForm.employeeId).map(s => (
                 <label key={s._id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-canvas-soft p-1 rounded-xs">
                   <input type="checkbox" className="rounded border-line text-brand focus:ring-brand"
                     checked={addForm.serviceIds.includes(s._id)}
@@ -762,7 +779,12 @@ if (selectedBarber) {
               <div>
                 <label className="field-label">{t('appointments.master')}</label>
                 <select className="field-input"
-                  value={editForm.employeeId} onChange={e => setEditForm({...editForm, employeeId:e.target.value})}>
+                  value={editForm.employeeId} onChange={e => {
+                    const newEmpId = e.target.value;
+                    const allowed = allowedServices(newEmpId);
+                    const prunedIds = (editForm.serviceIds||[]).filter(id => allowed.some(s => s._id === id));
+                    setEditForm({...editForm, employeeId:newEmpId, serviceIds:prunedIds, ...totalsFor(prunedIds)});
+                  }}>
                   {editBarbers.map(e => (
                     <option key={e._id} value={e._id}>{e.name}{e.isActive === false ? ` (${t('employees.deactivated')})` : ''}</option>
                   ))}
@@ -772,7 +794,7 @@ if (selectedBarber) {
             <div>
               <label className="field-label">{t('appointments.services')}</label>
               <div className="border border-line rounded-sm p-2 max-h-56 overflow-y-auto space-y-1">
-                {services.filter(s=>s.isAvailable).map(s => (
+                {allowedServices(editForm.employeeId).map(s => (
                   <label key={s._id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-canvas-soft p-1 rounded-xs">
                     <input type="checkbox" className="rounded border-line text-brand focus:ring-brand"
                       checked={(editForm.serviceIds||[]).includes(s._id)}
