@@ -4,9 +4,12 @@ import MetricCard from '../components/dashboard/MetricCard';
 import { appointmentApi, clientApi } from '../api';
 import { Appointment, Client } from '../api/types';
 import { useLocale } from '../i18n/LocaleContext';
+import { useShopCurrency } from '../context/SettingsContext';
+import { formatPrice } from '../utils/money';
 
 const Dashboard = () => {
   const { t } = useLocale();
+  const currency = useShopCurrency();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,7 +77,7 @@ const Dashboard = () => {
     { title: t('dashboard.metricTodayAppointments'), value: loading ? '...' : String(todayAppointments.length), icon: <Calendar size={22} /> },
     { title: t('dashboard.metricTotalClients'), value: loading ? '...' : String(clients.length), icon: <Users size={22} /> },
     { title: t('dashboard.metricAvgServiceTime'), value: loading ? '...' : `${avgDuration}m`, icon: <Clock size={22} /> },
-    { title: t('dashboard.metricTodayRevenue'), value: loading ? '...' : `$${todayRevenue.toFixed(0)}`, icon: <DollarSign size={22} /> },
+    { title: t('dashboard.metricTodayRevenue'), value: loading ? '...' : formatPrice(todayRevenue, currency), icon: <DollarSign size={22} /> },
   ];
 
   const statusLabel = (status: string) => t(`statuses.${status}`);
@@ -120,7 +123,7 @@ const Dashboard = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-ink-secondary">${a.totalPrice}</span>
+                  <span className="text-sm font-medium text-ink-secondary">{formatPrice(a.totalPrice, currency)}</span>
                   <span className={`badge ${statusBadgeClass(a.status)}`}>{statusLabel(a.status)}</span>
                 </div>
               </div>
@@ -172,7 +175,7 @@ const Dashboard = () => {
               <div className="flex items-end gap-2 h-32">
                 {revenueByDay.map((d, i) => (
                   <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                    <span className="text-xs text-ink-muted">${d.revenue}</span>
+                    <span className="text-xs text-ink-muted">{formatPrice(d.revenue, currency)}</span>
                     <div
                       className="w-full bg-brand rounded-t transition-all"
                       style={{ height: `${Math.max((d.revenue / maxRev) * 128, d.revenue > 0 ? 6 : 3)}px` }}

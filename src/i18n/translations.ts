@@ -2,7 +2,6 @@ export type Lang = 'uk' | 'en';
 
 const uk = {
   common: {
-    currency: 'грн',
     loading: 'Завантаження...',
     save: 'Зберегти',
     saving: 'Збереження...',
@@ -23,6 +22,7 @@ const uk = {
     today: 'Сьогодні',
     na: 'Немає',
     close: 'Закрити',
+    more: 'Ще',
     export: 'Експорт',
     import: 'Імпорт',
     importing: 'Імпортування...',
@@ -312,6 +312,9 @@ const uk = {
     fieldSpecialtiesPlaceholder: 'Стрижка, Стрижка бороди',
     fieldServices: 'Послуги, які виконує',
     fieldServicesHint: 'Якщо нічого не обрано — майстер може виконувати всі послуги',
+    fieldCustomRole: 'Власна назва посади',
+    fieldCustomRolePlaceholder: 'напр. Майстер манікюру',
+    fieldCustomRoleHint: 'Необов\'язково. Якщо вказано — показується клієнтам і в адмінці замість стандартної назви ролі (Майстер/Менеджер).',
     fieldBio: 'Біо',
     fieldBioPlaceholder: 'Короткий опис...',
     fieldRole: 'Роль',
@@ -452,6 +455,7 @@ const uk = {
     fieldPhone: 'Телефон',
     fieldEmail: 'Email',
     fieldWebsite: 'Сайт / соцмережа',
+    fieldCurrency: 'Валюта',
     fieldCoordinates: 'Координати на карті',
     fieldLatitude: 'Широта',
     fieldLongitude: 'Довгота',
@@ -629,7 +633,6 @@ const uk = {
 
 const en: typeof uk = {
   common: {
-    currency: 'UAH',
     loading: 'Loading...',
     save: 'Save',
     saving: 'Saving...',
@@ -650,6 +653,7 @@ const en: typeof uk = {
     today: 'Today',
     na: 'N/A',
     close: 'Close',
+    more: 'More',
     export: 'Export',
     import: 'Import',
     importing: 'Importing...',
@@ -939,6 +943,9 @@ const en: typeof uk = {
     fieldSpecialtiesPlaceholder: 'Haircut, Beard Trim',
     fieldServices: 'Services performed',
     fieldServicesHint: 'If none selected — this employee can perform all services',
+    fieldCustomRole: 'Custom job title',
+    fieldCustomRolePlaceholder: 'e.g. Nail master',
+    fieldCustomRoleHint: 'Optional. If set, shown to clients and in the admin panel instead of the standard role name (Barber/Manager).',
     fieldBio: 'Bio',
     fieldBioPlaceholder: 'Short bio...',
     fieldRole: 'Role',
@@ -1079,6 +1086,7 @@ const en: typeof uk = {
     fieldPhone: 'Phone',
     fieldEmail: 'Email',
     fieldWebsite: 'Website / social link',
+    fieldCurrency: 'Currency',
     fieldCoordinates: 'Map coordinates',
     fieldLatitude: 'Latitude',
     fieldLongitude: 'Longitude',

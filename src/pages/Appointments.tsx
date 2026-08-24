@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Calendar, ChevronLeft, ChevronRight, Plus, UserPlus, ChevronDown, Download, Upload, MessageSquare } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Plus, UserPlus, ChevronDown, Download, Upload, MessageSquare, MoreVertical } from 'lucide-react';
 import { appointmentApi, clientApi, employeeApi, serviceApi } from '../api';
 import api from '../api';
 import { Appointment, Client, Employee, Service, ShopSettings, ImportResult } from '../api/types';
@@ -8,6 +8,8 @@ import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
 import { downloadBlob } from '../utils/download';
+import { useShopCurrency } from '../context/SettingsContext';
+import { formatPrice } from '../utils/money';
 
 const COUNTRIES = [
   { code: '+380', flag: '🇺🇦', name: 'Україна' },
@@ -69,7 +71,7 @@ const PhoneInput = ({ value, onChange }: { value: string; onChange: (v: string) 
           <ChevronDown size={12} className="text-ink-muted"/>
         </button>
         {showDropdown && (
-          <div className="absolute top-full left-0 mt-1 w-64 bg-surface border border-line rounded-md shadow-lg z-50 overflow-hidden">
+          <div className="absolute top-full left-0 mt-1 w-64 max-w-[calc(100vw-2rem)] bg-surface border border-line rounded-md shadow-lg z-50 overflow-hidden">
             <div className="p-2 border-b border-line">
               <input autoFocus type="text" placeholder={t('appointments.searchCountryPlaceholder')}
                 className="w-full px-2 py-1 text-sm border border-line rounded-xs focus:outline-none focus:ring-1 focus:ring-brand"
@@ -203,6 +205,7 @@ const defaultEdit: EditApptForm = {
 
 const Appointments = () => {
   const { t, lang } = useLocale();
+  const currency = useShopCurrency();
   const [searchParams, setSearchParams] = useSearchParams();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -228,6 +231,20 @@ const Appointments = () => {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const importFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Меню "Ще" — на вузьких екранах ховає Експорт/Імпорт за іконкою замість
+  // того, щоб вони тіснили заголовок і кнопку "Новий запис".
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target as Node)) {
+        setShowActionsMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -492,27 +509,49 @@ if (selectedBarber) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-extrabold text-ink tracking-tight flex items-center">
-          <Calendar size={24} className="mr-2 text-brand"/> {t('appointments.title')}
+      <div className="flex justify-between items-center gap-2">
+        <h1 className="text-xl sm:text-2xl font-extrabold text-ink tracking-tight flex items-center min-w-0">
+          <Calendar size={24} className="mr-2 text-brand flex-shrink-0"/> <span className="truncate">{t('appointments.title')}</span>
         </h1>
-        <div className="flex items-center gap-2">
-          <button onClick={handleExport} className="btn btn-secondary">
-            <Download size={16}/> {t('common.export')}
-          </button>
-          <button onClick={() => importFileInputRef.current?.click()} className="btn btn-secondary" disabled={importing}>
-            <Upload size={16}/> {importing ? t('common.importing') : t('common.import')}
-          </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="hidden sm:flex items-center gap-2">
+            <button onClick={handleExport} className="btn btn-secondary">
+              <Download size={16}/> {t('common.export')}
+            </button>
+            <button onClick={() => importFileInputRef.current?.click()} className="btn btn-secondary" disabled={importing}>
+              <Upload size={16}/> {importing ? t('common.importing') : t('common.import')}
+            </button>
+          </div>
+
+          {/* Мобільне меню "Ще" — Експорт/Імпорт за іконкою нижче sm */}
+          <div ref={actionsMenuRef} className="relative sm:hidden">
+            <button onClick={() => setShowActionsMenu(v => !v)} className="btn btn-secondary p-2" aria-label={t('common.more')}>
+              <MoreVertical size={16}/>
+            </button>
+            {showActionsMenu && (
+              <div className="absolute right-0 top-full mt-1 w-44 bg-surface border border-line rounded-md shadow-lg z-30 overflow-hidden">
+                <button onClick={() => { handleExport(); setShowActionsMenu(false); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-ink-secondary hover:bg-canvas-soft">
+                  <Download size={15}/> {t('common.export')}
+                </button>
+                <button onClick={() => { importFileInputRef.current?.click(); setShowActionsMenu(false); }} disabled={importing}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-ink-secondary hover:bg-canvas-soft">
+                  <Upload size={15}/> {importing ? t('common.importing') : t('common.import')}
+                </button>
+              </div>
+            )}
+          </div>
+
           <input ref={importFileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFileChange}/>
           <button
             onClick={() => { setAddForm({...defaultAdd, date:dateStr(currentDate)}); setAddingNC(false); setIsAddOpen(true); }}
             className="btn btn-primary">
-            <Plus size={16}/> {t('appointments.addNew')}
+            <Plus size={16}/> <span className="hidden sm:inline">{t('appointments.addNew')}</span>
           </button>
         </div>
       </div>
 
-      <div className="flex gap-4 items-start">
+      <div className="flex flex-col lg:flex-row gap-4 items-start">
         {/* Left panel */}
         <div className="flex-shrink-0 space-y-3">
           <MiniCalendar selected={currentDate} onChange={d => setCurrentDate(d)}/>
@@ -547,7 +586,8 @@ if (selectedBarber) {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
+            <table className="border-collapse"
+              style={{ tableLayout: 'fixed', width: '100%', minWidth: calendarBarbers.length > 0 ? `${64 + calendarBarbers.length * 130}px` : undefined }}>
               <thead>
                 <tr className="bg-canvas-soft border-b border-line">
                   <th className="w-16 border-r border-line"/>
@@ -562,7 +602,7 @@ if (selectedBarber) {
                             alt={emp.name}
                             className={`w-8 h-8 rounded-full mx-auto mb-1 ${off ? 'opacity-40 grayscale' : ''}`}/>
                           <p className={`text-xs font-semibold truncate ${off ? 'text-ink-muted' : 'text-ink'}`}>{emp.name}</p>
-                          <p className="text-xs text-ink-muted">{off ? `😴 ${t('appointments.dayOff')}` : t(`roles.${emp.role}`)}</p>
+                          <p className="text-xs text-ink-muted">{off ? `😴 ${t('appointments.dayOff')}` : (emp.customRoleLabel?.trim() || t(`roles.${emp.role}`))}</p>
                         </th>
                       );
                     })}
@@ -630,7 +670,7 @@ if (selectedBarber) {
                                   {(apptHere.notes?.length ?? 0) > 0 && <MessageSquare size={11} className="shrink-0 opacity-90"/>}
                                 </p>
                                 <p className="truncate opacity-90 leading-tight">{svcNames(apptHere.services)}</p>
-                                {height > 40 && <p className="opacity-75 leading-tight">{apptHere.startTime} · ${apptHere.totalPrice}</p>}
+                                {height > 40 && <p className="opacity-75 leading-tight">{apptHere.startTime} · {formatPrice(apptHere.totalPrice, currency)}</p>}
                               </div>
                             );
                           })()}
@@ -648,7 +688,7 @@ if (selectedBarber) {
       {/* ── ADD MODAL ── */}
       <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title={t('appointments.newModalTitle')} size="xl">
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-sm font-semibold text-ink">{t('appointments.client')}</label>
@@ -722,13 +762,13 @@ if (selectedBarber) {
                       setAddForm({...addForm, serviceIds:ids, totalPrice:price, totalDuration:dur});
                     }}/>
                   <span>{s.name}</span>
-                  <span className="ml-auto text-ink-muted text-xs">${s.price} · {s.duration}{t('services.minutes')}</span>
+                  <span className="ml-auto text-ink-muted text-xs">{formatPrice(s.price, currency)} · {s.duration}{t('services.minutes')}</span>
                 </label>
               ))}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="field-label">{t('appointments.date')}</label>
               <input type="date" className="field-input"
@@ -740,7 +780,7 @@ if (selectedBarber) {
                 value={addForm.startTime} onChange={e => setAddForm({...addForm, startTime:e.target.value})}/>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="field-label">{t('appointments.duration')}</label>
               <input type="number" className="field-input"
@@ -768,7 +808,7 @@ if (selectedBarber) {
       <Modal isOpen={!!editAppt} onClose={() => setEditAppt(null)} title={t('appointments.editModalTitle')} size="xl">
         {editAppt && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="field-label">{t('appointments.client')}</label>
                 <select className="field-input"
@@ -803,12 +843,12 @@ if (selectedBarber) {
                         setEditForm({...editForm, serviceIds:ids, totalPrice:price, totalDuration:dur});
                       }}/>
                     <span>{s.name}</span>
-                    <span className="ml-auto text-ink-muted text-xs">${s.price} · {s.duration}{t('services.minutes')}</span>
+                    <span className="ml-auto text-ink-muted text-xs">{formatPrice(s.price, currency)} · {s.duration}{t('services.minutes')}</span>
                   </label>
                 ))}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="field-label">{t('appointments.date')}</label>
                 <input type="date" className="field-input"
@@ -820,7 +860,7 @@ if (selectedBarber) {
                   value={editForm.startTime} onChange={e => setEditForm({...editForm, startTime:e.target.value})}/>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="field-label">{t('appointments.duration')}</label>
                 <input type="number" className="field-input"

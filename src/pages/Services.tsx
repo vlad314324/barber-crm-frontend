@@ -10,6 +10,8 @@ import { Service, Category } from '../api/types';
 import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
+import { useShopCurrency } from '../context/SettingsContext';
+import { formatPrice } from '../utils/money';
 
 const defaultForm = {
   name: '', description: '', price: 0, duration: 30,
@@ -46,6 +48,7 @@ const IconPicker = ({ value, onChange }: { value: string; onChange: (icon: strin
 
 const Services = () => {
   const { t } = useLocale();
+  const currency = useShopCurrency();
   const [searchTerm, setSearchTerm] = useState('');
   const [services, setServices] = useState<Service[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -213,18 +216,18 @@ const Services = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-extrabold text-ink tracking-tight flex items-center">
-          <Scissors size={24} className="mr-2 text-brand" />
-          {t('services.title')}
+      <div className="flex justify-between items-center gap-2">
+        <h1 className="text-xl sm:text-2xl font-extrabold text-ink tracking-tight flex items-center min-w-0">
+          <Scissors size={24} className="mr-2 text-brand flex-shrink-0" />
+          <span className="truncate">{t('services.title')}</span>
         </h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <button onClick={() => setIsCategoryModalOpen(true)} className="btn btn-secondary">
-            <Tags size={16} /> {t('services.categoriesBtn')}
+            <Tags size={16} /> <span className="hidden sm:inline">{t('services.categoriesBtn')}</span>
           </button>
           <button onClick={openAddModal} className="btn btn-primary">
             <Plus size={16} />
-            {t('services.addNew')}
+            <span className="hidden sm:inline">{t('services.addNew')}</span>
           </button>
         </div>
       </div>
@@ -272,7 +275,7 @@ const Services = () => {
                 <div className="flex items-center gap-4 mt-4">
                   <div className="flex items-center text-sm text-ink-secondary">
                     <DollarSign size={14} className="mr-1 text-brand" />
-                    <span className="font-semibold">${service.price.toFixed(2)}</span>
+                    <span className="font-semibold">{formatPrice(service.price, currency)}</span>
                   </div>
                   <div className="flex items-center text-sm text-ink-muted">
                     <Clock size={14} className="mr-1" />

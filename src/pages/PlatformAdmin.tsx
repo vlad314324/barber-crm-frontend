@@ -68,7 +68,7 @@ const PlatformAdmin = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-ink flex items-center justify-center px-4 py-10">
+    <div className="min-h-screen bg-neutral-900 flex items-center justify-center px-4 py-10">
       <div className={`w-full ${admin ? 'max-w-5xl' : 'max-w-md'}`}>
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center gap-3 mb-2">
@@ -78,7 +78,7 @@ const PlatformAdmin = () => {
               <span className="w-1.5 h-1.5 rounded-full bg-brand ml-1 self-end mb-1.5" />
             </h1>
           </div>
-          <p className="text-canvas/60 mt-2">Службова панель платформи</p>
+          <p className="text-white/60 mt-2">Службова панель платформи</p>
         </div>
 
         {!admin ? (
@@ -151,8 +151,8 @@ const PlatformAdmin = () => {
         ) : (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-canvas/70">{t('platformAdmin.loggedInAs', { name: admin.name, email: admin.email })}</p>
-              <button onClick={logout} className="text-xs text-canvas/60 hover:text-white">{t('platformAdmin.logout')}</button>
+              <p className="text-sm text-white/70">{t('platformAdmin.loggedInAs', { name: admin.name, email: admin.email })}</p>
+              <button onClick={logout} className="text-xs text-white/60 hover:text-white">{t('platformAdmin.logout')}</button>
             </div>
 
             <div className="flex gap-2">

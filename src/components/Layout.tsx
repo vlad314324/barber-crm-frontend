@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import { SettingsProvider } from '../context/SettingsContext';
 
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -10,6 +11,7 @@ const Layout = () => {
   const closeSidebar = () => setSidebarOpen(false);
 
   return (
+    <SettingsProvider>
     <div className="flex h-screen bg-canvas">
       {/* Mobile backdrop */}
       {sidebarOpen && (
@@ -38,6 +40,7 @@ const Layout = () => {
         </main>
       </div>
     </div>
+    </SettingsProvider>
   );
 };
 

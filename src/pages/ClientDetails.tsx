@@ -10,9 +10,12 @@ import { Client, Appointment } from '../api/types';
 import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
+import { useShopCurrency } from '../context/SettingsContext';
+import { formatPrice } from '../utils/money';
 
 const ClientDetails = () => {
   const { t } = useLocale();
+  const currency = useShopCurrency();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -146,7 +149,7 @@ const ClientDetails = () => {
             <div>
               <dt className="text-sm font-medium text-ink-muted">{t('clientDetails.totalSpent')}</dt>
               <dd className="mt-1 text-sm font-semibold text-brand-dark">
-                ${completedVisits.reduce((sum, a) => sum + a.totalPrice, 0).toFixed(0)}
+                {formatPrice(completedVisits.reduce((sum, a) => sum + a.totalPrice, 0), currency)}
               </dd>
             </div>
           </dl>
@@ -194,7 +197,7 @@ const ClientDetails = () => {
                       <span className={`badge ${statusBadgeClass(a.status)}`}>{statusLabel(a.status)}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-ink">
-                      ${a.totalPrice}
+                      {formatPrice(a.totalPrice, currency)}
                     </td>
                   </tr>
                 ))}
