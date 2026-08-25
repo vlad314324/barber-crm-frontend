@@ -7,6 +7,7 @@ import { ShopSettings, WorkingDay } from '../api/types';
 import { getErrorMessage } from '../utils/errors';
 import BookingLinkCard from '../components/BookingLinkCard';
 import { BOOKING_LANGS, BookingLang } from '../i18n/bookingTranslations';
+import { CURRENCIES } from '../constants/currencies';
 
 const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
 
@@ -25,6 +26,7 @@ const Settings = () => {
     latitude: null, longitude: null, websiteUrl: '',
     workingHours: {},
     bookingLanguages: ['uk', 'en'], defaultBookingLanguage: 'uk',
+    currency: 'UAH',
   });
 
   const [passwords, setPasswords] = useState({
@@ -46,6 +48,7 @@ const Settings = () => {
         workingHours: data.workingHours || {},
         bookingLanguages: data.bookingLanguages?.length ? data.bookingLanguages : ['uk', 'en'],
         defaultBookingLanguage: data.defaultBookingLanguage || 'uk',
+        currency: data.currency || 'UAH',
       });
       setLoading(false);
     });
@@ -169,6 +172,18 @@ const Settings = () => {
                 </div>
               ))}
               <div>
+                <label className="field-label">{t('settings.fieldCurrency')}</label>
+                <select
+                  value={settings.currency || 'UAH'}
+                  onChange={e => setSettings(prev => ({ ...prev, currency: e.target.value }))}
+                  className="field-input"
+                >
+                  {CURRENCIES.map(c => (
+                    <option key={c.code} value={c.code}>{c.code} ({c.symbol})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
                 <label className="field-label">{t('settings.fieldCoordinates')}</label>
                 <div className="grid grid-cols-2 gap-3">
                   <input
@@ -210,7 +225,7 @@ const Settings = () => {
               {DAYS.map(({ key, label }) => {
                 const day = settings.workingHours[key] || { isOpen: true, from: '09:00', to: '19:00' };
                 return (
-                  <div key={key} className="flex items-center gap-3">
+                  <div key={key} className="flex flex-wrap items-center gap-3">
                     <input
                       type="checkbox"
                       checked={day.isOpen}
@@ -221,7 +236,7 @@ const Settings = () => {
                       {label}
                     </span>
                     {day.isOpen ? (
-                      <div className="flex items-center gap-2 flex-1">
+                      <div className="flex items-center gap-2 flex-1 min-w-[200px]">
                         <input
                           type="time"
                           value={day.from}

@@ -17,7 +17,6 @@ export const BOOKING_LANG_LABELS: Record<BookingLang, string> = {
 };
 
 interface BookingDict {
-  common: { currency: string };
   roles: { Barber: string; Receptionist: string; Manager: string };
   days: {
     monday: string; tuesday: string; wednesday: string; thursday: string;
@@ -73,7 +72,6 @@ interface BookingDict {
 }
 
 const uk: BookingDict = {
-  common: { currency: 'грн' },
   roles: { Barber: 'Майстер', Receptionist: 'Рецепціоніст', Manager: 'Менеджер' },
   days: { monday: 'Пн', tuesday: 'Вт', wednesday: 'Ср', thursday: 'Чт', friday: 'Пт', saturday: 'Сб', sunday: 'Нд' },
   booking: {
@@ -126,7 +124,6 @@ const uk: BookingDict = {
 };
 
 const en: BookingDict = {
-  common: { currency: 'UAH' },
   roles: { Barber: 'Barber', Receptionist: 'Receptionist', Manager: 'Manager' },
   days: { monday: 'Mo', tuesday: 'Tu', wednesday: 'We', thursday: 'Th', friday: 'Fr', saturday: 'Sa', sunday: 'Su' },
   booking: {
@@ -179,7 +176,6 @@ const en: BookingDict = {
 };
 
 const cs: BookingDict = {
-  common: { currency: 'UAH' },
   roles: { Barber: 'Holič', Receptionist: 'Recepční', Manager: 'Manažer' },
   days: { monday: 'Po', tuesday: 'Út', wednesday: 'St', thursday: 'Čt', friday: 'Pá', saturday: 'So', sunday: 'Ne' },
   booking: {
@@ -232,7 +228,6 @@ const cs: BookingDict = {
 };
 
 const pl: BookingDict = {
-  common: { currency: 'UAH' },
   roles: { Barber: 'Fryzjer', Receptionist: 'Recepcjonistka', Manager: 'Kierownik' },
   days: { monday: 'Pn', tuesday: 'Wt', wednesday: 'Śr', thursday: 'Cz', friday: 'Pt', saturday: 'So', sunday: 'Nd' },
   booking: {

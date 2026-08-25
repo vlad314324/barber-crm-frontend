@@ -32,6 +32,10 @@
   --color-line-medium: 58 63 69;
 }
 
+html, body {
+  overflow-x: hidden;
+}
+
 body {
   @apply bg-canvas text-ink font-sans;
   -webkit-font-smoothing: antialiased;

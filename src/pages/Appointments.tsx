@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Calendar, ChevronLeft, ChevronRight, Plus, UserPlus, ChevronDown, Download, Upload, MessageSquare } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Plus, UserPlus, ChevronDown, Download, Upload, MessageSquare, MoreVertical } from 'lucide-react';
 import { appointmentApi, clientApi, employeeApi, serviceApi } from '../api';
 import api from '../api';
 import { Appointment, Client, Employee, Service, ShopSettings, ImportResult } from '../api/types';
@@ -8,6 +8,9 @@ import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
 import { downloadBlob } from '../utils/download';
+import { useShopCurrency } from '../context/SettingsContext';
+import { formatPrice } from '../utils/money';
+import { getCurrencySymbol } from '../constants/currencies';
 
 const COUNTRIES = [
   { code: '+380', flag: '🇺🇦', name: 'Україна' },
@@ -69,7 +72,7 @@ const PhoneInput = ({ value, onChange }: { value: string; onChange: (v: string) 
           <ChevronDown size={12} className="text-ink-muted"/>
         </button>
         {showDropdown && (
-          <div className="absolute top-full left-0 mt-1 w-64 bg-surface border border-line rounded-md shadow-lg z-50 overflow-hidden">
+          <div className="absolute top-full left-0 mt-1 w-64 max-w-[calc(100vw-2rem)] bg-surface border border-line rounded-md shadow-lg z-50 overflow-hidden">
             <div className="p-2 border-b border-line">
               <input autoFocus type="text" placeholder={t('appointments.searchCountryPlaceholder')}
                 className="w-full px-2 py-1 text-sm border border-line rounded-xs focus:outline-none focus:ring-1 focus:ring-brand"
@@ -203,6 +206,7 @@ const defaultEdit: EditApptForm = {
 
 const Appointments = () => {
   const { t, lang } = useLocale();
+  const currency = useShopCurrency();
   const [searchParams, setSearchParams] = useSearchParams();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -228,6 +232,20 @@ const Appointments = () => {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const importFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Меню "Ще" — на вузьких екранах ховає Експорт/Імпорт за іконкою замість
+  // того, щоб вони тіснили заголовок і кнопку "Новий запис".
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target as Node)) {
+        setShowActionsMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -492,27 +510,49 @@ if (selectedBarber) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-extrabold text-ink tracking-tight flex items-center">
-          <Calendar size={24} className="mr-2 text-brand"/> {t('appointments.title')}
+      <div className="flex justify-between items-center gap-2">
+        <h1 className="text-xl sm:text-2xl font-extrabold text-ink tracking-tight flex items-center min-w-0">
+          <Calendar size={24} className="mr-2 text-brand flex-shrink-0"/> <span className="truncate">{t('appointments.title')}</span>
         </h1>
-        <div className="flex items-center gap-2">
-          <button onClick={handleExport} className="btn btn-secondary">
-            <Download size={16}/> {t('common.export')}
-          </button>
-          <button onClick={() => importFileInputRef.current?.click()} className="btn btn-secondary" disabled={importing}>
-            <Upload size={16}/> {importing ? t('common.importing') : t('common.import')}
-          </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="hidden sm:flex items-center gap-2">
+            <button onClick={handleExport} className="btn btn-secondary">
+              <Download size={16}/> {t('common.export')}
+            </button>
+            <button onClick={() => importFileInputRef.current?.click()} className="btn btn-secondary" disabled={importing}>
+              <Upload size={16}/> {importing ? t('common.importing') : t('common.import')}
+            </button>
+          </div>
+
+          {/* Мобільне меню "Ще" — Експорт/Імпорт за іконкою нижче sm */}
+          <div ref={actionsMenuRef} className="relative sm:hidden">
+            <button onClick={() => setShowActionsMenu(v => !v)} className="btn btn-secondary p-2" aria-label={t('common.more')}>
+              <MoreVertical size={16}/>
+            </button>
+            {showActionsMenu && (
+              <div className="absolute right-0 top-full mt-1 w-44 bg-surface border border-line rounded-md shadow-lg z-30 overflow-hidden">
+                <button onClick={() => { handleExport(); setShowActionsMenu(false); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-ink-secondary hover:bg-canvas-soft">
+                  <Download size={15}/> {t('common.export')}
+                </button>
+                <button onClick={() => { importFileInputRef.current?.click(); setShowActionsMenu(false); }} disabled={importing}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-ink-secondary hover:bg-canvas-soft">
+                  <Upload size={15}/> {importing ? t('common.importing') : t('common.import')}
+                </button>
+              </div>
+            )}
+          </div>
+
           <input ref={importFileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFileChange}/>
           <button
             onClick={() => { setAddForm({...defaultAdd, date:dateStr(currentDate)}); setAddingNC(false); setIsAddOpen(true); }}
             className="btn btn-primary">
-            <Plus size={16}/> {t('appointments.addNew')}
+            <Plus size={16}/> <span className="hidden sm:inline">{t('appointments.addNew')}</span>
           </button>
         </div>
       </div>
 
-      <div className="flex gap-4 items-start">
+      <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-start">
         {/* Left panel */}
         <div className="flex-shrink-0 space-y-3">
           <MiniCalendar selected={currentDate} onChange={d => setCurrentDate(d)}/>
@@ -547,36 +587,39 @@ if (selectedBarber) {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
-              <thead>
-                <tr className="bg-canvas-soft border-b border-line">
-                  <th className="w-16 border-r border-line"/>
-                  {calendarBarbers.length === 0
-                    ? <th className="py-4 text-sm text-ink-muted font-normal">{t('appointments.noBarbers')}</th>
-                    : calendarBarbers.map(emp => {
-                      const off = isDayOff(emp, currentDate);
-                      return (
-                        <th key={emp._id} className={`border-l border-line py-2 px-2 text-center font-normal ${off ? 'bg-canvas-soft' : ''}`}>
-                          <img
-                            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=random&size=40`}
-                            alt={emp.name}
-                            className={`w-8 h-8 rounded-full mx-auto mb-1 ${off ? 'opacity-40 grayscale' : ''}`}/>
-                          <p className={`text-xs font-semibold truncate ${off ? 'text-ink-muted' : 'text-ink'}`}>{emp.name}</p>
-                          <p className="text-xs text-ink-muted">{off ? `😴 ${t('appointments.dayOff')}` : t(`roles.${emp.role}`)}</p>
-                        </th>
-                      );
-                    })}
-                </tr>
-              </thead>
-              <tbody>
-                {SLOTS.map((slot) => (
-                  <tr key={slot} className={slot.endsWith(':00') ? 'border-t border-line' : 'border-t border-line/50'}>
-                    <td className="w-16 border-r border-line pr-2 text-right align-top pt-0.5"
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: calendarBarbers.length > 0 ? `4rem repeat(${calendarBarbers.length}, minmax(100px, 1fr))` : '4rem 1fr',
+            }}>
+              {/* ── шапка ── */}
+              <div className="border-r border-r-line border-b border-b-line bg-canvas-soft"/>
+              {calendarBarbers.length === 0
+                ? <div className="py-4 text-sm text-ink-muted font-normal text-center border-b border-b-line bg-canvas-soft">{t('appointments.noBarbers')}</div>
+                : calendarBarbers.map(emp => {
+                  const off = isDayOff(emp, currentDate);
+                  return (
+                    <div key={emp._id} className="border-l border-l-line border-b border-b-line py-2 px-2 text-center bg-canvas-soft">
+                      <img
+                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=random&size=40`}
+                        alt={emp.name}
+                        className={`w-8 h-8 rounded-full mx-auto mb-1 ${off ? 'opacity-40 grayscale' : ''}`}/>
+                      <p className={`text-xs font-semibold truncate ${off ? 'text-ink-muted' : 'text-ink'}`}>{emp.name}</p>
+                      <p className="text-xs text-ink-muted truncate">{off ? `😴 ${t('appointments.dayOff')}` : (emp.customRoleLabel?.trim() || t(`roles.${emp.role}`))}</p>
+                    </div>
+                  );
+                })}
+
+              {/* ── слоти ── */}
+              {SLOTS.map((slot) => {
+                const topColor = slot.endsWith(':00') ? 'border-t-line' : 'border-t-line/50';
+                return (
+                  <Fragment key={slot}>
+                    <div className={`w-16 border-r border-r-line border-t ${topColor} pr-2 pt-0.5 text-right`}
                       style={{ height: PX_PER_SLOT }}>
                       {slot.endsWith(':00') && (
                         <span className="text-xs text-ink-muted leading-none">{slot}</span>
                       )}
-                    </td>
+                    </div>
                     {calendarBarbers.map(emp => {
                       const off = isDayOff(emp, currentDate);
 
@@ -584,16 +627,16 @@ if (selectedBarber) {
                       if (off) {
                         const isFirstSlot = slot === SLOTS[0];
                         return (
-                          <td key={emp._id}
-                            style={{ height: PX_PER_SLOT, position:'relative', padding:0 }}
-                            className="border-l border-line/50 bg-canvas-soft cursor-not-allowed select-none">
+                          <div key={emp._id}
+                            style={{ height: PX_PER_SLOT, position:'relative' }}
+                            className={`border-l border-l-line/50 border-t ${topColor} bg-canvas-soft cursor-not-allowed select-none`}>
                             {isFirstSlot && (
                               <div style={{ position:'absolute', top:0, left:0, right:0, height:`${TOTAL_H}px`, zIndex:4 }}
                                 className="flex items-center justify-center bg-canvas-soft bg-opacity-70">
                                 <span className="text-sm text-ink-muted font-medium">{t('appointments.dayOff')}</span>
                               </div>
                             )}
-                          </td>
+                          </div>
                         );
                       }
 
@@ -611,9 +654,9 @@ if (selectedBarber) {
                       });
 
                       return (
-                        <td key={emp._id}
-                          style={{ height: PX_PER_SLOT, position:'relative', padding:0 }}
-                          className={`border-l border-line/50 align-top
+                        <div key={emp._id}
+                          style={{ height: PX_PER_SLOT, position:'relative' }}
+                          className={`border-l border-l-line/50 border-t ${topColor}
                             ${!busy && !covered ? 'cursor-pointer hover:bg-brand-extra-soft transition-colors' : ''}
                             ${busy && !apptHere && !covered ? 'bg-canvas-soft' : ''}`}
                           onClick={() => !busy && !covered && handleSlotClick(emp._id, slot)}>
@@ -630,17 +673,17 @@ if (selectedBarber) {
                                   {(apptHere.notes?.length ?? 0) > 0 && <MessageSquare size={11} className="shrink-0 opacity-90"/>}
                                 </p>
                                 <p className="truncate opacity-90 leading-tight">{svcNames(apptHere.services)}</p>
-                                {height > 40 && <p className="opacity-75 leading-tight">{apptHere.startTime} · ${apptHere.totalPrice}</p>}
+                                {height > 40 && <p className="opacity-75 leading-tight">{apptHere.startTime} · {formatPrice(apptHere.totalPrice, currency)}</p>}
                               </div>
                             );
                           })()}
-                        </td>
+                        </div>
                       );
                     })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                  </Fragment>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -648,7 +691,7 @@ if (selectedBarber) {
       {/* ── ADD MODAL ── */}
       <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title={t('appointments.newModalTitle')} size="xl">
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-sm font-semibold text-ink">{t('appointments.client')}</label>
@@ -722,13 +765,13 @@ if (selectedBarber) {
                       setAddForm({...addForm, serviceIds:ids, totalPrice:price, totalDuration:dur});
                     }}/>
                   <span>{s.name}</span>
-                  <span className="ml-auto text-ink-muted text-xs">${s.price} · {s.duration}{t('services.minutes')}</span>
+                  <span className="ml-auto text-ink-muted text-xs">{formatPrice(s.price, currency)} · {s.duration}{t('services.minutes')}</span>
                 </label>
               ))}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="field-label">{t('appointments.date')}</label>
               <input type="date" className="field-input"
@@ -740,14 +783,14 @@ if (selectedBarber) {
                 value={addForm.startTime} onChange={e => setAddForm({...addForm, startTime:e.target.value})}/>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="field-label">{t('appointments.duration')}</label>
               <input type="number" className="field-input"
                 value={addForm.totalDuration} onChange={e => setAddForm({...addForm, totalDuration:Number(e.target.value)})}/>
             </div>
             <div>
-              <label className="field-label">{t('appointments.price')}</label>
+              <label className="field-label">{t('appointments.price')} ({getCurrencySymbol(currency)})</label>
               <input type="number" className="field-input"
                 value={addForm.totalPrice} onChange={e => setAddForm({...addForm, totalPrice:Number(e.target.value)})}/>
             </div>
@@ -768,7 +811,7 @@ if (selectedBarber) {
       <Modal isOpen={!!editAppt} onClose={() => setEditAppt(null)} title={t('appointments.editModalTitle')} size="xl">
         {editAppt && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="field-label">{t('appointments.client')}</label>
                 <select className="field-input"
@@ -803,12 +846,12 @@ if (selectedBarber) {
                         setEditForm({...editForm, serviceIds:ids, totalPrice:price, totalDuration:dur});
                       }}/>
                     <span>{s.name}</span>
-                    <span className="ml-auto text-ink-muted text-xs">${s.price} · {s.duration}{t('services.minutes')}</span>
+                    <span className="ml-auto text-ink-muted text-xs">{formatPrice(s.price, currency)} · {s.duration}{t('services.minutes')}</span>
                   </label>
                 ))}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="field-label">{t('appointments.date')}</label>
                 <input type="date" className="field-input"
@@ -820,14 +863,14 @@ if (selectedBarber) {
                   value={editForm.startTime} onChange={e => setEditForm({...editForm, startTime:e.target.value})}/>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="field-label">{t('appointments.duration')}</label>
                 <input type="number" className="field-input"
                   value={editForm.totalDuration} onChange={e => setEditForm({...editForm, totalDuration:Number(e.target.value)})}/>
               </div>
               <div>
-                <label className="field-label">{t('appointments.price')}</label>
+                <label className="field-label">{t('appointments.price')} ({getCurrencySymbol(currency)})</label>
                 <input type="number" className="field-input"
                   value={editForm.totalPrice} onChange={e => setEditForm({...editForm, totalPrice:Number(e.target.value)})}/>
               </div>

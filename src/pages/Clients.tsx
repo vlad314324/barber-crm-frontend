@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Users, Plus, Search, Pencil, Trash2, Download, Upload } from 'lucide-react';
+import { Users, Plus, Search, Pencil, Trash2, Download, Upload, MoreVertical } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { clientApi } from '../api';
 import { Client, ImportResult } from '../api/types';
@@ -26,6 +26,19 @@ const Clients = () => {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Меню "Ще" — на вузьких екранах ховає Експорт/Імпорт за іконкою.
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target as Node)) {
+        setShowActionsMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const fetchClients = useCallback(async () => {
     try {
@@ -115,22 +128,43 @@ const Clients = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-extrabold text-ink tracking-tight flex items-center">
-          <Users size={24} className="mr-2 text-brand" />
-          {t('clients.title')}
+      <div className="flex justify-between items-center gap-2">
+        <h1 className="text-xl sm:text-2xl font-extrabold text-ink tracking-tight flex items-center min-w-0">
+          <Users size={24} className="mr-2 text-brand flex-shrink-0" />
+          <span className="truncate">{t('clients.title')}</span>
         </h1>
-        <div className="flex items-center gap-2">
-          <button onClick={handleExport} className="btn btn-secondary">
-            <Download size={16} /> {t('common.export')}
-          </button>
-          <button onClick={() => fileInputRef.current?.click()} className="btn btn-secondary" disabled={importing}>
-            <Upload size={16} /> {importing ? t('common.importing') : t('common.import')}
-          </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="hidden sm:flex items-center gap-2">
+            <button onClick={handleExport} className="btn btn-secondary">
+              <Download size={16} /> {t('common.export')}
+            </button>
+            <button onClick={() => fileInputRef.current?.click()} className="btn btn-secondary" disabled={importing}>
+              <Upload size={16} /> {importing ? t('common.importing') : t('common.import')}
+            </button>
+          </div>
+
+          <div ref={actionsMenuRef} className="relative sm:hidden">
+            <button onClick={() => setShowActionsMenu(v => !v)} className="btn btn-secondary p-2" aria-label={t('common.more')}>
+              <MoreVertical size={16}/>
+            </button>
+            {showActionsMenu && (
+              <div className="absolute right-0 top-full mt-1 w-44 bg-surface border border-line rounded-md shadow-lg z-30 overflow-hidden">
+                <button onClick={() => { handleExport(); setShowActionsMenu(false); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-ink-secondary hover:bg-canvas-soft">
+                  <Download size={15}/> {t('common.export')}
+                </button>
+                <button onClick={() => { fileInputRef.current?.click(); setShowActionsMenu(false); }} disabled={importing}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-ink-secondary hover:bg-canvas-soft">
+                  <Upload size={15}/> {importing ? t('common.importing') : t('common.import')}
+                </button>
+              </div>
+            )}
+          </div>
+
           <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFileChange} />
           <button onClick={openAddModal} className="btn btn-primary">
             <Plus size={18} />
-            {t('clients.addNew')}
+            <span className="hidden sm:inline">{t('clients.addNew')}</span>
           </button>
         </div>
       </div>

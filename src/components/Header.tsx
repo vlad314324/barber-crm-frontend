@@ -23,7 +23,7 @@ const Header = ({ onToggleSidebar }: HeaderProps) => {
           <Menu size={20} />
         </button>
 
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 sm:space-x-4">
           {isSettingsPage && (
             <>
               <LanguageToggle />
@@ -38,9 +38,11 @@ const Header = ({ onToggleSidebar }: HeaderProps) => {
 
           <NotificationsMenu />
 
-          <div className="h-8 w-px bg-line"></div>
+          {/* Дата — суто інформативний блок, ховаємо на вузьких екранах, щоб
+              не витісняти важливіші елементи (сповіщення, перемикачі) за межі видимості. */}
+          <div className="hidden sm:block h-8 w-px bg-line"></div>
 
-          <div className="flex items-center">
+          <div className="hidden sm:flex items-center">
             <span className="text-sm font-semibold text-ink mr-2">{t('header.today')} </span>
             <span className="text-sm text-ink-secondary">
               {new Date().toLocaleDateString(lang === 'uk' ? 'uk-UA' : 'en-US', {

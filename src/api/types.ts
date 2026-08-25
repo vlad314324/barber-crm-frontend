@@ -18,6 +18,7 @@ export interface Employee {
   phone: string;
   email: string;
   role: 'Barber' | 'Receptionist' | 'Manager';
+  customRoleLabel?: string;
   hourlyRate: number;
   isAvailable: boolean;
   isActive?: boolean;
@@ -126,6 +127,7 @@ export interface CreateEmployeeDto {
   phone: string;
   email: string;
   role: 'Barber' | 'Receptionist' | 'Manager';
+  customRoleLabel?: string;
   hourlyRate: number;
   isAvailable: boolean;
   schedule?: {
@@ -247,6 +249,7 @@ export interface ShopSettings {
   // Languages offered on the public booking page (subset of BookingLang) and which one loads by default
   bookingLanguages?: string[];
   defaultBookingLanguage?: string;
+  currency?: string;
 }
 
 // Публічний підмножина ShopSettings, яку віддає /booking/settings
@@ -264,4 +267,5 @@ export interface PublicBookingSettings {
   websiteUrl?: string;
   bookingLanguages?: string[];
   defaultBookingLanguage?: string;
+  currency?: string;
 }

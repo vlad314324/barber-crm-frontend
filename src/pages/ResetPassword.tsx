@@ -38,7 +38,7 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="min-h-screen bg-ink flex items-center justify-center px-4">
+    <div className="min-h-screen bg-neutral-900 flex items-center justify-center px-4">
       <div className="absolute top-4 right-4">
         <LanguageToggle variant="dark" />
       </div>
@@ -51,7 +51,7 @@ const ResetPassword = () => {
               <span className="w-1.5 h-1.5 rounded-full bg-brand ml-1 self-end mb-1.5" />
             </h1>
           </div>
-          <p className="text-canvas/60 mt-2">{t('resetPassword.title')}</p>
+          <p className="text-white/60 mt-2">{t('resetPassword.title')}</p>
         </div>
 
         <div className="bg-surface rounded-lg shadow-lg p-8">

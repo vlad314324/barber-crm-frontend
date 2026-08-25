@@ -13,9 +13,10 @@ import LanguageToggle from '../components/LanguageToggle';
 import LocationMap from '../components/LocationMap';
 import { getErrorMessage } from '../utils/errors';
 import { PublicBookingSettings } from '../api/types';
+import { formatPrice } from '../utils/money';
 
-interface Service { _id: string; name: string; price: number; duration: number; category: string; }
-interface Employee { _id: string; name: string; role: string; services?: string[]; }
+interface Service { _id: string; name: string; description?: string; price: number; duration: number; category: string; }
+interface Employee { _id: string; name: string; role: string; customRoleLabel?: string; services?: string[]; specialties?: string[]; bio?: string; }
 
 const HEX_COLOR_RE = /^#([0-9a-f]{3}){1,2}$/i;
 
@@ -214,7 +215,7 @@ const BookingPage = () => {
         <h2 className="text-2xl font-extrabold text-ink tracking-tight mb-2">{t('booking.confirmed')}</h2>
         <p className="text-ink-secondary mb-1">{t('booking.masterLabel')}: <strong className="text-ink">{selectedEmployee?.name}</strong></p>
         <p className="text-ink-secondary mb-1">{t('booking.dateLabel')}: <strong className="text-ink">{selectedDate}</strong> {t('booking.at')} <strong className="text-ink">{selectedTime}</strong></p>
-        <p className="text-ink-secondary mb-6">{t('booking.sumLabel')}: <strong className="text-ink">{totalPrice} {t('common.currency')}</strong></p>
+        <p className="text-ink-secondary mb-6">{t('booking.sumLabel')}: <strong className="text-ink">{formatPrice(totalPrice, branding?.currency)}</strong></p>
         <button
           onClick={() => {
             setDone(false); setScreen('menu');
@@ -232,7 +233,7 @@ const BookingPage = () => {
   return (
     <div className="min-h-screen bg-canvas">
       {screen === 'menu' ? (
-        <div className="bg-ink text-white py-6 px-4 text-center relative"
+        <div className="bg-neutral-900 text-white py-6 px-4 text-center relative"
           style={branding?.coverImageUrl ? {
             backgroundImage: `linear-gradient(rgba(15,15,20,.6), rgba(15,15,20,.6)), url(${branding.coverImageUrl})`,
             backgroundSize: 'cover', backgroundPosition: 'center',
@@ -249,7 +250,7 @@ const BookingPage = () => {
               <span className="w-1.5 h-1.5 rounded-full bg-brand ml-1 self-end mb-1" />
             </h1>
           </div>
-          <p className="text-canvas/60 text-sm">{branding?.tagline || t('booking.onlineBooking')}</p>
+          <p className="text-white/60 text-sm">{branding?.tagline || t('booking.onlineBooking')}</p>
         </div>
       ) : (
         <div className="px-4 pt-4 flex justify-end">
@@ -278,7 +279,7 @@ const BookingPage = () => {
             <MenuRow
               icon={<ListChecks size={18}/>}
               title={t('booking.menuServices')}
-              subtitle={selectedServices.length > 0 ? `${selectedServices.length} · ${totalPrice} ${t('common.currency')}` : undefined}
+              subtitle={selectedServices.length > 0 ? `${selectedServices.length} · ${formatPrice(totalPrice, branding?.currency)}` : undefined}
               onClick={() => setScreen('services')}
             />
             <MenuRow
@@ -396,9 +397,13 @@ const BookingPage = () => {
                   <div className="w-12 h-12 rounded-full bg-brand flex items-center justify-center flex-shrink-0">
                     <span className="text-white font-semibold">{initials}</span>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium text-ink">{e.name}</p>
-                    <p className="text-sm text-ink-muted">{t(`roles.${e.role}`)}</p>
+                    <p className="text-sm text-ink-muted">{e.customRoleLabel?.trim() || t(`roles.${e.role}`)}</p>
+                    {e.specialties && e.specialties.length > 0 && (
+                      <p className="text-xs text-ink-muted mt-0.5">{e.specialties.join(', ')}</p>
+                    )}
+                    {e.bio && <p className="text-sm text-ink-secondary mt-1">{e.bio}</p>}
                   </div>
                 </div>
               );
@@ -467,9 +472,10 @@ const BookingPage = () => {
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="font-medium text-ink">{s.name}</p>
+                    {s.description && <p className="text-sm text-ink-muted mt-0.5">{s.description}</p>}
                     <p className="text-sm text-ink-muted">{s.duration} {t('booking.minutes')}</p>
                   </div>
-                  <p className="font-semibold text-brand-dark">{s.price} {t('common.currency')}</p>
+                  <p className="font-semibold text-brand-dark">{formatPrice(s.price, branding?.currency)}</p>
                 </div>
               </div>
             ))}
@@ -477,7 +483,7 @@ const BookingPage = () => {
           {selectedServices.length > 0 && (
             <div className="mt-4 p-3 bg-brand-extra-soft rounded-sm flex justify-between items-center">
               <span className="text-sm text-ink-secondary">{t('booking.selectedCount', { count: selectedServices.length, duration: totalDuration })}</span>
-              <span className="font-semibold text-brand-dark">{totalPrice} {t('common.currency')}</span>
+              <span className="font-semibold text-brand-dark">{formatPrice(totalPrice, branding?.currency)}</span>
             </div>
           )}
           <button
@@ -558,7 +564,7 @@ const BookingPage = () => {
             </div>
             <div className="border-t border-line pt-3 flex justify-between">
               <span className="font-semibold text-ink">{t('booking.sumLabel')}</span>
-              <span className="font-bold text-brand-dark text-lg">{totalPrice} {t('common.currency')}</span>
+              <span className="font-bold text-brand-dark text-lg">{formatPrice(totalPrice, branding?.currency)}</span>
             </div>
             <div className="border-t border-line pt-3 text-sm text-ink-muted">
               <p>{clientName} • {clientPhone}</p>

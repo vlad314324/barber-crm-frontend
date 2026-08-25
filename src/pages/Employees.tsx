@@ -5,6 +5,8 @@ import { Employee, Client, Review, Service } from '../api/types';
 import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
+import { useShopCurrency } from '../context/SettingsContext';
+import { getCurrencySymbol } from '../constants/currencies';
 
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 
@@ -32,6 +34,7 @@ const parseRange = (value: string) => {
 const defaultForm = {
   name: '', phone: '', email: '',
   role: 'Barber' as Employee['role'],
+  customRoleLabel: '',
   hourlyRate: 0, isAvailable: true,
   specialties: '', bio: '',
   serviceIds: [] as string[],
@@ -49,6 +52,7 @@ const Stars = ({ rating, size = 14 }: { rating: number; size?: number }) => (
 
 const Employees = () => {
   const { t, lang } = useLocale();
+  const currency = useShopCurrency();
   const DAYS = DAY_KEYS.map(key => ({ key, label: DAY_LABELS[lang][key] }));
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [clients,   setClients]   = useState<Client[]>([]);
@@ -97,7 +101,8 @@ const Employees = () => {
     setEditingEmployee(emp);
     setFormData({
       name: emp.name, phone: emp.phone, email: emp.email,
-      role: emp.role, hourlyRate: emp.hourlyRate,
+      role: emp.role, customRoleLabel: emp.customRoleLabel || '',
+      hourlyRate: emp.hourlyRate,
       isAvailable: emp.isAvailable,
       specialties: emp.specialties?.join(', ') || '',
       bio: emp.bio || '',
@@ -264,13 +269,13 @@ const Employees = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-extrabold text-ink tracking-tight flex items-center">
-          <User size={24} className="mr-2 text-brand"/> {t('employees.title')}
+      <div className="flex justify-between items-center gap-2">
+        <h1 className="text-xl sm:text-2xl font-extrabold text-ink tracking-tight flex items-center min-w-0">
+          <User size={24} className="mr-2 text-brand flex-shrink-0"/> <span className="truncate">{t('employees.title')}</span>
         </h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <button onClick={openAdd} className="btn btn-primary">
-            <Plus size={18}/> {t('employees.addNew')}
+            <Plus size={18}/> <span className="hidden sm:inline">{t('employees.addNew')}</span>
           </button>
         </div>
       </div>
@@ -300,7 +305,7 @@ const Employees = () => {
                   alt={emp.name} className="h-14 w-14 rounded-full flex-shrink-0 ring-1 ring-line"/>
                 <div className="flex-1 min-w-0">
                   <h3 className="text-base font-semibold text-ink truncate">{emp.name}</h3>
-                  <p className="text-sm text-brand">{t(`roles.${emp.role}`)}</p>
+                  <p className="text-sm text-brand">{emp.customRoleLabel?.trim() || t(`roles.${emp.role}`)}</p>
                   <p className="text-xs text-ink-muted truncate">{emp.email}</p>
                   {(emp.rating || 0) > 0 ? (
                     <button onClick={() => openReviews(emp)}
@@ -407,13 +412,13 @@ const Employees = () => {
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}
         title={editingEmployee ? t('employees.editModalTitle') : t('employees.addModalTitle')} size="xl">
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-3">
               {[
                 { label: t('employees.fieldName'),         key: 'name' as const,       type: 'text',   placeholder: 'Employee name' },
                 { label: t('employees.fieldPhone'),        key: 'phone' as const,      type: 'tel',    placeholder: '+380...' },
                 { label: t('employees.fieldEmail'),        key: 'email' as const,      type: 'email',  placeholder: 'email@example.com' },
-                { label: t('employees.fieldHourlyRate'),key: 'hourlyRate' as const, type: 'number', placeholder: '0' },
+                { label: `${t('employees.fieldHourlyRate')} (${getCurrencySymbol(currency)})`, key: 'hourlyRate' as const, type: 'number', placeholder: '0' },
                 { label: t('employees.fieldSpecialties'), key: 'specialties' as const, type: 'text', placeholder: t('employees.fieldSpecialtiesPlaceholder') },
                 { label: t('employees.fieldBio'),            key: 'bio' as const,        type: 'text',   placeholder: t('employees.fieldBioPlaceholder') },
               ].map(({ label, key, type, placeholder }) => (
@@ -453,6 +458,15 @@ const Employees = () => {
                   <option value="Barber">{t('roles.Barber')}</option>
                   <option value="Manager">{t('roles.Manager')}</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="field-label">{t('employees.fieldCustomRole')}</label>
+                <input type="text" className="field-input"
+                  value={formData.customRoleLabel}
+                  onChange={e => setFormData({ ...formData, customRoleLabel: e.target.value })}
+                  placeholder={t('employees.fieldCustomRolePlaceholder')} />
+                <p className="text-xs text-ink-muted mt-1.5">{t('employees.fieldCustomRoleHint')}</p>
               </div>
 
               <div className="flex items-center gap-2">

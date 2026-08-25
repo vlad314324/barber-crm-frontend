@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { BarChart2, TrendingUp, Scissors, User, RefreshCw, Users } from 'lucide-react';
 import api from '../api';
 import { useLocale } from '../i18n/LocaleContext';
+import { useShopCurrency } from '../context/SettingsContext';
+import { formatPrice } from '../utils/money';
+import { getCurrencySymbol } from '../constants/currencies';
 
 interface RevenueByMonth { month: string; amount: number; }
 interface ServicePerformance { name: string; count: number; revenue: number; }
@@ -61,6 +64,7 @@ const BAR_HEIGHT = 128; // px — висота зони графіку
 
 const Reports = () => {
   const { t } = useLocale();
+  const currency = useShopCurrency();
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [forecast,  setForecast]  = useState<ForecastData | null>(null);
   const [rfm,       setRfm]       = useState<RfmData | null>(null);
@@ -98,16 +102,16 @@ const Reports = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-extrabold text-ink tracking-tight flex items-center">
-            <BarChart2 size={24} className="mr-2 text-brand"/>
-            {t('reports.title')}
+      <div className="flex justify-between items-center gap-2">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-ink tracking-tight flex items-center">
+            <BarChart2 size={24} className="mr-2 text-brand flex-shrink-0"/>
+            <span className="truncate">{t('reports.title')}</span>
           </h1>
           <p className="text-ink-muted text-sm mt-0.5">{t('reports.subtitle')}</p>
         </div>
-        <button onClick={fetchAll} className="btn btn-secondary">
-          <RefreshCw size={14}/> {t('reports.refresh')}
+        <button onClick={fetchAll} className="btn btn-secondary flex-shrink-0">
+          <RefreshCw size={14}/> <span className="hidden sm:inline">{t('reports.refresh')}</span>
         </button>
       </div>
 
@@ -125,12 +129,12 @@ const Reports = () => {
       {/* ── OVERVIEW ── */}
       {activeTab === 'overview' && dashboard && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { title: t('reports.totalRevenue'),  value: `$${dashboard.totalRevenue.toLocaleString()}`, sub: t('reports.totalRevenueSub', { value: dashboard.monthRevenue }) },
+              { title: t('reports.totalRevenue'),  value: formatPrice(dashboard.totalRevenue, currency), sub: t('reports.totalRevenueSub', { value: dashboard.monthRevenue }) },
               { title: t('reports.totalAppointments'),    value: dashboard.totalAppointments,                  sub: t('reports.totalAppointmentsSub', { value: dashboard.monthAppointments }) },
               { title: t('reports.totalClients'),          value: dashboard.totalClients,                       sub: t('reports.totalClientsSub') },
-              { title: t('reports.avgCheck'),      value: `$${dashboard.avgServiceValue}`,              sub: t('reports.avgCheckSub') },
+              { title: t('reports.avgCheck'),      value: formatPrice(dashboard.avgServiceValue, currency),              sub: t('reports.avgCheckSub') },
             ].map((c, i) => (
               <div key={i} className="ds-card p-5">
                 <p className="text-xs text-ink-muted font-semibold uppercase tracking-wide">{c.title}</p>
@@ -149,7 +153,7 @@ const Reports = () => {
               {dashboard.revenueByMonth.map((d, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
                   <span className="text-xs text-ink-muted opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    ${d.amount}
+                    {formatPrice(d.amount, currency)}
                   </span>
                   <div
                     className="w-full bg-brand hover:bg-brand-dark rounded-t transition-colors"
@@ -173,6 +177,7 @@ const Reports = () => {
               {dashboard.servicePerformance.length === 0 ? (
                 <p className="px-5 py-8 text-sm text-center text-ink-muted">{t('common.noData')}</p>
               ) : (
+                <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="table-head">
                     <tr>
@@ -186,11 +191,12 @@ const Reports = () => {
                       <tr key={i} className="hover:bg-canvas-soft transition-colors">
                         <td className="px-5 py-3 text-sm text-ink">{s.name}</td>
                         <td className="px-5 py-3 text-sm text-ink-secondary text-right">{s.count}</td>
-                        <td className="px-5 py-3 text-sm font-medium text-brand-dark text-right">${s.revenue}</td>
+                        <td className="px-5 py-3 text-sm font-medium text-brand-dark text-right">{formatPrice(s.revenue, currency)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
 
@@ -205,6 +211,7 @@ const Reports = () => {
               {dashboard.empPerformance.length === 0 ? (
                 <p className="px-5 py-8 text-sm text-center text-ink-muted">{t('common.noData')}</p>
               ) : (
+                <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="table-head">
                     <tr>
@@ -219,7 +226,7 @@ const Reports = () => {
                       <tr key={i} className="hover:bg-canvas-soft transition-colors">
                         <td className="px-5 py-3 text-sm font-medium text-ink">{e.name}</td>
                         <td className="px-5 py-3 text-sm text-ink-secondary text-right">{e.appointments}</td>
-                        <td className="px-5 py-3 text-sm font-medium text-brand-dark text-right">${e.revenue}</td>
+                        <td className="px-5 py-3 text-sm font-medium text-brand-dark text-right">{formatPrice(e.revenue, currency)}</td>
                         <td className="px-5 py-3 text-sm text-amber-500 text-right">
                           {e.rating > 0 ? `⭐ ${e.rating}` : '—'}
                         </td>
@@ -227,6 +234,7 @@ const Reports = () => {
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
           </div>
@@ -236,7 +244,7 @@ const Reports = () => {
       {/* ── FORECAST ── */}
       {activeTab === 'forecast' && forecast && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="ds-card p-5">
               <p className="text-xs text-ink-muted font-semibold uppercase tracking-wide">{t('reports.smaTitle')}</p>
               <p className="text-3xl font-bold text-brand-dark mt-1 tracking-tight">{forecast.sma}</p>
@@ -292,7 +300,7 @@ const Reports = () => {
       {/* ── RFM ── */}
       {activeTab === 'rfm' && rfm && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {rfm.summary.map((s) => (
               <div key={s.segment}
                 className={`rounded-lg border p-4 ${SEGMENT_COLORS[s.segment] || 'bg-canvas-soft text-ink-secondary border-line'}`}>
@@ -303,7 +311,7 @@ const Reports = () => {
                   </div>
                   <span className="text-2xl font-bold">{s.count}</span>
                 </div>
-                <p className="text-xs mt-2 opacity-75">{t('reports.revenueLabel')}: ${s.revenue.toLocaleString()}</p>
+                <p className="text-xs mt-2 opacity-75">{t('reports.revenueLabel')}: {formatPrice(s.revenue, currency)}</p>
               </div>
             ))}
           </div>
@@ -320,7 +328,7 @@ const Reports = () => {
             <div className="ds-card overflow-hidden">
               <div className="px-5 py-4 border-b border-line">
                 <h3 className="text-base font-semibold text-ink">{t('reports.rfmDetailsTitle')}</h3>
-                <p className="text-xs text-ink-muted mt-0.5">{t('reports.rfmDetailsSub')}</p>
+                <p className="text-xs text-ink-muted mt-0.5">{t('reports.rfmDetailsSub', { currency: getCurrencySymbol(currency) })}</p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -337,7 +345,7 @@ const Reports = () => {
                         <td className="px-4 py-3 text-sm font-medium text-ink">{c.name}</td>
                         <td className="px-4 py-3 text-sm text-ink-secondary">{c.R}{t('reports.daysShort')}</td>
                         <td className="px-4 py-3 text-sm text-ink-secondary">{c.F}</td>
-                        <td className="px-4 py-3 text-sm text-ink-secondary">${c.M}</td>
+                        <td className="px-4 py-3 text-sm text-ink-secondary">{formatPrice(c.M, currency)}</td>
                         <td className="px-4 py-3 text-sm font-semibold text-brand-dark">{c.rfm}</td>
                         <td className="px-4 py-3">
                           <span className={`text-xs px-2 py-0.5 rounded-full border font-medium
