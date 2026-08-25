@@ -15,8 +15,8 @@ import { getErrorMessage } from '../utils/errors';
 import { PublicBookingSettings } from '../api/types';
 import { formatPrice } from '../utils/money';
 
-interface Service { _id: string; name: string; price: number; duration: number; category: string; }
-interface Employee { _id: string; name: string; role: string; customRoleLabel?: string; services?: string[]; }
+interface Service { _id: string; name: string; description?: string; price: number; duration: number; category: string; }
+interface Employee { _id: string; name: string; role: string; customRoleLabel?: string; services?: string[]; specialties?: string[]; bio?: string; }
 
 const HEX_COLOR_RE = /^#([0-9a-f]{3}){1,2}$/i;
 
@@ -397,9 +397,13 @@ const BookingPage = () => {
                   <div className="w-12 h-12 rounded-full bg-brand flex items-center justify-center flex-shrink-0">
                     <span className="text-white font-semibold">{initials}</span>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium text-ink">{e.name}</p>
                     <p className="text-sm text-ink-muted">{e.customRoleLabel?.trim() || t(`roles.${e.role}`)}</p>
+                    {e.specialties && e.specialties.length > 0 && (
+                      <p className="text-xs text-ink-muted mt-0.5">{e.specialties.join(', ')}</p>
+                    )}
+                    {e.bio && <p className="text-sm text-ink-secondary mt-1">{e.bio}</p>}
                   </div>
                 </div>
               );
@@ -468,6 +472,7 @@ const BookingPage = () => {
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="font-medium text-ink">{s.name}</p>
+                    {s.description && <p className="text-sm text-ink-muted mt-0.5">{s.description}</p>}
                     <p className="text-sm text-ink-muted">{s.duration} {t('booking.minutes')}</p>
                   </div>
                   <p className="font-semibold text-brand-dark">{formatPrice(s.price, branding?.currency)}</p>

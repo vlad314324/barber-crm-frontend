@@ -20,7 +20,7 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalProps) =>
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden">
       <div className="flex items-center justify-center min-h-screen px-4">
         <div
           className="fixed inset-0 bg-black/40 animate-modal-backdrop-in"
@@ -37,7 +37,7 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalProps) =>
               <X size={20} />
             </button>
           </div>
-          <div className="p-5 flex-1 overflow-y-auto min-h-0">{children}</div>
+          <div className="p-5 flex-1 overflow-y-auto overflow-x-hidden min-h-0">{children}</div>
         </div>
       </div>
     </div>,

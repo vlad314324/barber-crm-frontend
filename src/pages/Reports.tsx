@@ -4,6 +4,7 @@ import api from '../api';
 import { useLocale } from '../i18n/LocaleContext';
 import { useShopCurrency } from '../context/SettingsContext';
 import { formatPrice } from '../utils/money';
+import { getCurrencySymbol } from '../constants/currencies';
 
 interface RevenueByMonth { month: string; amount: number; }
 interface ServicePerformance { name: string; count: number; revenue: number; }
@@ -327,7 +328,7 @@ const Reports = () => {
             <div className="ds-card overflow-hidden">
               <div className="px-5 py-4 border-b border-line">
                 <h3 className="text-base font-semibold text-ink">{t('reports.rfmDetailsTitle')}</h3>
-                <p className="text-xs text-ink-muted mt-0.5">{t('reports.rfmDetailsSub')}</p>
+                <p className="text-xs text-ink-muted mt-0.5">{t('reports.rfmDetailsSub', { currency: getCurrencySymbol(currency) })}</p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">

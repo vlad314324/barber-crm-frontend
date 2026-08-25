@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Calendar, ChevronLeft, ChevronRight, Plus, UserPlus, ChevronDown, Download, Upload, MessageSquare, MoreVertical } from 'lucide-react';
 import { appointmentApi, clientApi, employeeApi, serviceApi } from '../api';
@@ -10,6 +10,7 @@ import { getErrorMessage } from '../utils/errors';
 import { downloadBlob } from '../utils/download';
 import { useShopCurrency } from '../context/SettingsContext';
 import { formatPrice } from '../utils/money';
+import { getCurrencySymbol } from '../constants/currencies';
 
 const COUNTRIES = [
   { code: '+380', flag: '🇺🇦', name: 'Україна' },
@@ -551,7 +552,7 @@ if (selectedBarber) {
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-4 items-start">
+      <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-start">
         {/* Left panel */}
         <div className="flex-shrink-0 space-y-3">
           <MiniCalendar selected={currentDate} onChange={d => setCurrentDate(d)}/>
@@ -586,37 +587,39 @@ if (selectedBarber) {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="border-collapse"
-              style={{ tableLayout: 'fixed', width: '100%', minWidth: calendarBarbers.length > 0 ? `${64 + calendarBarbers.length * 130}px` : undefined }}>
-              <thead>
-                <tr className="bg-canvas-soft border-b border-line">
-                  <th className="w-16 border-r border-line"/>
-                  {calendarBarbers.length === 0
-                    ? <th className="py-4 text-sm text-ink-muted font-normal">{t('appointments.noBarbers')}</th>
-                    : calendarBarbers.map(emp => {
-                      const off = isDayOff(emp, currentDate);
-                      return (
-                        <th key={emp._id} className={`border-l border-line py-2 px-2 text-center font-normal ${off ? 'bg-canvas-soft' : ''}`}>
-                          <img
-                            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=random&size=40`}
-                            alt={emp.name}
-                            className={`w-8 h-8 rounded-full mx-auto mb-1 ${off ? 'opacity-40 grayscale' : ''}`}/>
-                          <p className={`text-xs font-semibold truncate ${off ? 'text-ink-muted' : 'text-ink'}`}>{emp.name}</p>
-                          <p className="text-xs text-ink-muted">{off ? `😴 ${t('appointments.dayOff')}` : (emp.customRoleLabel?.trim() || t(`roles.${emp.role}`))}</p>
-                        </th>
-                      );
-                    })}
-                </tr>
-              </thead>
-              <tbody>
-                {SLOTS.map((slot) => (
-                  <tr key={slot} className={slot.endsWith(':00') ? 'border-t border-line' : 'border-t border-line/50'}>
-                    <td className="w-16 border-r border-line pr-2 text-right align-top pt-0.5"
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: calendarBarbers.length > 0 ? `4rem repeat(${calendarBarbers.length}, minmax(100px, 1fr))` : '4rem 1fr',
+            }}>
+              {/* ── шапка ── */}
+              <div className="border-r border-r-line border-b border-b-line bg-canvas-soft"/>
+              {calendarBarbers.length === 0
+                ? <div className="py-4 text-sm text-ink-muted font-normal text-center border-b border-b-line bg-canvas-soft">{t('appointments.noBarbers')}</div>
+                : calendarBarbers.map(emp => {
+                  const off = isDayOff(emp, currentDate);
+                  return (
+                    <div key={emp._id} className="border-l border-l-line border-b border-b-line py-2 px-2 text-center bg-canvas-soft">
+                      <img
+                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=random&size=40`}
+                        alt={emp.name}
+                        className={`w-8 h-8 rounded-full mx-auto mb-1 ${off ? 'opacity-40 grayscale' : ''}`}/>
+                      <p className={`text-xs font-semibold truncate ${off ? 'text-ink-muted' : 'text-ink'}`}>{emp.name}</p>
+                      <p className="text-xs text-ink-muted truncate">{off ? `😴 ${t('appointments.dayOff')}` : (emp.customRoleLabel?.trim() || t(`roles.${emp.role}`))}</p>
+                    </div>
+                  );
+                })}
+
+              {/* ── слоти ── */}
+              {SLOTS.map((slot) => {
+                const topColor = slot.endsWith(':00') ? 'border-t-line' : 'border-t-line/50';
+                return (
+                  <Fragment key={slot}>
+                    <div className={`w-16 border-r border-r-line border-t ${topColor} pr-2 pt-0.5 text-right`}
                       style={{ height: PX_PER_SLOT }}>
                       {slot.endsWith(':00') && (
                         <span className="text-xs text-ink-muted leading-none">{slot}</span>
                       )}
-                    </td>
+                    </div>
                     {calendarBarbers.map(emp => {
                       const off = isDayOff(emp, currentDate);
 
@@ -624,16 +627,16 @@ if (selectedBarber) {
                       if (off) {
                         const isFirstSlot = slot === SLOTS[0];
                         return (
-                          <td key={emp._id}
-                            style={{ height: PX_PER_SLOT, position:'relative', padding:0 }}
-                            className="border-l border-line/50 bg-canvas-soft cursor-not-allowed select-none">
+                          <div key={emp._id}
+                            style={{ height: PX_PER_SLOT, position:'relative' }}
+                            className={`border-l border-l-line/50 border-t ${topColor} bg-canvas-soft cursor-not-allowed select-none`}>
                             {isFirstSlot && (
                               <div style={{ position:'absolute', top:0, left:0, right:0, height:`${TOTAL_H}px`, zIndex:4 }}
                                 className="flex items-center justify-center bg-canvas-soft bg-opacity-70">
                                 <span className="text-sm text-ink-muted font-medium">{t('appointments.dayOff')}</span>
                               </div>
                             )}
-                          </td>
+                          </div>
                         );
                       }
 
@@ -651,9 +654,9 @@ if (selectedBarber) {
                       });
 
                       return (
-                        <td key={emp._id}
-                          style={{ height: PX_PER_SLOT, position:'relative', padding:0 }}
-                          className={`border-l border-line/50 align-top
+                        <div key={emp._id}
+                          style={{ height: PX_PER_SLOT, position:'relative' }}
+                          className={`border-l border-l-line/50 border-t ${topColor}
                             ${!busy && !covered ? 'cursor-pointer hover:bg-brand-extra-soft transition-colors' : ''}
                             ${busy && !apptHere && !covered ? 'bg-canvas-soft' : ''}`}
                           onClick={() => !busy && !covered && handleSlotClick(emp._id, slot)}>
@@ -674,13 +677,13 @@ if (selectedBarber) {
                               </div>
                             );
                           })()}
-                        </td>
+                        </div>
                       );
                     })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                  </Fragment>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -787,7 +790,7 @@ if (selectedBarber) {
                 value={addForm.totalDuration} onChange={e => setAddForm({...addForm, totalDuration:Number(e.target.value)})}/>
             </div>
             <div>
-              <label className="field-label">{t('appointments.price')}</label>
+              <label className="field-label">{t('appointments.price')} ({getCurrencySymbol(currency)})</label>
               <input type="number" className="field-input"
                 value={addForm.totalPrice} onChange={e => setAddForm({...addForm, totalPrice:Number(e.target.value)})}/>
             </div>
@@ -867,7 +870,7 @@ if (selectedBarber) {
                   value={editForm.totalDuration} onChange={e => setEditForm({...editForm, totalDuration:Number(e.target.value)})}/>
               </div>
               <div>
-                <label className="field-label">{t('appointments.price')}</label>
+                <label className="field-label">{t('appointments.price')} ({getCurrencySymbol(currency)})</label>
                 <input type="number" className="field-input"
                   value={editForm.totalPrice} onChange={e => setEditForm({...editForm, totalPrice:Number(e.target.value)})}/>
               </div>

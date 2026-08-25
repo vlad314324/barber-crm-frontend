@@ -8,8 +8,6 @@ import { defaultRouteForRole } from '../utils/roleRoutes';
 import { resolveErrorMessage } from '../utils/errors';
 import { getSalonSlug } from '../utils/tenant';
 
-const DEFAULT_SLUG = 'barbershop';
-
 const Login = () => {
   const { t } = useLocale();
   const { salonSlug: slugParam } = useParams<{ salonSlug?: string }>();
@@ -17,7 +15,7 @@ const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const [slugInput, setSlugInput] = useState(slugParam || getSalonSlug() || DEFAULT_SLUG);
+  const [slugInput, setSlugInput] = useState(slugParam || getSalonSlug() || '');
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -83,7 +81,6 @@ const Login = () => {
                 <input
                   type="text"
                   className="field-input py-3"
-                  placeholder={t('login.salonPlaceholder')}
                   value={slugInput}
                   onChange={e => setSlugInput(e.target.value)}
                   autoFocus

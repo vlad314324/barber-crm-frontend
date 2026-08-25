@@ -14,3 +14,7 @@ export const CURRENCIES: CurrencyMeta[] = [
 ];
 
 export const DEFAULT_CURRENCY = 'UAH';
+
+export function getCurrencySymbol(currency?: string): string {
+  return (CURRENCIES.find(c => c.code === currency) ?? CURRENCIES.find(c => c.code === DEFAULT_CURRENCY)!).symbol;
+}

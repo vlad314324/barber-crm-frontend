@@ -5,6 +5,8 @@ import { Employee, Client, Review, Service } from '../api/types';
 import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
+import { useShopCurrency } from '../context/SettingsContext';
+import { getCurrencySymbol } from '../constants/currencies';
 
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 
@@ -50,6 +52,7 @@ const Stars = ({ rating, size = 14 }: { rating: number; size?: number }) => (
 
 const Employees = () => {
   const { t, lang } = useLocale();
+  const currency = useShopCurrency();
   const DAYS = DAY_KEYS.map(key => ({ key, label: DAY_LABELS[lang][key] }));
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [clients,   setClients]   = useState<Client[]>([]);
@@ -415,7 +418,7 @@ const Employees = () => {
                 { label: t('employees.fieldName'),         key: 'name' as const,       type: 'text',   placeholder: 'Employee name' },
                 { label: t('employees.fieldPhone'),        key: 'phone' as const,      type: 'tel',    placeholder: '+380...' },
                 { label: t('employees.fieldEmail'),        key: 'email' as const,      type: 'email',  placeholder: 'email@example.com' },
-                { label: t('employees.fieldHourlyRate'),key: 'hourlyRate' as const, type: 'number', placeholder: '0' },
+                { label: `${t('employees.fieldHourlyRate')} (${getCurrencySymbol(currency)})`, key: 'hourlyRate' as const, type: 'number', placeholder: '0' },
                 { label: t('employees.fieldSpecialties'), key: 'specialties' as const, type: 'text', placeholder: t('employees.fieldSpecialtiesPlaceholder') },
                 { label: t('employees.fieldBio'),            key: 'bio' as const,        type: 'text',   placeholder: t('employees.fieldBioPlaceholder') },
               ].map(({ label, key, type, placeholder }) => (

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Users, Clock, DollarSign, TrendingUp, Scissors } from 'lucide-react';
+import { Calendar, Users, Clock, Banknote, TrendingUp, Scissors } from 'lucide-react';
 import MetricCard from '../components/dashboard/MetricCard';
 import { appointmentApi, clientApi } from '../api';
 import { Appointment, Client } from '../api/types';
@@ -77,7 +77,7 @@ const Dashboard = () => {
     { title: t('dashboard.metricTodayAppointments'), value: loading ? '...' : String(todayAppointments.length), icon: <Calendar size={22} /> },
     { title: t('dashboard.metricTotalClients'), value: loading ? '...' : String(clients.length), icon: <Users size={22} /> },
     { title: t('dashboard.metricAvgServiceTime'), value: loading ? '...' : `${avgDuration}m`, icon: <Clock size={22} /> },
-    { title: t('dashboard.metricTodayRevenue'), value: loading ? '...' : formatPrice(todayRevenue, currency), icon: <DollarSign size={22} /> },
+    { title: t('dashboard.metricTodayRevenue'), value: loading ? '...' : formatPrice(todayRevenue, currency), icon: <Banknote size={22} /> },
   ];
 
   const statusLabel = (status: string) => t(`statuses.${status}`);

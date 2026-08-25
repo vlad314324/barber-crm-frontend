@@ -3,7 +3,7 @@ import {
   Scissors, ScissorsLineDashed, Droplet, ShowerHead, Wind, Sparkles,
   Heart, Flower2, Palette, Waves, Sun, Gem, Brush, Hand, Zap, SprayCan,
   Syringe, Sparkle, Vibrate, Stethoscope,
-  Plus, Search, Pencil, Trash2, Clock, DollarSign, Tags, X, Check,
+  Plus, Search, Pencil, Trash2, Clock, Banknote, Tags, X, Check,
 } from 'lucide-react';
 import { serviceApi, categoryApi } from '../api';
 import { Service, Category } from '../api/types';
@@ -12,6 +12,7 @@ import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
 import { useShopCurrency } from '../context/SettingsContext';
 import { formatPrice } from '../utils/money';
+import { getCurrencySymbol } from '../constants/currencies';
 
 const defaultForm = {
   name: '', description: '', price: 0, duration: 30,
@@ -124,7 +125,7 @@ const Services = () => {
   };
 
   const handleSave = async () => {
-    if (!formData.name || !formData.description) {
+    if (!formData.name) {
       alert(t('services.fillRequired'));
       return;
     }
@@ -274,7 +275,7 @@ const Services = () => {
                 <p className="text-sm text-ink-muted mt-2">{service.description}</p>
                 <div className="flex items-center gap-4 mt-4">
                   <div className="flex items-center text-sm text-ink-secondary">
-                    <DollarSign size={14} className="mr-1 text-brand" />
+                    <Banknote size={14} className="mr-1 text-brand" />
                     <span className="font-semibold">{formatPrice(service.price, currency)}</span>
                   </div>
                   <div className="flex items-center text-sm text-ink-muted">
@@ -332,7 +333,7 @@ const Services = () => {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="field-label">{t('services.fieldPrice')}</label>
+              <label className="field-label">{t('services.fieldPrice')} ({getCurrencySymbol(currency)})</label>
               <input
                 type="number"
                 className="field-input"
