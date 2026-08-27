@@ -8,6 +8,7 @@ import { getErrorMessage } from '../utils/errors';
 import BookingLinkCard from '../components/BookingLinkCard';
 import { BOOKING_LANGS, BookingLang } from '../i18n/bookingTranslations';
 import { CURRENCIES } from '../constants/currencies';
+import { TIMEZONES } from '../constants/timezones';
 
 const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
 
@@ -26,7 +27,7 @@ const Settings = () => {
     latitude: null, longitude: null, websiteUrl: '',
     workingHours: {},
     bookingLanguages: ['uk', 'en'], defaultBookingLanguage: 'uk',
-    currency: 'UAH',
+    currency: 'UAH', timezone: 'Europe/Kyiv',
   });
 
   const [passwords, setPasswords] = useState({
@@ -49,6 +50,7 @@ const Settings = () => {
         bookingLanguages: data.bookingLanguages?.length ? data.bookingLanguages : ['uk', 'en'],
         defaultBookingLanguage: data.defaultBookingLanguage || 'uk',
         currency: data.currency || 'UAH',
+        timezone: data.timezone || 'Europe/Kyiv',
       });
       setLoading(false);
     });
@@ -182,6 +184,19 @@ const Settings = () => {
                     <option key={c.code} value={c.code}>{c.code} ({c.symbol})</option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label className="field-label">{t('settings.fieldTimezone')}</label>
+                <select
+                  value={settings.timezone || 'Europe/Kyiv'}
+                  onChange={e => setSettings(prev => ({ ...prev, timezone: e.target.value }))}
+                  className="field-input"
+                >
+                  {TIMEZONES.map(tz => (
+                    <option key={tz.value} value={tz.value}>{tz.label}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-ink-muted mt-1.5">{t('settings.fieldTimezoneHint')}</p>
               </div>
               <div>
                 <label className="field-label">{t('settings.fieldCoordinates')}</label>

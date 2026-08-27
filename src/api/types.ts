@@ -250,6 +250,7 @@ export interface ShopSettings {
   bookingLanguages?: string[];
   defaultBookingLanguage?: string;
   currency?: string;
+  timezone?: string;
 }
 
 // Публічний підмножина ShopSettings, яку віддає /booking/settings
