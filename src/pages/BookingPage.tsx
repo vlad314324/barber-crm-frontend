@@ -238,7 +238,7 @@ const BookingPage = () => {
             backgroundImage: `linear-gradient(rgba(15,15,20,.6), rgba(15,15,20,.6)), url(${branding.coverImageUrl})`,
             backgroundSize: 'cover', backgroundPosition: 'center',
           } : undefined}>
-          <div className="absolute top-4 right-4">
+          <div className="absolute top-0 right-4 sm:top-4">
             <LanguageToggle variant="dark" langs={enabledLangs} labels={BOOKING_LANG_LABELS} value={lang} onChange={setLang} />
           </div>
           <div className="flex items-center justify-center gap-2 mb-1">
