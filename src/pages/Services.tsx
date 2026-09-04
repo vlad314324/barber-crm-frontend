@@ -10,12 +10,14 @@ import { Service, Category } from '../api/types';
 import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
-import { useShopCurrency } from '../context/SettingsContext';
-import { formatPrice } from '../utils/money';
+import { useShopCurrency, useShopServiceRangesEnabled } from '../context/SettingsContext';
+import { formatPrice, formatPriceRange } from '../utils/money';
+import { formatDurationRange } from '../utils/duration';
 import { getCurrencySymbol } from '../constants/currencies';
 
 const defaultForm = {
-  name: '', description: '', price: 0, duration: 30,
+  name: '', description: '', price: 0, priceMax: undefined as number | undefined,
+  duration: 30, durationMax: undefined as number | undefined,
   category: '',
   isAvailable: true,
 };
@@ -50,6 +52,7 @@ const IconPicker = ({ value, onChange }: { value: string; onChange: (icon: strin
 const Services = () => {
   const { t } = useLocale();
   const currency = useShopCurrency();
+  const rangesEnabled = useShopServiceRangesEnabled();
   const [searchTerm, setSearchTerm] = useState('');
   const [services, setServices] = useState<Service[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -117,7 +120,9 @@ const Services = () => {
       name: service.name,
       description: service.description,
       price: service.price,
+      priceMax: service.priceMax,
       duration: service.duration,
+      durationMax: service.durationMax,
       category: service.category,
       isAvailable: service.isAvailable,
     });
@@ -127,6 +132,14 @@ const Services = () => {
   const handleSave = async () => {
     if (!formData.name) {
       alert(t('services.fillRequired'));
+      return;
+    }
+    if (rangesEnabled && formData.priceMax !== undefined && formData.priceMax < formData.price) {
+      alert(t('services.priceMaxError'));
+      return;
+    }
+    if (rangesEnabled && formData.durationMax !== undefined && formData.durationMax < formData.duration) {
+      alert(t('services.durationMaxError'));
       return;
     }
     setSaving(true);
@@ -276,11 +289,13 @@ const Services = () => {
                 <div className="flex items-center gap-4 mt-4">
                   <div className="flex items-center text-sm text-ink-secondary">
                     <Banknote size={14} className="mr-1 text-brand" />
-                    <span className="font-semibold">{formatPrice(service.price, currency)}</span>
+                    <span className="font-semibold">
+                      {rangesEnabled ? formatPriceRange(service.price, service.priceMax, currency) : formatPrice(service.price, currency)}
+                    </span>
                   </div>
                   <div className="flex items-center text-sm text-ink-muted">
                     <Clock size={14} className="mr-1" />
-                    {service.duration} {t('services.minutes')}
+                    {rangesEnabled ? formatDurationRange(service.duration, service.durationMax) : service.duration} {t('services.minutes')}
                   </div>
                 </div>
               </div>
@@ -354,6 +369,33 @@ const Services = () => {
               />
             </div>
           </div>
+          {rangesEnabled && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="field-label">{t('services.fieldPriceMax')}</label>
+                <input
+                  type="number"
+                  className="field-input"
+                  value={formData.priceMax ?? ''}
+                  placeholder="—"
+                  min={formData.price}
+                  onChange={(e) => setFormData({ ...formData, priceMax: e.target.value === '' ? undefined : Number(e.target.value) })}
+                />
+              </div>
+              <div>
+                <label className="field-label">{t('services.fieldDurationMax')}</label>
+                <input
+                  type="number"
+                  className="field-input"
+                  value={formData.durationMax ?? ''}
+                  placeholder="—"
+                  min={formData.duration}
+                  step="5"
+                  onChange={(e) => setFormData({ ...formData, durationMax: e.target.value === '' ? undefined : Number(e.target.value) })}
+                />
+              </div>
+            </div>
+          )}
           <div>
             <label className="field-label">{t('services.fieldCategory')}</label>
             <select

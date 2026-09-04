@@ -46,7 +46,9 @@ export interface Service {
   name: string;
   description: string;
   price: number;
+  priceMax?: number;
   duration: number; // in minutes
+  durationMax?: number;
   category: string;
   isAvailable: boolean;
 }
@@ -147,7 +149,9 @@ export interface CreateServiceDto {
   name: string;
   description: string;
   price: number;
+  priceMax?: number;
   duration: number;
+  durationMax?: number;
   category: string;
   isAvailable: boolean;
 }
@@ -251,6 +255,7 @@ export interface ShopSettings {
   defaultBookingLanguage?: string;
   currency?: string;
   timezone?: string;
+  serviceRangesEnabled?: boolean;
 }
 
 // Публічний підмножина ShopSettings, яку віддає /booking/settings

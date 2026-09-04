@@ -8,8 +8,9 @@ import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
 import { downloadBlob } from '../utils/download';
-import { useShopCurrency } from '../context/SettingsContext';
-import { formatPrice } from '../utils/money';
+import { useShopCurrency, useShopServiceRangesEnabled } from '../context/SettingsContext';
+import { formatPrice, formatPriceRange } from '../utils/money';
+import { formatDurationRange } from '../utils/duration';
 import { getCurrencySymbol } from '../constants/currencies';
 
 const COUNTRIES = [
@@ -207,6 +208,7 @@ const defaultEdit: EditApptForm = {
 const Appointments = () => {
   const { t, lang } = useLocale();
   const currency = useShopCurrency();
+  const rangesEnabled = useShopServiceRangesEnabled();
   const [searchParams, setSearchParams] = useSearchParams();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -486,9 +488,13 @@ if (selectedBarber) {
   };
 
   const totalsFor = (ids: string[]) => {
-    const price = ids.reduce((s,id) => s + (services.find(sv=>sv._id===id)?.price||0), 0);
-    const dur   = ids.reduce((s,id) => s + (services.find(sv=>sv._id===id)?.duration||0), 0);
-    return { price, dur: dur || 30 };
+    const totalPrice = ids.reduce((s,id) => s + (services.find(sv=>sv._id===id)?.price||0), 0);
+    const totalDuration = ids.reduce((s,id) => {
+      const svc = services.find(sv => sv._id === id);
+      if (!svc) return s;
+      return s + (rangesEnabled ? (svc.durationMax ?? svc.duration) : svc.duration);
+    }, 0);
+    return { totalPrice, totalDuration: totalDuration || 30 };
   };
 
   const toggleService = (ids: string[], svcId: string, isAdd: boolean) => {
@@ -761,11 +767,13 @@ if (selectedBarber) {
                   <input type="checkbox" className="rounded border-line text-brand focus:ring-brand"
                     checked={addForm.serviceIds.includes(s._id)}
                     onChange={e => {
-                      const {ids,price,dur} = toggleService(addForm.serviceIds, s._id, e.target.checked);
-                      setAddForm({...addForm, serviceIds:ids, totalPrice:price, totalDuration:dur});
+                      const {ids,totalPrice,totalDuration} = toggleService(addForm.serviceIds, s._id, e.target.checked);
+                      setAddForm({...addForm, serviceIds:ids, totalPrice, totalDuration});
                     }}/>
                   <span>{s.name}</span>
-                  <span className="ml-auto text-ink-muted text-xs">{formatPrice(s.price, currency)} · {s.duration}{t('services.minutes')}</span>
+                  <span className="ml-auto text-ink-muted text-xs">
+                    {rangesEnabled ? formatPriceRange(s.price, s.priceMax, currency) : formatPrice(s.price, currency)} · {rangesEnabled ? formatDurationRange(s.duration, s.durationMax) : s.duration}{t('services.minutes')}
+                  </span>
                 </label>
               ))}
             </div>
@@ -842,11 +850,13 @@ if (selectedBarber) {
                     <input type="checkbox" className="rounded border-line text-brand focus:ring-brand"
                       checked={(editForm.serviceIds||[]).includes(s._id)}
                       onChange={e => {
-                        const {ids,price,dur} = toggleService(editForm.serviceIds||[], s._id, e.target.checked);
-                        setEditForm({...editForm, serviceIds:ids, totalPrice:price, totalDuration:dur});
+                        const {ids,totalPrice,totalDuration} = toggleService(editForm.serviceIds||[], s._id, e.target.checked);
+                        setEditForm({...editForm, serviceIds:ids, totalPrice, totalDuration});
                       }}/>
                     <span>{s.name}</span>
-                    <span className="ml-auto text-ink-muted text-xs">{formatPrice(s.price, currency)} · {s.duration}{t('services.minutes')}</span>
+                    <span className="ml-auto text-ink-muted text-xs">
+                      {rangesEnabled ? formatPriceRange(s.price, s.priceMax, currency) : formatPrice(s.price, currency)} · {rangesEnabled ? formatDurationRange(s.duration, s.durationMax) : s.duration}{t('services.minutes')}
+                    </span>
                   </label>
                 ))}
               </div>

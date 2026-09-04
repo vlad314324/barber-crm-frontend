@@ -13,9 +13,10 @@ import LanguageToggle from '../components/LanguageToggle';
 import LocationMap from '../components/LocationMap';
 import { getErrorMessage } from '../utils/errors';
 import { PublicBookingSettings } from '../api/types';
-import { formatPrice } from '../utils/money';
+import { formatPriceRange } from '../utils/money';
+import { formatDurationRange } from '../utils/duration';
 
-interface Service { _id: string; name: string; description?: string; price: number; duration: number; category: string; }
+interface Service { _id: string; name: string; description?: string; price: number; priceMax?: number; duration: number; durationMax?: number; category: string; }
 interface Employee { _id: string; name: string; role: string; customRoleLabel?: string; services?: string[]; specialties?: string[]; bio?: string; }
 
 const HEX_COLOR_RE = /^#([0-9a-f]{3}){1,2}$/i;
@@ -120,9 +121,22 @@ const BookingPage = () => {
 
   const setLang = (l: string) => { setLangTouched(true); setLangState(l as BookingLang); };
 
+  // totalPrice — завжди база (мін.); totalPriceMax — лише для показу
+  // діапазону, коли послуга має priceMax (сервер не віддає ці поля взагалі,
+  // якщо опція діапазонів вимкнена в салоні — тоді formatPriceRange сама
+  // згорне показ до одного числа).
+  const totalPrice       = selectedServices.reduce((sum, s) => sum + s.price, 0);
+  const totalPriceMax    = selectedServices.reduce((sum, s) => sum + (s.priceMax ?? s.price), 0);
+  // totalDuration — сума МАКС тривалостей (саме це бронюється й шлеться як
+  // durationMinutes для фільтрації слотів); totalDurationMin — лише для
+  // показу діапазону.
+  const totalDuration    = selectedServices.reduce((sum, s) => sum + (s.durationMax ?? s.duration), 0);
+  const totalDurationMin = selectedServices.reduce((sum, s) => sum + s.duration, 0);
+
   useEffect(() => {
     if (selectedEmployee && selectedDate) {
-      api.get(`/booking/available-slots?employeeId=${selectedEmployee._id}&date=${selectedDate}`)
+      const durationParam = totalDuration > 0 ? `&durationMinutes=${totalDuration}` : '';
+      api.get(`/booking/available-slots?employeeId=${selectedEmployee._id}&date=${selectedDate}${durationParam}`)
         .then(r => {
           setIsClosed(r.data.closed || false);
           let available = r.data.availableSlots;
@@ -140,16 +154,13 @@ const BookingPage = () => {
           setSlots(available);
         });
     }
-  }, [selectedEmployee, selectedDate, api]);
+  }, [selectedEmployee, selectedDate, totalDuration, api]);
 
   const toggleService = (s: Service) => {
     setSelectedServices(prev =>
       prev.find(x => x._id === s._id) ? prev.filter(x => x._id !== s._id) : [...prev, s]
     );
   };
-
-  const totalPrice    = selectedServices.reduce((sum, s) => sum + s.price, 0);
-  const totalDuration = selectedServices.reduce((sum, s) => sum + s.duration, 0);
 
   // Порожній/невизначений selectedEmployee.services означає "без обмежень".
   const availableServices = !selectedEmployee || !selectedEmployee.services || selectedEmployee.services.length === 0
@@ -215,7 +226,7 @@ const BookingPage = () => {
         <h2 className="text-2xl font-extrabold text-ink tracking-tight mb-2">{t('booking.confirmed')}</h2>
         <p className="text-ink-secondary mb-1">{t('booking.masterLabel')}: <strong className="text-ink">{selectedEmployee?.name}</strong></p>
         <p className="text-ink-secondary mb-1">{t('booking.dateLabel')}: <strong className="text-ink">{selectedDate}</strong> {t('booking.at')} <strong className="text-ink">{selectedTime}</strong></p>
-        <p className="text-ink-secondary mb-6">{t('booking.sumLabel')}: <strong className="text-ink">{formatPrice(totalPrice, branding?.currency)}</strong></p>
+        <p className="text-ink-secondary mb-6">{t('booking.sumLabel')}: <strong className="text-ink">{formatPriceRange(totalPrice, totalPriceMax, branding?.currency)}</strong></p>
         <button
           onClick={() => {
             setDone(false); setScreen('menu');
@@ -279,7 +290,7 @@ const BookingPage = () => {
             <MenuRow
               icon={<ListChecks size={18}/>}
               title={t('booking.menuServices')}
-              subtitle={selectedServices.length > 0 ? `${selectedServices.length} · ${formatPrice(totalPrice, branding?.currency)}` : undefined}
+              subtitle={selectedServices.length > 0 ? `${selectedServices.length} · ${formatPriceRange(totalPrice, totalPriceMax, branding?.currency)}` : undefined}
               onClick={() => setScreen('services')}
             />
             <MenuRow
@@ -473,17 +484,17 @@ const BookingPage = () => {
                   <div>
                     <p className="font-medium text-ink">{s.name}</p>
                     {s.description && <p className="text-sm text-ink-muted mt-0.5">{s.description}</p>}
-                    <p className="text-sm text-ink-muted">{s.duration} {t('booking.minutes')}</p>
+                    <p className="text-sm text-ink-muted">{formatDurationRange(s.duration, s.durationMax)} {t('booking.minutes')}</p>
                   </div>
-                  <p className="font-semibold text-brand-dark">{formatPrice(s.price, branding?.currency)}</p>
+                  <p className="font-semibold text-brand-dark">{formatPriceRange(s.price, s.priceMax, branding?.currency)}</p>
                 </div>
               </div>
             ))}
           </div>
           {selectedServices.length > 0 && (
             <div className="mt-4 p-3 bg-brand-extra-soft rounded-sm flex justify-between items-center">
-              <span className="text-sm text-ink-secondary">{t('booking.selectedCount', { count: selectedServices.length, duration: totalDuration })}</span>
-              <span className="font-semibold text-brand-dark">{formatPrice(totalPrice, branding?.currency)}</span>
+              <span className="text-sm text-ink-secondary">{t('booking.selectedCount', { count: selectedServices.length, duration: formatDurationRange(totalDurationMin, totalDuration) })}</span>
+              <span className="font-semibold text-brand-dark">{formatPriceRange(totalPrice, totalPriceMax, branding?.currency)}</span>
             </div>
           )}
           <button
@@ -560,11 +571,11 @@ const BookingPage = () => {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-ink-muted">{t('booking.durationLabel')}</span>
-              <span className="font-medium text-ink">{totalDuration} {t('booking.minutes')}</span>
+              <span className="font-medium text-ink">{formatDurationRange(totalDurationMin, totalDuration)} {t('booking.minutes')}</span>
             </div>
             <div className="border-t border-line pt-3 flex justify-between">
               <span className="font-semibold text-ink">{t('booking.sumLabel')}</span>
-              <span className="font-bold text-brand-dark text-lg">{formatPrice(totalPrice, branding?.currency)}</span>
+              <span className="font-bold text-brand-dark text-lg">{formatPriceRange(totalPrice, totalPriceMax, branding?.currency)}</span>
             </div>
             <div className="border-t border-line pt-3 text-sm text-ink-muted">
               <p>{clientName} • {clientPhone}</p>

@@ -28,6 +28,7 @@ const Settings = () => {
     workingHours: {},
     bookingLanguages: ['uk', 'en'], defaultBookingLanguage: 'uk',
     currency: 'UAH', timezone: 'Europe/Kyiv',
+    serviceRangesEnabled: false,
   });
 
   const [passwords, setPasswords] = useState({
@@ -51,6 +52,7 @@ const Settings = () => {
         defaultBookingLanguage: data.defaultBookingLanguage || 'uk',
         currency: data.currency || 'UAH',
         timezone: data.timezone || 'Europe/Kyiv',
+        serviceRangesEnabled: !!data.serviceRangesEnabled,
       });
       setLoading(false);
     });
@@ -197,6 +199,19 @@ const Settings = () => {
                   ))}
                 </select>
                 <p className="text-xs text-ink-muted mt-1.5">{t('settings.fieldTimezoneHint')}</p>
+              </div>
+              <div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="serviceRangesEnabled"
+                    checked={!!settings.serviceRangesEnabled}
+                    onChange={e => setSettings(prev => ({ ...prev, serviceRangesEnabled: e.target.checked }))}
+                    className="w-4 h-4 text-brand rounded flex-shrink-0 focus:ring-brand"
+                  />
+                  <label htmlFor="serviceRangesEnabled" className="field-label !mb-0">{t('settings.fieldServiceRanges')}</label>
+                </div>
+                <p className="text-xs text-ink-muted mt-1.5">{t('settings.fieldServiceRangesHint')}</p>
               </div>
               <div>
                 <label className="field-label">{t('settings.fieldCoordinates')}</label>
