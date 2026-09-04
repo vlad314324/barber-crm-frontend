@@ -12,14 +12,17 @@ import { resolveErrorMessage } from '../utils/errors';
 // даних (38 байт мінус префікс `salon_`, 6 символів). Див. routes/salonRoutes.js.
 const MAX_SLUG_LEN = 32;
 
-const slugify = (value: string): string =>
+// Без обрізання — потрібно окремо, щоб визначити, чи довелось обрізати
+// (для попередження користувачу), не втрачаючи саму інформацію про це.
+const sanitizeSlug = (value: string): string =>
   value
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, MAX_SLUG_LEN)
-    .replace(/-+$/, '');
+    .replace(/^-+|-+$/g, '');
+
+const slugify = (value: string): string =>
+  sanitizeSlug(value).slice(0, MAX_SLUG_LEN).replace(/-+$/, '');
 
 const RegisterSalon = () => {
   const { t } = useLocale();
@@ -33,6 +36,7 @@ const RegisterSalon = () => {
   const [salonName, setSalonName] = useState('');
   const [slug, setSlug]           = useState('');
   const [slugTouched, setSlugTouched] = useState(false);
+  const [slugTruncated, setSlugTruncated] = useState(false);
   const [ownerName, setOwnerName]   = useState('');
   const [ownerEmail, setOwnerEmail] = useState('');
   const [ownerPassword, setOwnerPassword]   = useState('');
@@ -56,7 +60,10 @@ const RegisterSalon = () => {
 
   const handleSalonNameChange = (value: string) => {
     setSalonName(value);
-    if (!slugTouched) setSlug(slugify(value));
+    if (!slugTouched) {
+      setSlug(slugify(value));
+      setSlugTruncated(sanitizeSlug(value).length > MAX_SLUG_LEN);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -133,15 +140,27 @@ const RegisterSalon = () => {
             </div>
 
             <div>
-              <label className="field-label">{t('registerSalon.slugLabel')}</label>
+              <div className="flex items-baseline justify-between">
+                <label className="field-label">{t('registerSalon.slugLabel')}</label>
+                <span className={`text-xs ${slug.length >= MAX_SLUG_LEN ? 'text-amber-500 font-medium' : 'text-ink-muted'}`}>
+                  {slug.length}/{MAX_SLUG_LEN}
+                </span>
+              </div>
               <input
                 type="text"
                 className="field-input py-3"
                 placeholder="barbershop"
                 value={slug}
-                onChange={e => { setSlug(slugify(e.target.value)); setSlugTouched(true); }}
+                onChange={e => {
+                  setSlug(slugify(e.target.value));
+                  setSlugTouched(true);
+                  setSlugTruncated(sanitizeSlug(e.target.value).length > MAX_SLUG_LEN);
+                }}
               />
               <p className="text-xs text-ink-muted mt-1.5">{t('registerSalon.slugHint')}</p>
+              {slugTruncated && (
+                <p className="text-xs text-amber-500 mt-1">{t('registerSalon.slugTruncated', { max: MAX_SLUG_LEN })}</p>
+              )}
             </div>
 
             <div>
