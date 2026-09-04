@@ -8,12 +8,18 @@ import LanguageToggle from '../components/LanguageToggle';
 import { defaultRouteForRole } from '../utils/roleRoutes';
 import { resolveErrorMessage } from '../utils/errors';
 
+// 32 символи — межа, зумовлена лімітом MongoDB Atlas на довжину назви бази
+// даних (38 байт мінус префікс `salon_`, 6 символів). Див. routes/salonRoutes.js.
+const MAX_SLUG_LEN = 32;
+
 const slugify = (value: string): string =>
   value
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/^-+|-+$/g, '')
+    .slice(0, MAX_SLUG_LEN)
+    .replace(/-+$/, '');
 
 const RegisterSalon = () => {
   const { t } = useLocale();
