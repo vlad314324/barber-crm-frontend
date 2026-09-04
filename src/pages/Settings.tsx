@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../i18n/LocaleContext';
 import { ShopSettings, WorkingDay } from '../api/types';
 import { getErrorMessage } from '../utils/errors';
+import { useRefreshShopSettings } from '../context/SettingsContext';
 import BookingLinkCard from '../components/BookingLinkCard';
 import { BOOKING_LANGS, BookingLang } from '../i18n/bookingTranslations';
 import { CURRENCIES } from '../constants/currencies';
@@ -17,6 +18,7 @@ type Tab = 'general' | 'booking' | 'security';
 const Settings = () => {
   const { user, salonSlug } = useAuth();
   const { t } = useLocale();
+  const refreshShopSettings = useRefreshShopSettings();
   const DAYS = DAY_KEYS.map(key => ({ key, label: t(`settings.days.${key}`) }));
 
   const [activeTab, setActiveTab] = useState<Tab>('general');
@@ -62,6 +64,7 @@ const Settings = () => {
     setSaving(true);
     try {
       await api.put('/settings', settings);
+      await refreshShopSettings();
       setSavedInfo(true);
       setTimeout(() => setSavedInfo(false), 3000);
     } catch {
