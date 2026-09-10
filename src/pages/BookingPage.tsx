@@ -132,6 +132,7 @@ const BookingPage = () => {
   // показу діапазону.
   const totalDuration    = selectedServices.reduce((sum, s) => sum + (s.durationMax ?? s.duration), 0);
   const totalDurationMin = selectedServices.reduce((sum, s) => sum + s.duration, 0);
+  const bookingDurationLabels = { hour: t('booking.hours'), minute: t('booking.minutes') };
 
   useEffect(() => {
     if (selectedEmployee && selectedDate) {
@@ -484,7 +485,7 @@ const BookingPage = () => {
                   <div>
                     <p className="font-medium text-ink">{s.name}</p>
                     {s.description && <p className="text-sm text-ink-muted mt-0.5">{s.description}</p>}
-                    <p className="text-sm text-ink-muted">{formatDurationRange(s.duration, s.durationMax)} {t('booking.minutes')}</p>
+                    <p className="text-sm text-ink-muted">{formatDurationRange(s.duration, s.durationMax, bookingDurationLabels)}</p>
                   </div>
                   <p className="font-semibold text-brand-dark">{formatPriceRange(s.price, s.priceMax, branding?.currency)}</p>
                 </div>
@@ -493,7 +494,7 @@ const BookingPage = () => {
           </div>
           {selectedServices.length > 0 && (
             <div className="mt-4 p-3 bg-brand-extra-soft rounded-sm flex justify-between items-center">
-              <span className="text-sm text-ink-secondary">{t('booking.selectedCount', { count: selectedServices.length, duration: formatDurationRange(totalDurationMin, totalDuration) })}</span>
+              <span className="text-sm text-ink-secondary">{t('booking.selectedCount', { count: selectedServices.length, duration: formatDurationRange(totalDurationMin, totalDuration, bookingDurationLabels) })}</span>
               <span className="font-semibold text-brand-dark">{formatPriceRange(totalPrice, totalPriceMax, branding?.currency)}</span>
             </div>
           )}
@@ -571,7 +572,7 @@ const BookingPage = () => {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-ink-muted">{t('booking.durationLabel')}</span>
-              <span className="font-medium text-ink">{formatDurationRange(totalDurationMin, totalDuration)} {t('booking.minutes')}</span>
+              <span className="font-medium text-ink">{formatDurationRange(totalDurationMin, totalDuration, bookingDurationLabels)}</span>
             </div>
             <div className="border-t border-line pt-3 flex justify-between">
               <span className="font-semibold text-ink">{t('booking.sumLabel')}</span>

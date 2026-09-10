@@ -12,8 +12,9 @@ import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
 import { useShopCurrency, useShopServiceRangesEnabled } from '../context/SettingsContext';
 import { formatPrice, formatPriceRange } from '../utils/money';
-import { formatDurationRange } from '../utils/duration';
+import { formatDuration, formatDurationRange, minutesToUnitValue, unitValueToMinutes, unitInputProps, DurationUnit } from '../utils/duration';
 import { getCurrencySymbol } from '../constants/currencies';
+import DurationUnitToggle from '../components/DurationUnitToggle';
 
 const defaultForm = {
   name: '', description: '', price: 0, priceMax: undefined as number | undefined,
@@ -62,6 +63,10 @@ const Services = () => {
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [formData, setFormData] = useState(defaultForm);
   const [saving, setSaving] = useState(false);
+  // Спільний перемикач одиниці для duration+durationMax — одне поле в
+  // годинах, а друге в хвилинах, було б плутано.
+  const [durationUnit, setDurationUnit] = useState<DurationUnit>('min');
+  const durationLabels = { hour: t('services.hours'), minute: t('services.minutes') };
 
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -111,6 +116,7 @@ const Services = () => {
   const openAddModal = () => {
     setEditingService(null);
     setFormData({ ...defaultForm, category: categories[0]?.name || '' });
+    setDurationUnit('min');
     setIsModalOpen(true);
   };
 
@@ -126,6 +132,7 @@ const Services = () => {
       category: service.category,
       isAvailable: service.isAvailable,
     });
+    setDurationUnit('min');
     setIsModalOpen(true);
   };
 
@@ -295,7 +302,9 @@ const Services = () => {
                   </div>
                   <div className="flex items-center text-sm text-ink-muted">
                     <Clock size={14} className="mr-1" />
-                    {rangesEnabled ? formatDurationRange(service.duration, service.durationMax) : service.duration} {t('services.minutes')}
+                    {rangesEnabled
+                      ? formatDurationRange(service.duration, service.durationMax, durationLabels)
+                      : formatDuration(service.duration, durationLabels)}
                   </div>
                 </div>
               </div>
@@ -358,14 +367,16 @@ const Services = () => {
               />
             </div>
             <div>
-              <label className="field-label">{t('services.fieldDuration')}</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="field-label mb-0">{t('services.fieldDuration')}</label>
+                <DurationUnitToggle unit={durationUnit} onChange={setDurationUnit} />
+              </div>
               <input
                 type="number"
                 className="field-input"
-                value={formData.duration}
-                onChange={(e) => setFormData({ ...formData, duration: Number(e.target.value) })}
-                min="5"
-                step="5"
+                value={minutesToUnitValue(formData.duration, durationUnit)}
+                onChange={(e) => setFormData({ ...formData, duration: unitValueToMinutes(e.target.value === '' ? 0 : Number(e.target.value), durationUnit) })}
+                {...unitInputProps(durationUnit)}
               />
             </div>
           </div>
@@ -387,11 +398,11 @@ const Services = () => {
                 <input
                   type="number"
                   className="field-input"
-                  value={formData.durationMax ?? ''}
+                  value={formData.durationMax !== undefined ? minutesToUnitValue(formData.durationMax, durationUnit) : ''}
                   placeholder="—"
-                  min={formData.duration}
-                  step="5"
-                  onChange={(e) => setFormData({ ...formData, durationMax: e.target.value === '' ? undefined : Number(e.target.value) })}
+                  min={minutesToUnitValue(formData.duration, durationUnit)}
+                  step={unitInputProps(durationUnit).step}
+                  onChange={(e) => setFormData({ ...formData, durationMax: e.target.value === '' ? undefined : unitValueToMinutes(Number(e.target.value), durationUnit) })}
                 />
               </div>
             </div>

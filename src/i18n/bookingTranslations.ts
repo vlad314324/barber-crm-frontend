@@ -68,6 +68,7 @@ interface BookingDict {
     fillAll: string;
     bookingError: string;
     minutes: string;
+    hours: string;
   };
 }
 
@@ -96,7 +97,7 @@ const uk: BookingDict = {
     chooseDateTime: 'Оберіть дату та час',
     contactsTitle: 'Ваші контакти',
     confirmTitle: 'Підтвердження запису',
-    selectedCount: 'Обрано: {{count}} послуг • {{duration}} хв',
+    selectedCount: 'Обрано: {{count}} послуг • {{duration}}',
     dateLabel: 'Дата',
     availableTimeLabel: 'Вільний час',
     closedMessage: '🚫 Заклад не працює в цей день',
@@ -120,6 +121,7 @@ const uk: BookingDict = {
     fillAll: 'Заповніть всі поля',
     bookingError: 'Помилка при бронюванні',
     minutes: 'хв',
+    hours: 'год',
   },
 };
 
@@ -148,7 +150,7 @@ const en: BookingDict = {
     chooseDateTime: 'Choose date and time',
     contactsTitle: 'Your contacts',
     confirmTitle: 'Booking confirmation',
-    selectedCount: '{{count}} services selected • {{duration}} min',
+    selectedCount: '{{count}} services selected • {{duration}}',
     dateLabel: 'Date',
     availableTimeLabel: 'Available time',
     closedMessage: '🚫 The shop is closed this day',
@@ -172,6 +174,7 @@ const en: BookingDict = {
     fillAll: 'Please fill in all fields',
     bookingError: 'Error while booking',
     minutes: 'min',
+    hours: 'hr',
   },
 };
 
@@ -200,7 +203,7 @@ const cs: BookingDict = {
     chooseDateTime: 'Vyberte datum a čas',
     contactsTitle: 'Vaše kontaktní údaje',
     confirmTitle: 'Potvrzení rezervace',
-    selectedCount: 'Vybráno: {{count}} služeb • {{duration}} min',
+    selectedCount: 'Vybráno: {{count}} služeb • {{duration}}',
     dateLabel: 'Datum',
     availableTimeLabel: 'Volný čas',
     closedMessage: '🚫 Salon je tento den zavřený',
@@ -224,6 +227,7 @@ const cs: BookingDict = {
     fillAll: 'Vyplňte prosím všechna pole',
     bookingError: 'Chyba při rezervaci',
     minutes: 'min',
+    hours: 'hod',
   },
 };
 
@@ -252,7 +256,7 @@ const pl: BookingDict = {
     chooseDateTime: 'Wybierz datę i godzinę',
     contactsTitle: 'Twoje dane kontaktowe',
     confirmTitle: 'Potwierdzenie rezerwacji',
-    selectedCount: 'Wybrano: {{count}} usług • {{duration}} min',
+    selectedCount: 'Wybrano: {{count}} usług • {{duration}}',
     dateLabel: 'Data',
     availableTimeLabel: 'Wolne godziny',
     closedMessage: '🚫 Salon jest zamknięty tego dnia',
@@ -276,6 +280,7 @@ const pl: BookingDict = {
     fillAll: 'Wypełnij wszystkie pola',
     bookingError: 'Błąd podczas rezerwacji',
     minutes: 'min',
+    hours: 'godz',
   },
 };
 
