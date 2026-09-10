@@ -179,6 +179,26 @@ const Settings = () => {
                 </div>
               ))}
               <div>
+                <label className="field-label">{t('settings.fieldCoordinates')}</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="number" step="0.000001"
+                    value={settings.latitude ?? ''}
+                    onChange={e => setSettings(prev => ({ ...prev, latitude: e.target.value === '' ? null : Number(e.target.value) }))}
+                    placeholder={t('settings.fieldLatitude')}
+                    className="field-input"
+                  />
+                  <input
+                    type="number" step="0.000001"
+                    value={settings.longitude ?? ''}
+                    onChange={e => setSettings(prev => ({ ...prev, longitude: e.target.value === '' ? null : Number(e.target.value) }))}
+                    placeholder={t('settings.fieldLongitude')}
+                    className="field-input"
+                  />
+                </div>
+                <p className="text-xs text-ink-muted mt-1.5">{t('settings.coordinatesHint')}</p>
+              </div>
+              <div>
                 <label className="field-label">{t('settings.fieldCurrency')}</label>
                 <select
                   value={settings.currency || 'UAH'}
@@ -215,26 +235,6 @@ const Settings = () => {
                   <label htmlFor="serviceRangesEnabled" className="field-label !mb-0">{t('settings.fieldServiceRanges')}</label>
                 </div>
                 <p className="text-xs text-ink-muted mt-1.5">{t('settings.fieldServiceRangesHint')}</p>
-              </div>
-              <div>
-                <label className="field-label">{t('settings.fieldCoordinates')}</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <input
-                    type="number" step="0.000001"
-                    value={settings.latitude ?? ''}
-                    onChange={e => setSettings(prev => ({ ...prev, latitude: e.target.value === '' ? null : Number(e.target.value) }))}
-                    placeholder={t('settings.fieldLatitude')}
-                    className="field-input"
-                  />
-                  <input
-                    type="number" step="0.000001"
-                    value={settings.longitude ?? ''}
-                    onChange={e => setSettings(prev => ({ ...prev, longitude: e.target.value === '' ? null : Number(e.target.value) }))}
-                    placeholder={t('settings.fieldLongitude')}
-                    className="field-input"
-                  />
-                </div>
-                <p className="text-xs text-ink-muted mt-1.5">{t('settings.coordinatesHint')}</p>
               </div>
               <div className="flex justify-end pt-2">
                 <button onClick={handleInfoSave} disabled={saving} className="btn btn-primary">
