@@ -31,6 +31,7 @@ const Settings = () => {
     bookingLanguages: ['uk', 'en'], defaultBookingLanguage: 'uk',
     currency: 'UAH', timezone: 'Europe/Kyiv',
     serviceRangesEnabled: false,
+    durationDisplayUnit: 'minutes',
   });
 
   const [passwords, setPasswords] = useState({
@@ -55,6 +56,7 @@ const Settings = () => {
         currency: data.currency || 'UAH',
         timezone: data.timezone || 'Europe/Kyiv',
         serviceRangesEnabled: !!data.serviceRangesEnabled,
+        durationDisplayUnit: data.durationDisplayUnit === 'hours' ? 'hours' : 'minutes',
       });
       setLoading(false);
     });
@@ -235,6 +237,18 @@ const Settings = () => {
                   <label htmlFor="serviceRangesEnabled" className="field-label !mb-0">{t('settings.fieldServiceRanges')}</label>
                 </div>
                 <p className="text-xs text-ink-muted mt-1.5">{t('settings.fieldServiceRangesHint')}</p>
+              </div>
+              <div>
+                <label className="field-label">{t('settings.fieldDurationUnit')}</label>
+                <select
+                  value={settings.durationDisplayUnit || 'minutes'}
+                  onChange={e => setSettings(prev => ({ ...prev, durationDisplayUnit: e.target.value === 'hours' ? 'hours' : 'minutes' }))}
+                  className="field-input"
+                >
+                  <option value="minutes">{t('settings.durationUnitMinutes')}</option>
+                  <option value="hours">{t('settings.durationUnitHours')}</option>
+                </select>
+                <p className="text-xs text-ink-muted mt-1.5">{t('settings.fieldDurationUnitHint')}</p>
               </div>
               <div className="flex justify-end pt-2">
                 <button onClick={handleInfoSave} disabled={saving} className="btn btn-primary">

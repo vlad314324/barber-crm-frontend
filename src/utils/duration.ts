@@ -36,3 +36,18 @@ export function unitValueToMinutes(value: number, unit: DurationUnit): number {
 export function unitInputProps(unit: DurationUnit): { min: number; step: number } {
   return unit === 'hour' ? { min: 0.25, step: 0.25 } : { min: 5, step: 5 };
 }
+
+// ── формат показу, керований глобальним налаштуванням закладу ──
+// На відміну від formatDuration/formatDurationRange (які самі переходять
+// на "1 год 30 хв" з 60 хв), ці версії примусово дотримуються обраної
+// одиниці: 'min' завжди показує хвилини одним числом, навіть для довгих
+// послуг.
+export function formatDurationForUnit(minutes: number, unit: DurationUnit, labels: DurationLabels): string {
+  if (unit === 'min') return `${Math.round(minutes)} ${labels.minute}`;
+  return formatDuration(minutes, labels);
+}
+
+export function formatDurationRangeForUnit(min: number, max: number | undefined | null, unit: DurationUnit, labels: DurationLabels): string {
+  if (max === undefined || max === null || max <= min) return formatDurationForUnit(min, unit, labels);
+  return `${formatDurationForUnit(min, unit, labels)}–${formatDurationForUnit(max, unit, labels)}`;
+}

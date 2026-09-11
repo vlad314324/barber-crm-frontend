@@ -256,6 +256,7 @@ export interface ShopSettings {
   currency?: string;
   timezone?: string;
   serviceRangesEnabled?: boolean;
+  durationDisplayUnit?: 'minutes' | 'hours';
 }
 
 // Публічний підмножина ShopSettings, яку віддає /booking/settings

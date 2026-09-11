@@ -10,11 +10,10 @@ import { Service, Category } from '../api/types';
 import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
-import { useShopCurrency, useShopServiceRangesEnabled } from '../context/SettingsContext';
+import { useShopCurrency, useShopServiceRangesEnabled, useShopDurationUnit } from '../context/SettingsContext';
 import { formatPrice, formatPriceRange } from '../utils/money';
-import { formatDuration, formatDurationRange, minutesToUnitValue, unitValueToMinutes, unitInputProps, DurationUnit } from '../utils/duration';
+import { formatDurationRangeForUnit, minutesToUnitValue, unitValueToMinutes, unitInputProps } from '../utils/duration';
 import { getCurrencySymbol } from '../constants/currencies';
-import DurationUnitToggle from '../components/DurationUnitToggle';
 
 const defaultForm = {
   name: '', description: '', price: 0, priceMax: undefined as number | undefined,
@@ -63,9 +62,9 @@ const Services = () => {
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [formData, setFormData] = useState(defaultForm);
   const [saving, setSaving] = useState(false);
-  // Спільний перемикач одиниці для duration+durationMax — одне поле в
-  // годинах, а друге в хвилинах, було б плутано.
-  const [durationUnit, setDurationUnit] = useState<DurationUnit>('min');
+  // Одиниця відображення/вводу тривалості — керується глобальним
+  // налаштуванням закладу (Settings > Загальні), а не локальним перемикачем.
+  const durationUnit = useShopDurationUnit();
   const durationLabels = { hour: t('services.hours'), minute: t('services.minutes') };
 
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -116,7 +115,6 @@ const Services = () => {
   const openAddModal = () => {
     setEditingService(null);
     setFormData({ ...defaultForm, category: categories[0]?.name || '' });
-    setDurationUnit('min');
     setIsModalOpen(true);
   };
 
@@ -132,7 +130,6 @@ const Services = () => {
       category: service.category,
       isAvailable: service.isAvailable,
     });
-    setDurationUnit('min');
     setIsModalOpen(true);
   };
 
@@ -302,9 +299,7 @@ const Services = () => {
                   </div>
                   <div className="flex items-center text-sm text-ink-muted">
                     <Clock size={14} className="mr-1" />
-                    {rangesEnabled
-                      ? formatDurationRange(service.duration, service.durationMax, durationLabels)
-                      : formatDuration(service.duration, durationLabels)}
+                    {formatDurationRangeForUnit(service.duration, rangesEnabled ? service.durationMax : undefined, durationUnit, durationLabels)}
                   </div>
                 </div>
               </div>
@@ -367,10 +362,7 @@ const Services = () => {
               />
             </div>
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="field-label mb-0">{t('services.fieldDuration')}</label>
-                <DurationUnitToggle unit={durationUnit} onChange={setDurationUnit} />
-              </div>
+              <label className="field-label">{t('services.fieldDuration')}</label>
               <input
                 type="number"
                 className="field-input"

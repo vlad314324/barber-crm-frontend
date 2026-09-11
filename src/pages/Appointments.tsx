@@ -8,9 +8,9 @@ import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
 import { downloadBlob } from '../utils/download';
-import { useShopCurrency, useShopServiceRangesEnabled } from '../context/SettingsContext';
+import { useShopCurrency, useShopServiceRangesEnabled, useShopDurationUnit } from '../context/SettingsContext';
 import { formatPrice, formatPriceRange } from '../utils/money';
-import { formatDuration, formatDurationRange } from '../utils/duration';
+import { formatDurationRangeForUnit } from '../utils/duration';
 import { getCurrencySymbol } from '../constants/currencies';
 import DurationInput from '../components/DurationInput';
 
@@ -210,6 +210,7 @@ const Appointments = () => {
   const { t, lang } = useLocale();
   const currency = useShopCurrency();
   const rangesEnabled = useShopServiceRangesEnabled();
+  const durationUnit = useShopDurationUnit();
   const durationLabels = { hour: t('services.hours'), minute: t('services.minutes') };
   const [searchParams, setSearchParams] = useSearchParams();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -774,7 +775,7 @@ if (selectedBarber) {
                     }}/>
                   <span>{s.name}</span>
                   <span className="ml-auto text-ink-muted text-xs">
-                    {rangesEnabled ? formatPriceRange(s.price, s.priceMax, currency) : formatPrice(s.price, currency)} · {rangesEnabled ? formatDurationRange(s.duration, s.durationMax, durationLabels) : formatDuration(s.duration, durationLabels)}
+                    {rangesEnabled ? formatPriceRange(s.price, s.priceMax, currency) : formatPrice(s.price, currency)} · {formatDurationRangeForUnit(s.duration, rangesEnabled ? s.durationMax : undefined, durationUnit, durationLabels)}
                   </span>
                 </label>
               ))}
@@ -796,7 +797,7 @@ if (selectedBarber) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="field-label">{t('appointments.duration')}</label>
-              <DurationInput value={addForm.totalDuration} onChange={min => setAddForm({...addForm, totalDuration: min})}/>
+              <DurationInput unit={durationUnit} value={addForm.totalDuration} onChange={min => setAddForm({...addForm, totalDuration: min})}/>
             </div>
             <div>
               <label className="field-label">{t('appointments.price')} ({getCurrencySymbol(currency)})</label>
@@ -856,7 +857,7 @@ if (selectedBarber) {
                       }}/>
                     <span>{s.name}</span>
                     <span className="ml-auto text-ink-muted text-xs">
-                      {rangesEnabled ? formatPriceRange(s.price, s.priceMax, currency) : formatPrice(s.price, currency)} · {rangesEnabled ? formatDurationRange(s.duration, s.durationMax, durationLabels) : formatDuration(s.duration, durationLabels)}
+                      {rangesEnabled ? formatPriceRange(s.price, s.priceMax, currency) : formatPrice(s.price, currency)} · {formatDurationRangeForUnit(s.duration, rangesEnabled ? s.durationMax : undefined, durationUnit, durationLabels)}
                     </span>
                   </label>
                 ))}
@@ -877,7 +878,7 @@ if (selectedBarber) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="field-label">{t('appointments.duration')}</label>
-                <DurationInput value={editForm.totalDuration} onChange={min => setEditForm({...editForm, totalDuration: min})}/>
+                <DurationInput unit={durationUnit} value={editForm.totalDuration} onChange={min => setEditForm({...editForm, totalDuration: min})}/>
               </div>
               <div>
                 <label className="field-label">{t('appointments.price')} ({getCurrencySymbol(currency)})</label>
