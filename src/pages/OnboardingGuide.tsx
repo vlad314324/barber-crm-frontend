@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { ArrowLeft, Check } from 'lucide-react';
 import { useLocale } from '../i18n/LocaleContext';
 import { employeeApi, serviceApi, clientApi } from '../api';

@@ -1,5 +1,5 @@
 import { Menu } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 import { useLocale } from '../i18n/LocaleContext';
 import LanguageToggle from './LanguageToggle';
 import ThemeToggle from './ThemeToggle';
