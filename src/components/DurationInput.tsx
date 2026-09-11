@@ -8,7 +8,7 @@ interface DurationInputProps {
   // закладу), а не власний стан інпута: усі поля тривалості в адмінці
   // мають перемикатись разом, з одного місця в Налаштуваннях.
   unit: DurationUnit;
-  min?: number;                // мінімум у хвилинах (напр. 5 для базової тривалості)
+  min?: number;                // тільки для HTML-атрибута min на хвилинному полі — не форсує/не підмінює значення під час вводу (як і поле ціни, реальну перевірку робить форма при збереженні)
 }
 
 // Локальний текстовий стан для кожного підполя — навмисно, а не просто
@@ -27,7 +27,7 @@ const DurationInput = ({ value, onChange, unit, min = 0 }: DurationInputProps) =
   if (unit === 'hour') {
     const emit = (h: string, m: string) => {
       if (h === '' && m === '') { onChange(undefined); return; }
-      onChange(Math.max(min, (h === '' ? 0 : Number(h)) * 60 + (m === '' ? 0 : Number(m))));
+      onChange((h === '' ? 0 : Number(h)) * 60 + (m === '' ? 0 : Number(m)));
     };
 
     return (
@@ -65,7 +65,7 @@ const DurationInput = ({ value, onChange, unit, min = 0 }: DurationInputProps) =
       step={5}
       onChange={e => {
         setMinutesText(e.target.value);
-        onChange(e.target.value === '' ? undefined : Math.max(min, Number(e.target.value)));
+        onChange(e.target.value === '' ? undefined : Number(e.target.value));
       }}
     />
   );
