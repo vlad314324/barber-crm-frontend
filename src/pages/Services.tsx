@@ -12,7 +12,8 @@ import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
 import { useShopCurrency, useShopServiceRangesEnabled, useShopDurationUnit } from '../context/SettingsContext';
 import { formatPrice, formatPriceRange } from '../utils/money';
-import { formatDurationRangeForUnit, minutesToUnitValue, unitValueToMinutes, unitInputProps } from '../utils/duration';
+import { formatDurationRangeForUnit } from '../utils/duration';
+import DurationInput from '../components/DurationInput';
 import { getCurrencySymbol } from '../constants/currencies';
 
 const defaultForm = {
@@ -362,13 +363,12 @@ const Services = () => {
               />
             </div>
             <div>
-              <label className="field-label">{t('services.fieldDuration')} ({durationUnit === 'hour' ? durationLabels.hour : durationLabels.minute})</label>
-              <input
-                type="number"
-                className="field-input"
-                value={minutesToUnitValue(formData.duration, durationUnit)}
-                onChange={(e) => setFormData({ ...formData, duration: unitValueToMinutes(e.target.value === '' ? 0 : Number(e.target.value), durationUnit) })}
-                {...unitInputProps(durationUnit)}
+              <label className="field-label">{t('services.fieldDuration')}{durationUnit === 'min' ? ` (${durationLabels.minute})` : ''}</label>
+              <DurationInput
+                unit={durationUnit}
+                value={formData.duration}
+                min={5}
+                onChange={(v) => setFormData({ ...formData, duration: v ?? 0 })}
               />
             </div>
           </div>
@@ -386,15 +386,12 @@ const Services = () => {
                 />
               </div>
               <div>
-                <label className="field-label">{t('services.fieldDurationMax')} ({durationUnit === 'hour' ? durationLabels.hour : durationLabels.minute})</label>
-                <input
-                  type="number"
-                  className="field-input"
-                  value={formData.durationMax !== undefined ? minutesToUnitValue(formData.durationMax, durationUnit) : ''}
-                  placeholder="—"
-                  min={minutesToUnitValue(formData.duration, durationUnit)}
-                  step={unitInputProps(durationUnit).step}
-                  onChange={(e) => setFormData({ ...formData, durationMax: e.target.value === '' ? undefined : unitValueToMinutes(Number(e.target.value), durationUnit) })}
+                <label className="field-label">{t('services.fieldDurationMax')}{durationUnit === 'min' ? ` (${durationLabels.minute})` : ''}</label>
+                <DurationInput
+                  unit={durationUnit}
+                  value={formData.durationMax}
+                  min={formData.duration}
+                  onChange={(v) => setFormData({ ...formData, durationMax: v })}
                 />
               </div>
             </div>
