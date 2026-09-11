@@ -362,7 +362,7 @@ const Services = () => {
               />
             </div>
             <div>
-              <label className="field-label">{t('services.fieldDuration')}</label>
+              <label className="field-label">{t('services.fieldDuration')} ({durationUnit === 'hour' ? durationLabels.hour : durationLabels.minute})</label>
               <input
                 type="number"
                 className="field-input"
@@ -386,7 +386,7 @@ const Services = () => {
                 />
               </div>
               <div>
-                <label className="field-label">{t('services.fieldDurationMax')}</label>
+                <label className="field-label">{t('services.fieldDurationMax')} ({durationUnit === 'hour' ? durationLabels.hour : durationLabels.minute})</label>
                 <input
                   type="number"
                   className="field-input"

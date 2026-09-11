@@ -796,7 +796,7 @@ if (selectedBarber) {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="field-label">{t('appointments.duration')}</label>
+              <label className="field-label">{t('appointments.duration')} ({durationUnit === 'hour' ? durationLabels.hour : durationLabels.minute})</label>
               <DurationInput unit={durationUnit} value={addForm.totalDuration} onChange={min => setAddForm({...addForm, totalDuration: min})}/>
             </div>
             <div>
@@ -877,7 +877,7 @@ if (selectedBarber) {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="field-label">{t('appointments.duration')}</label>
+                <label className="field-label">{t('appointments.duration')} ({durationUnit === 'hour' ? durationLabels.hour : durationLabels.minute})</label>
                 <DurationInput unit={durationUnit} value={editForm.totalDuration} onChange={min => setEditForm({...editForm, totalDuration: min})}/>
               </div>
               <div>
