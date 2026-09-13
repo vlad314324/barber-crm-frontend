@@ -1,10 +1,11 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Calendar,
-  Scissors, BarChart2, Settings, User, LogOut
+  Scissors, BarChart2, Settings, User, LogOut, Sparkles
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../i18n/LocaleContext';
+import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
 
 interface SidebarProps { closeSidebar: () => void; }
 
@@ -12,14 +13,15 @@ const Sidebar = ({ closeSidebar }: SidebarProps) => {
   const { user, logout } = useAuth();
   const { t } = useLocale();
   const navigate = useNavigate();
+  const isAdmin  = user?.role === 'admin';
+  const isBarber = user?.role === 'barber';
+  const { loading: onboardingLoading, isComplete: onboardingComplete } = useOnboardingStatus(isAdmin);
+  const showOnboardingCta = isAdmin && !onboardingLoading && !onboardingComplete;
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
-
-  const isAdmin  = user?.role === 'admin';
-  const isBarber = user?.role === 'barber';
 
   // Закривати сайдбар по кліку треба лише в мобільному drawer-режимі (<lg) —
   // на десктопі той самий sidebarOpen керує шириною колонки, і клік не має її згортати.
@@ -78,6 +80,24 @@ const Sidebar = ({ closeSidebar }: SidebarProps) => {
           ))}
         </ul>
       </nav>
+
+      {showOnboardingCta && (
+        <div className="px-2 pb-3">
+          <NavLink to="/onboarding" onClick={handleNavClick}
+            className={({ isActive }) =>
+              `flex items-center gap-2 px-3 py-2.5 text-sm rounded-sm font-semibold transition-colors ring-1 ring-brand/40 ${
+                isActive ? 'bg-brand text-white' : 'bg-brand-soft text-brand-dark hover:bg-brand hover:text-white'
+              }`
+            }>
+            <span className="relative flex h-2 w-2 flex-shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-brand" />
+            </span>
+            <Sparkles size={16} className="flex-shrink-0" />
+            <span>{t('sidebar.onboardingCta')}</span>
+          </NavLink>
+        </div>
+      )}
 
       <div className="p-4 border-t border-line space-y-3">
         <div className="flex items-center gap-3">

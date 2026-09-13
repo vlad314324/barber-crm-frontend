@@ -16,8 +16,23 @@ import { PublicBookingSettings } from '../api/types';
 import { formatPriceRange } from '../utils/money';
 import { formatDurationRange } from '../utils/duration';
 
-interface Service { _id: string; name: string; description?: string; price: number; priceMax?: number; duration: number; durationMax?: number; category: string; }
-interface Employee { _id: string; name: string; role: string; customRoleLabel?: string; services?: string[]; specialties?: string[]; bio?: string; }
+interface Service {
+  _id: string; name: string; description?: string; price: number; priceMax?: number; duration: number; durationMax?: number; category: string;
+  translations?: Partial<Record<BookingLang, { name: string; description: string }>>;
+}
+interface Employee {
+  _id: string; name: string; role: string; customRoleLabel?: string; services?: string[]; specialties?: string[]; bio?: string;
+  translations?: Partial<Record<BookingLang, { bio: string; specialties: string[] }>>;
+}
+
+// Ім'я майстра свідомо не перекладається — лише опис послуги та bio/спеціалізації.
+const serviceName = (s: Service, lang: BookingLang) => s.translations?.[lang]?.name?.trim() || s.name;
+const serviceDescription = (s: Service, lang: BookingLang) => s.translations?.[lang]?.description?.trim() || s.description || '';
+const employeeBio = (e: Employee, lang: BookingLang) => e.translations?.[lang]?.bio?.trim() || e.bio || '';
+const employeeSpecialties = (e: Employee, lang: BookingLang) => {
+  const translated = e.translations?.[lang]?.specialties;
+  return translated && translated.length > 0 ? translated : (e.specialties || []);
+};
 
 const HEX_COLOR_RE = /^#([0-9a-f]{3}){1,2}$/i;
 
@@ -412,10 +427,10 @@ const BookingPage = () => {
                   <div className="min-w-0">
                     <p className="font-medium text-ink">{e.name}</p>
                     <p className="text-sm text-ink-muted">{e.customRoleLabel?.trim() || t(`roles.${e.role}`)}</p>
-                    {e.specialties && e.specialties.length > 0 && (
-                      <p className="text-xs text-ink-muted mt-0.5">{e.specialties.join(', ')}</p>
+                    {employeeSpecialties(e, lang).length > 0 && (
+                      <p className="text-xs text-ink-muted mt-0.5">{employeeSpecialties(e, lang).join(', ')}</p>
                     )}
-                    {e.bio && <p className="text-sm text-ink-secondary mt-1">{e.bio}</p>}
+                    {employeeBio(e, lang) && <p className="text-sm text-ink-secondary mt-1">{employeeBio(e, lang)}</p>}
                   </div>
                 </div>
               );
@@ -483,8 +498,8 @@ const BookingPage = () => {
                     : 'border-line bg-surface hover:border-line-medium'}`}>
                 <div className="flex justify-between items-center">
                   <div>
-                    <p className="font-medium text-ink">{s.name}</p>
-                    {s.description && <p className="text-sm text-ink-muted mt-0.5">{s.description}</p>}
+                    <p className="font-medium text-ink">{serviceName(s, lang)}</p>
+                    {serviceDescription(s, lang) && <p className="text-sm text-ink-muted mt-0.5">{serviceDescription(s, lang)}</p>}
                     <p className="text-sm text-ink-muted">{formatDurationRange(s.duration, s.durationMax, bookingDurationLabels)}</p>
                   </div>
                   <p className="font-semibold text-brand-dark">{formatPriceRange(s.price, s.priceMax, branding?.currency)}</p>
@@ -564,7 +579,7 @@ const BookingPage = () => {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-ink-muted">{t('booking.servicesLabel')}</span>
-              <span className="font-medium text-ink text-right">{selectedServices.map(s => s.name).join(', ')}</span>
+              <span className="font-medium text-ink text-right">{selectedServices.map(s => serviceName(s, lang)).join(', ')}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-ink-muted">{t('booking.dateTimeLabel')}</span>

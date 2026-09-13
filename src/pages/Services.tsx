@@ -10,17 +10,21 @@ import { Service, Category } from '../api/types';
 import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
-import { useShopCurrency, useShopServiceRangesEnabled, useShopDurationUnit } from '../context/SettingsContext';
+import { useShopCurrency, useShopServiceRangesEnabled, useShopDurationUnit, useShopBookingLanguages, useShopDefaultBookingLanguage } from '../context/SettingsContext';
 import { formatPrice, formatPriceRange } from '../utils/money';
 import { formatDurationRangeForUnit } from '../utils/duration';
 import DurationInput from '../components/DurationInput';
 import { getCurrencySymbol } from '../constants/currencies';
+import { BookingLang, BOOKING_LANG_LABELS } from '../i18n/bookingTranslations';
+
+type ServiceTranslations = Partial<Record<BookingLang, { name: string; description: string }>>;
 
 const defaultForm = {
   name: '', description: '', price: 0, priceMax: undefined as number | undefined,
   duration: 30, durationMax: undefined as number | undefined,
   category: '',
   isAvailable: true,
+  translations: {} as ServiceTranslations,
 };
 
 const DEFAULT_ICON = 'Sparkles';
@@ -54,6 +58,9 @@ const Services = () => {
   const { t } = useLocale();
   const currency = useShopCurrency();
   const rangesEnabled = useShopServiceRangesEnabled();
+  const bookingLanguages = useShopBookingLanguages();
+  const defaultBookingLanguage = useShopDefaultBookingLanguage();
+  const translationLangs = bookingLanguages.filter(l => l !== defaultBookingLanguage);
   const [searchTerm, setSearchTerm] = useState('');
   const [services, setServices] = useState<Service[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -130,8 +137,19 @@ const Services = () => {
       durationMax: service.durationMax,
       category: service.category,
       isAvailable: service.isAvailable,
+      translations: service.translations || {},
     });
     setIsModalOpen(true);
+  };
+
+  const updateTranslation = (lang: BookingLang, field: 'name' | 'description', value: string) => {
+    setFormData(p => ({
+      ...p,
+      translations: {
+        ...p.translations,
+        [lang]: { name: p.translations[lang]?.name || '', description: p.translations[lang]?.description || '', [field]: value },
+      },
+    }));
   };
 
   const handleSave = async () => {
@@ -351,6 +369,33 @@ const Services = () => {
               placeholder={t('services.fieldDescriptionPlaceholder')}
             />
           </div>
+          {translationLangs.length > 0 && (
+            <div className="space-y-3 border-t border-line pt-3">
+              <div>
+                <p className="text-xs font-semibold text-ink uppercase tracking-wide">{t('services.translationsTitle')}</p>
+                <p className="text-xs text-ink-muted mt-0.5">{t('services.translationsHint')}</p>
+              </div>
+              {translationLangs.map(lang => (
+                <div key={lang} className="space-y-2">
+                  <p className="text-xs font-medium text-brand">{BOOKING_LANG_LABELS[lang]}</p>
+                  <input
+                    type="text"
+                    className="field-input"
+                    value={formData.translations[lang]?.name || ''}
+                    onChange={(e) => updateTranslation(lang, 'name', e.target.value)}
+                    placeholder={t('services.fieldNamePlaceholder')}
+                  />
+                  <textarea
+                    className="field-input"
+                    rows={2}
+                    value={formData.translations[lang]?.description || ''}
+                    onChange={(e) => updateTranslation(lang, 'description', e.target.value)}
+                    placeholder={t('services.fieldDescriptionPlaceholder')}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="field-label">{t('services.fieldPrice')} ({getCurrencySymbol(currency)})</label>
@@ -359,6 +404,7 @@ const Services = () => {
                 className="field-input"
                 value={formData.price}
                 onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+                onFocus={(e) => e.target.select()}
                 min="0"
               />
             </div>
@@ -383,6 +429,7 @@ const Services = () => {
                   placeholder="—"
                   min={formData.price}
                   onChange={(e) => setFormData({ ...formData, priceMax: e.target.value === '' ? undefined : Number(e.target.value) })}
+                  onFocus={(e) => e.target.select()}
                 />
               </div>
               <div>
