@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocale } from '../../i18n/LocaleContext';
-import { platformAuthApi, PlatformSalon } from '../../api/platformApi';
+import { platformAuthApi, PlatformSalon, PlatformSalonAnalytics } from '../../api/platformApi';
 import { getErrorMessage } from '../../utils/errors';
 import { getSalonStatus, daysUntil } from '../../utils/platformSalonStatus';
 import Modal from '../Modal';
+
+const TREND_BAR_HEIGHT = 64; // px — та сама ідея, що й Reports.tsx BAR_HEIGHT, лише компактніше під модалку
 
 interface SalonDetailModalProps {
   salon: PlatformSalon;
@@ -35,8 +37,21 @@ const SalonDetailModal = ({ salon, onClose, onUpdated }: SalonDetailModalProps) 
   const [deactivateReason, setDeactivateReason] = useState('');
   const [deactivateSaving, setDeactivateSaving] = useState(false);
 
+  const [analytics, setAnalytics] = useState<PlatformSalonAnalytics | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+
+  useEffect(() => {
+    setAnalyticsLoading(true);
+    platformAuthApi.getSalonAnalytics(salon.id)
+      .then(setAnalytics)
+      .catch(() => setAnalytics(null))
+      .finally(() => setAnalyticsLoading(false));
+  }, [salon.id]);
+
   const status = getSalonStatus(salon);
   const locale = lang === 'uk' ? 'uk-UA' : 'en-US';
+  const maxTrend = analytics ? Math.max(...analytics.dailyTrend.map(d => Math.max(d.visits, d.bookings)), 1) : 1;
+  const trendBarPx = (val: number) => val === 0 ? 2 : Math.max(Math.round((val / maxTrend) * TREND_BAR_HEIGHT), 4);
 
   const handleSaveSubscription = async () => {
     setSubSaving(true);
@@ -83,8 +98,50 @@ const SalonDetailModal = ({ salon, onClose, onUpdated }: SalonDetailModalProps) 
   return (
     <Modal isOpen onClose={onClose} title={t('platformAdmin.modalTitle', { name: salon.name })} size="lg">
       <div className="space-y-6">
-        {/* Підписка */}
+        {/* Аналітика посилання бронювання */}
         <div>
+          <h3 className="text-sm font-semibold text-ink mb-3">{t('platformAdmin.analyticsTitle')}</h3>
+          {analyticsLoading ? (
+            <p className="text-sm text-ink-muted">{t('platformAdmin.loadingAnalytics')}</p>
+          ) : !analytics || analytics.totalVisits === 0 ? (
+            <p className="text-sm text-ink-muted">{t('platformAdmin.noAnalyticsData')}</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="bg-canvas-soft rounded-sm px-3 py-2.5">
+                  <p className="text-xs text-ink-muted font-semibold uppercase tracking-wide">{t('platformAdmin.totalVisitsLabel')}</p>
+                  <p className="text-xl font-bold text-ink mt-0.5">{analytics.totalVisits}</p>
+                </div>
+                <div className="bg-canvas-soft rounded-sm px-3 py-2.5">
+                  <p className="text-xs text-ink-muted font-semibold uppercase tracking-wide">{t('platformAdmin.totalBookingsLabel')}</p>
+                  <p className="text-xl font-bold text-ink mt-0.5">{analytics.totalBookings}</p>
+                </div>
+                <div className="bg-canvas-soft rounded-sm px-3 py-2.5">
+                  <p className="text-xs text-ink-muted font-semibold uppercase tracking-wide">{t('platformAdmin.conversionRateLabel')}</p>
+                  <p className="text-xl font-bold text-ink mt-0.5">{Math.round(analytics.conversionRate * 100)}%</p>
+                </div>
+              </div>
+              <div className="flex items-end gap-1" style={{ height: `${TREND_BAR_HEIGHT + 24}px` }}>
+                {analytics.dailyTrend.map((d, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center justify-end gap-0.5 group" title={d.date}>
+                    <div className="w-full flex items-end justify-center gap-0.5" style={{ height: `${TREND_BAR_HEIGHT}px` }}>
+                      <div className="flex-1 bg-canvas-soft group-hover:bg-line rounded-t transition-colors" style={{ height: `${trendBarPx(d.visits)}px` }} />
+                      <div className="flex-1 bg-brand group-hover:bg-brand-dark rounded-t transition-colors" style={{ height: `${trendBarPx(d.bookings)}px` }} />
+                    </div>
+                    <span className="text-[10px] text-ink-muted">{d.date.slice(8, 10)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-4 mt-2 text-xs text-ink-muted">
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-xs bg-canvas-soft border border-line inline-block" /> {t('platformAdmin.totalVisitsLabel')}</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-xs bg-brand inline-block" /> {t('platformAdmin.totalBookingsLabel')}</span>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Підписка */}
+        <div className="pt-5 border-t border-line">
           <h3 className="text-sm font-semibold text-ink mb-3">{t('platformAdmin.subscriptionTitle')}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>

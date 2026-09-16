@@ -174,6 +174,13 @@ const uk = {
     reactivateBtn: 'Реактивувати',
     deactivatedBanner: 'Деактивовано {{date}}{{reason}}',
 
+    analyticsTitle: 'Аналітика посилання',
+    totalVisitsLabel: 'Переходів',
+    totalBookingsLabel: 'Бронювань',
+    conversionRateLabel: 'Конверсія',
+    loadingAnalytics: 'Завантаження...',
+    noAnalyticsData: 'Ще немає даних — статистика збирається з моменту увімкнення цієї функції.',
+
     settingsTitle: 'Налаштування',
     languageLabel: 'Мова',
     themeLabel: 'Тема',
@@ -813,6 +820,13 @@ const en: typeof uk = {
     cancelBtn: 'Cancel',
     reactivateBtn: 'Reactivate',
     deactivatedBanner: 'Deactivated {{date}}{{reason}}',
+
+    analyticsTitle: 'Link analytics',
+    totalVisitsLabel: 'Visits',
+    totalBookingsLabel: 'Bookings',
+    conversionRateLabel: 'Conversion',
+    loadingAnalytics: 'Loading...',
+    noAnalyticsData: 'No data yet — stats are collected from when this feature was enabled.',
 
     settingsTitle: 'Settings',
     languageLabel: 'Language',

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, ReactNode } from 'react';
+import { useState, useEffect, useMemo, useRef, ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -103,6 +103,16 @@ const BookingPage = () => {
     api.get('/booking/services').then(r => setServices(r.data));
     api.get('/booking/employees').then(r => setEmployees(r.data));
     api.get('/booking/settings').then(r => setBranding(r.data)).catch(() => setBranding(null));
+  }, [api, salonSlug]);
+
+  // Фіксуємо факт відкриття сторінки для аналітики конверсії (панель
+  // платформного адміна) — раз на реальне завантаження, ref рятує від
+  // подвійного виклику через React 18 StrictMode у дев-режимі.
+  const loggedVisit = useRef(false);
+  useEffect(() => {
+    if (!salonSlug || loggedVisit.current) return;
+    loggedVisit.current = true;
+    api.post('/booking/visit').catch(() => {});
   }, [api, salonSlug]);
 
   const accentColor = branding?.accentColor && HEX_COLOR_RE.test(branding.accentColor) ? branding.accentColor : null;

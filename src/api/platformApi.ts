@@ -69,6 +69,19 @@ export interface PlatformSalon {
   deactivationReason?: string;
 }
 
+export interface PlatformSalonDailyTrend {
+  date: string;
+  visits: number;
+  bookings: number;
+}
+
+export interface PlatformSalonAnalytics {
+  totalVisits: number;
+  totalBookings: number;
+  conversionRate: number;
+  dailyTrend: PlatformSalonDailyTrend[];
+}
+
 export interface PlatformAdminListItem {
   id: string;
   name: string;
@@ -126,6 +139,9 @@ export const platformAuthApi = {
 
   getAdmins: async (): Promise<PlatformAdminListItem[]> =>
     (await platformApi.get('/admins')).data,
+
+  getSalonAnalytics: async (id: string): Promise<PlatformSalonAnalytics> =>
+    (await platformApi.get(`/salons/${id}/analytics`)).data,
 };
 
 export default platformApi;
