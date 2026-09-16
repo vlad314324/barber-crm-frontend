@@ -10,17 +10,21 @@ import { Service, Category } from '../api/types';
 import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
-import { useShopCurrency, useShopServiceRangesEnabled } from '../context/SettingsContext';
+import { useShopCurrency, useShopServiceRangesEnabled, useShopDurationUnit, useShopBookingLanguages, useShopDefaultBookingLanguage } from '../context/SettingsContext';
 import { formatPrice, formatPriceRange } from '../utils/money';
-import { formatDuration, formatDurationRange, minutesToUnitValue, unitValueToMinutes, unitInputProps, DurationUnit } from '../utils/duration';
+import { formatDurationRangeForUnit } from '../utils/duration';
+import DurationInput from '../components/DurationInput';
 import { getCurrencySymbol } from '../constants/currencies';
-import DurationUnitToggle from '../components/DurationUnitToggle';
+import { BookingLang, BOOKING_LANG_LABELS } from '../i18n/bookingTranslations';
+
+type ServiceTranslations = Partial<Record<BookingLang, { name: string; description: string }>>;
 
 const defaultForm = {
   name: '', description: '', price: 0, priceMax: undefined as number | undefined,
   duration: 30, durationMax: undefined as number | undefined,
   category: '',
   isAvailable: true,
+  translations: {} as ServiceTranslations,
 };
 
 const DEFAULT_ICON = 'Sparkles';
@@ -54,6 +58,9 @@ const Services = () => {
   const { t } = useLocale();
   const currency = useShopCurrency();
   const rangesEnabled = useShopServiceRangesEnabled();
+  const bookingLanguages = useShopBookingLanguages();
+  const defaultBookingLanguage = useShopDefaultBookingLanguage();
+  const translationLangs = bookingLanguages.filter(l => l !== defaultBookingLanguage);
   const [searchTerm, setSearchTerm] = useState('');
   const [services, setServices] = useState<Service[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -63,9 +70,9 @@ const Services = () => {
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [formData, setFormData] = useState(defaultForm);
   const [saving, setSaving] = useState(false);
-  // Спільний перемикач одиниці для duration+durationMax — одне поле в
-  // годинах, а друге в хвилинах, було б плутано.
-  const [durationUnit, setDurationUnit] = useState<DurationUnit>('min');
+  // Одиниця відображення/вводу тривалості — керується глобальним
+  // налаштуванням закладу (Settings > Загальні), а не локальним перемикачем.
+  const durationUnit = useShopDurationUnit();
   const durationLabels = { hour: t('services.hours'), minute: t('services.minutes') };
 
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -116,7 +123,6 @@ const Services = () => {
   const openAddModal = () => {
     setEditingService(null);
     setFormData({ ...defaultForm, category: categories[0]?.name || '' });
-    setDurationUnit('min');
     setIsModalOpen(true);
   };
 
@@ -131,9 +137,19 @@ const Services = () => {
       durationMax: service.durationMax,
       category: service.category,
       isAvailable: service.isAvailable,
+      translations: service.translations || {},
     });
-    setDurationUnit('min');
     setIsModalOpen(true);
+  };
+
+  const updateTranslation = (lang: BookingLang, field: 'name' | 'description', value: string) => {
+    setFormData(p => ({
+      ...p,
+      translations: {
+        ...p.translations,
+        [lang]: { name: p.translations[lang]?.name || '', description: p.translations[lang]?.description || '', [field]: value },
+      },
+    }));
   };
 
   const handleSave = async () => {
@@ -302,9 +318,7 @@ const Services = () => {
                   </div>
                   <div className="flex items-center text-sm text-ink-muted">
                     <Clock size={14} className="mr-1" />
-                    {rangesEnabled
-                      ? formatDurationRange(service.duration, service.durationMax, durationLabels)
-                      : formatDuration(service.duration, durationLabels)}
+                    {formatDurationRangeForUnit(service.duration, rangesEnabled ? service.durationMax : undefined, durationUnit, durationLabels)}
                   </div>
                 </div>
               </div>
@@ -355,6 +369,33 @@ const Services = () => {
               placeholder={t('services.fieldDescriptionPlaceholder')}
             />
           </div>
+          {translationLangs.length > 0 && (
+            <div className="space-y-3 border-t border-line pt-3">
+              <div>
+                <p className="text-xs font-semibold text-ink uppercase tracking-wide">{t('services.translationsTitle')}</p>
+                <p className="text-xs text-ink-muted mt-0.5">{t('services.translationsHint')}</p>
+              </div>
+              {translationLangs.map(lang => (
+                <div key={lang} className="space-y-2">
+                  <p className="text-xs font-medium text-brand">{BOOKING_LANG_LABELS[lang]}</p>
+                  <input
+                    type="text"
+                    className="field-input"
+                    value={formData.translations[lang]?.name || ''}
+                    onChange={(e) => updateTranslation(lang, 'name', e.target.value)}
+                    placeholder={t('services.fieldNamePlaceholder')}
+                  />
+                  <textarea
+                    className="field-input"
+                    rows={2}
+                    value={formData.translations[lang]?.description || ''}
+                    onChange={(e) => updateTranslation(lang, 'description', e.target.value)}
+                    placeholder={t('services.fieldDescriptionPlaceholder')}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="field-label">{t('services.fieldPrice')} ({getCurrencySymbol(currency)})</label>
@@ -363,20 +404,17 @@ const Services = () => {
                 className="field-input"
                 value={formData.price}
                 onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+                onFocus={(e) => e.target.select()}
                 min="0"
               />
             </div>
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="field-label mb-0">{t('services.fieldDuration')}</label>
-                <DurationUnitToggle unit={durationUnit} onChange={setDurationUnit} />
-              </div>
-              <input
-                type="number"
-                className="field-input"
-                value={minutesToUnitValue(formData.duration, durationUnit)}
-                onChange={(e) => setFormData({ ...formData, duration: unitValueToMinutes(e.target.value === '' ? 0 : Number(e.target.value), durationUnit) })}
-                {...unitInputProps(durationUnit)}
+              <label className="field-label">{t('services.fieldDuration')}{durationUnit === 'min' ? ` (${durationLabels.minute})` : ''}</label>
+              <DurationInput
+                unit={durationUnit}
+                value={formData.duration}
+                min={5}
+                onChange={(v) => setFormData({ ...formData, duration: v ?? 0 })}
               />
             </div>
           </div>
@@ -391,18 +429,16 @@ const Services = () => {
                   placeholder="—"
                   min={formData.price}
                   onChange={(e) => setFormData({ ...formData, priceMax: e.target.value === '' ? undefined : Number(e.target.value) })}
+                  onFocus={(e) => e.target.select()}
                 />
               </div>
               <div>
-                <label className="field-label">{t('services.fieldDurationMax')}</label>
-                <input
-                  type="number"
-                  className="field-input"
-                  value={formData.durationMax !== undefined ? minutesToUnitValue(formData.durationMax, durationUnit) : ''}
-                  placeholder="—"
-                  min={minutesToUnitValue(formData.duration, durationUnit)}
-                  step={unitInputProps(durationUnit).step}
-                  onChange={(e) => setFormData({ ...formData, durationMax: e.target.value === '' ? undefined : unitValueToMinutes(Number(e.target.value), durationUnit) })}
+                <label className="field-label">{t('services.fieldDurationMax')}{durationUnit === 'min' ? ` (${durationLabels.minute})` : ''}</label>
+                <DurationInput
+                  unit={durationUnit}
+                  value={formData.durationMax}
+                  min={formData.duration}
+                  onChange={(v) => setFormData({ ...formData, durationMax: v })}
                 />
               </div>
             </div>

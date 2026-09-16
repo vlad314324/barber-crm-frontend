@@ -5,8 +5,13 @@ import { Employee, Client, Review, Service } from '../api/types';
 import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
-import { useShopCurrency } from '../context/SettingsContext';
+import { useShopCurrency, useShopBookingLanguages, useShopDefaultBookingLanguage } from '../context/SettingsContext';
 import { getCurrencySymbol } from '../constants/currencies';
+import { BookingLang, BOOKING_LANG_LABELS } from '../i18n/bookingTranslations';
+
+// Локальний стан форми зберігає спеціалізації рядком через кому — так само,
+// як базове поле specialties — і розбивається на масив лише перед відправкою.
+type EmployeeTranslationsForm = Partial<Record<BookingLang, { bio: string; specialtiesText: string }>>;
 
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 
@@ -39,6 +44,7 @@ const defaultForm = {
   specialties: '', bio: '',
   serviceIds: [] as string[],
   schedule: { ...defaultSchedule },
+  translations: {} as EmployeeTranslationsForm,
 };
 
 const Stars = ({ rating, size = 14 }: { rating: number; size?: number }) => (
@@ -53,6 +59,9 @@ const Stars = ({ rating, size = 14 }: { rating: number; size?: number }) => (
 const Employees = () => {
   const { t, lang } = useLocale();
   const currency = useShopCurrency();
+  const bookingLanguages = useShopBookingLanguages();
+  const defaultBookingLanguage = useShopDefaultBookingLanguage();
+  const translationLangs = bookingLanguages.filter(l => l !== defaultBookingLanguage);
   const DAYS = DAY_KEYS.map(key => ({ key, label: DAY_LABELS[lang][key] }));
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [clients,   setClients]   = useState<Client[]>([]);
@@ -110,8 +119,21 @@ const Employees = () => {
       schedule: emp.schedule
         ? { ...defaultSchedule, ...emp.schedule }
         : { ...defaultSchedule },
+      translations: Object.fromEntries(
+        Object.entries(emp.translations || {}).map(([l, v]) => [l, { bio: v.bio, specialtiesText: v.specialties.join(', ') }])
+      ),
     });
     setIsModalOpen(true);
+  };
+
+  const updateTranslation = (lang: BookingLang, field: 'bio' | 'specialtiesText', value: string) => {
+    setFormData(p => ({
+      ...p,
+      translations: {
+        ...p.translations,
+        [lang]: { bio: p.translations[lang]?.bio || '', specialtiesText: p.translations[lang]?.specialtiesText || '', [field]: value },
+      },
+    }));
   };
 
   // ── schedule helpers ───────────────────────────────────────────────────────
@@ -139,11 +161,17 @@ const Employees = () => {
     }
     setSaving(true);
     try {
-      const { serviceIds, ...rest } = formData;
+      const { serviceIds, translations, ...rest } = formData;
       const payload = {
         ...rest,
         specialties: formData.specialties.split(',').map(s => s.trim()).filter(Boolean),
         services: serviceIds,
+        translations: Object.fromEntries(
+          Object.entries(translations).map(([l, v]) => [l, {
+            bio: v?.bio || '',
+            specialties: (v?.specialtiesText || '').split(',').map(s => s.trim()).filter(Boolean),
+          }])
+        ),
       };
       if (editingEmployee) {
         await employeeApi.update(editingEmployee._id, payload);
@@ -431,6 +459,34 @@ const Employees = () => {
                     onChange={e => setFormData({ ...formData, [key]: type === 'number' ? Number(e.target.value) : e.target.value })}/>
                 </div>
               ))}
+
+              {translationLangs.length > 0 && (
+                <div className="space-y-3 border-t border-line pt-3">
+                  <div>
+                    <p className="text-xs font-semibold text-ink uppercase tracking-wide">{t('employees.translationsTitle')}</p>
+                    <p className="text-xs text-ink-muted mt-0.5">{t('employees.translationsHint')}</p>
+                  </div>
+                  {translationLangs.map(lng => (
+                    <div key={lng} className="space-y-2">
+                      <p className="text-xs font-medium text-brand">{BOOKING_LANG_LABELS[lng]}</p>
+                      <input
+                        type="text"
+                        className="field-input"
+                        value={formData.translations[lng]?.specialtiesText || ''}
+                        onChange={e => updateTranslation(lng, 'specialtiesText', e.target.value)}
+                        placeholder={t('employees.fieldSpecialtiesPlaceholder')}
+                      />
+                      <input
+                        type="text"
+                        className="field-input"
+                        value={formData.translations[lng]?.bio || ''}
+                        onChange={e => updateTranslation(lng, 'bio', e.target.value)}
+                        placeholder={t('employees.fieldBioPlaceholder')}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div>
                 <label className="field-label">{t('employees.fieldServices')}</label>

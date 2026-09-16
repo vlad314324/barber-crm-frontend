@@ -1,4 +1,6 @@
 // types.ts
+import type { BookingLang } from '../i18n/bookingTranslations';
+
 // Client types
 export interface Client {
   _id: string;
@@ -39,6 +41,9 @@ export interface Employee {
   bio?: string;
   image?: string;
   userId?: string | null;
+  // Переклади bio/спеціалізацій для мов сторінки бронювання, крім мови за
+  // замовчуванням салону (та лишається в базових полях name/bio/specialties).
+  translations?: Partial<Record<BookingLang, { bio: string; specialties: string[] }>>;
 }
 
 export interface Service {
@@ -51,6 +56,9 @@ export interface Service {
   durationMax?: number;
   category: string;
   isAvailable: boolean;
+  // Переклади назви/опису для мов сторінки бронювання, крім мови за
+  // замовчуванням салону (та лишається в базових полях name/description).
+  translations?: Partial<Record<BookingLang, { name: string; description: string }>>;
 }
 
 export interface Category {
@@ -143,6 +151,7 @@ export interface CreateEmployeeDto {
   };
   specialties?: string[];
   services?: string[];
+  translations?: Partial<Record<BookingLang, { bio: string; specialties: string[] }>>;
 }
 
 export interface CreateServiceDto {
@@ -154,6 +163,7 @@ export interface CreateServiceDto {
   durationMax?: number;
   category: string;
   isAvailable: boolean;
+  translations?: Partial<Record<BookingLang, { name: string; description: string }>>;
 }
 
 export interface CreateAppointmentDto {
@@ -256,6 +266,7 @@ export interface ShopSettings {
   currency?: string;
   timezone?: string;
   serviceRangesEnabled?: boolean;
+  durationDisplayUnit?: 'minutes' | 'hours';
 }
 
 // Публічний підмножина ShopSettings, яку віддає /booking/settings

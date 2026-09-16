@@ -1,50 +1,12 @@
-import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Check } from 'lucide-react';
 import { useLocale } from '../i18n/LocaleContext';
-import { employeeApi, serviceApi, clientApi } from '../api';
-import api from '../api';
-import type { ShopSettings } from '../api/types';
 import { ONBOARDING_STEPS } from '../config/onboardingSteps';
-
-interface StepDoneState {
-  services: boolean;
-  employees: boolean;
-  clients: boolean;
-  settings: boolean;
-}
+import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
 
 const OnboardingGuide = () => {
   const { t } = useLocale();
-  const [loading, setLoading] = useState(true);
-  const [done, setDone] = useState<StepDoneState | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [employees, services, clients, settingsRes] = await Promise.all([
-          employeeApi.getAll(),
-          serviceApi.getAll(),
-          clientApi.getAll(),
-          api.get<ShopSettings>('/settings'),
-        ]);
-        if (cancelled) return;
-        setDone({
-          services: services.length > 0,
-          employees: employees.filter(e => e.isActive !== false).length > 0,
-          clients: clients.length > 0,
-          settings: !!settingsRes.data.address?.trim(),
-        });
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  const requiredSteps = ONBOARDING_STEPS.filter(s => !s.optional);
-  const doneCount = done ? requiredSteps.filter(s => done[s.key]).length : 0;
+  const { loading, done, doneCount, totalRequired } = useOnboardingStatus();
 
   return (
     <div className="space-y-6">
@@ -58,7 +20,7 @@ const OnboardingGuide = () => {
         <p className="mt-2 text-sm text-ink-secondary leading-relaxed">{t('onboarding.pageSubtitle')}</p>
         {done && (
           <p className="mt-3 text-sm font-semibold text-brand">
-            {t('onboarding.progress', { done: doneCount, total: requiredSteps.length })}
+            {t('onboarding.progress', { done: doneCount, total: totalRequired })}
           </p>
         )}
       </div>
