@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Users, Plus, Search, Pencil, Trash2, Download, Upload, MoreVertical } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router';
 import { clientApi } from '../api';
 import { Client, ImportResult } from '../api/types';
 import Modal from '../components/Modal';

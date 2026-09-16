@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { CalendarPlus } from 'lucide-react';
 import { useLocale } from '../i18n/LocaleContext';
 import { notificationApi } from '../api';

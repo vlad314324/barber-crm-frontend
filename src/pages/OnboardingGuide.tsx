@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { ArrowLeft, Check } from 'lucide-react';
 import { useLocale } from '../i18n/LocaleContext';
 import { ONBOARDING_STEPS } from '../config/onboardingSteps';
