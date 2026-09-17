@@ -5,6 +5,7 @@ import { appointmentApi, clientApi, employeeApi, serviceApi } from '../api';
 import api from '../api';
 import { Appointment, Client, Employee, Service, ShopSettings, ImportResult } from '../api/types';
 import Modal from '../components/Modal';
+import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
 import { downloadBlob } from '../utils/download';
@@ -207,6 +208,8 @@ const defaultEdit: EditApptForm = {
 };
 
 const Appointments = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const { t, lang } = useLocale();
   const currency = useShopCurrency();
   const rangesEnabled = useShopServiceRangesEnabled();
@@ -524,6 +527,8 @@ if (selectedBarber) {
           <Calendar size={24} className="mr-2 text-brand flex-shrink-0"/> <span className="truncate">{t('appointments.title')}</span>
         </h1>
         <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Експорт/імпорт — admin-only (сервер теж це вимагає, PUT/GET на цих ручках) */}
+          {isAdmin && (
           <div className="hidden sm:flex items-center gap-2">
             <button onClick={handleExport} className="btn btn-secondary">
               <Download size={16}/> {t('common.export')}
@@ -532,8 +537,10 @@ if (selectedBarber) {
               <Upload size={16}/> {importing ? t('common.importing') : t('common.import')}
             </button>
           </div>
+          )}
 
           {/* Мобільне меню "Ще" — Експорт/Імпорт за іконкою нижче sm */}
+          {isAdmin && (
           <div ref={actionsMenuRef} className="relative sm:hidden">
             <button onClick={() => setShowActionsMenu(v => !v)} className="btn btn-secondary p-2" aria-label={t('common.more')}>
               <MoreVertical size={16}/>
@@ -551,8 +558,11 @@ if (selectedBarber) {
               </div>
             )}
           </div>
+          )}
 
+          {isAdmin && (
           <input ref={importFileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFileChange}/>
+          )}
           <button
             onClick={() => { setAddForm({...defaultAdd, date:dateStr(currentDate)}); setAddingNC(false); setIsAddOpen(true); }}
             className="btn btn-primary">
@@ -928,10 +938,12 @@ if (selectedBarber) {
               </div>
             </div>
             <div className="flex justify-between pt-2 border-t border-line">
-              <button onClick={() => handleDelete(editAppt._id)}
-                className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 font-medium">
-                {t('appointments.deleteAction')}
-              </button>
+              {isAdmin ? (
+                <button onClick={() => handleDelete(editAppt._id)}
+                  className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 font-medium">
+                  {t('appointments.deleteAction')}
+                </button>
+              ) : <div />}
               <div className="flex gap-2">
                 <button onClick={() => setEditAppt(null)} className="btn btn-secondary">
                   {t('common.cancel')}

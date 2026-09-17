@@ -21,7 +21,8 @@ const Settings = () => {
   const refreshShopSettings = useRefreshShopSettings();
   const DAYS = DAY_KEYS.map(key => ({ key, label: t(`settings.days.${key}`) }));
 
-  const [activeTab, setActiveTab] = useState<Tab>('general');
+  const isAdmin = user?.role === 'admin';
+  const [activeTab, setActiveTab] = useState<Tab>(isAdmin ? 'general' : 'security');
 
   const [settings, setSettings] = useState<ShopSettings>({
     shopName: '', address: '', phone: '', email: '',
@@ -90,7 +91,6 @@ const Settings = () => {
     setSavingPass(true);
     try {
       await api.put('/settings/change-password', {
-        userId: user?.id,
         currentPassword: passwords.currentPassword,
         newPassword: passwords.newPassword,
       });
@@ -134,11 +134,13 @@ const Settings = () => {
         {t('settings.title')}
       </h1>
 
-      {/* Tabs */}
+      {/* Tabs — "Загальне"/"Бронювання" редагує лише admin (PUT /settings admin-only на бекенді) */}
       <div className="flex gap-1 bg-canvas-soft p-1 rounded-sm w-fit">
-        {([
+        {(isAdmin ? [
           ['general', t('settings.tabGeneral')],
           ['booking', t('settings.tabBookingPage')],
+          ['security', t('settings.tabSecurity')],
+        ] as const : [
           ['security', t('settings.tabSecurity')],
         ] as const).map(([tab, label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
