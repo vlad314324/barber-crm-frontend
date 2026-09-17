@@ -222,6 +222,7 @@ const Appointments = () => {
   const [employees,    setEmployees]    = useState<Employee[]>([]);
   const [services,     setServices]     = useState<Service[]>([]);
   const [loading,      setLoading]      = useState(true);
+  const [loadError,    setLoadError]    = useState('');
   const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null);
 
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -256,6 +257,8 @@ const Appointments = () => {
   }, []);
 
   const fetchAll = useCallback(async () => {
+    setLoading(true);
+    setLoadError('');
     try {
       const [a, c, e, s, settings] = await Promise.all([
         appointmentApi.getAll(), clientApi.getAll(),
@@ -264,7 +267,12 @@ const Appointments = () => {
       ]);
       setAppointments(a); setClients(c); setEmployees(e); setServices(s);
       setShopSettings(settings);
-    } catch(err){ console.error(err); }
+    } catch(err){
+      // Раніше збій тут лише логувався в консоль, а сторінка мовчки
+      // лишалась із порожнім календарем — невідмінно від "у салону взагалі
+      // немає записів". Тепер показуємо явну помилку з повторною спробою.
+      setLoadError(getErrorMessage(err) || t('appointments.loadError'));
+    }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -343,7 +351,10 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
   });
 
   const apptsByBarber = (id: string) => dayAppts.filter(a => {
-    const eid = typeof a.employee==='object' ? a.employee._id : a.employee;
+    // a.employee може бути null, якщо майстра видалили (а не деактивували)
+    // після створення запису — typeof null === 'object', тож без явної
+    // перевірки на null тут би впало з винятком.
+    const eid = a.employee && typeof a.employee === 'object' ? a.employee._id : a.employee;
     return eid === id;
   });
 
@@ -428,8 +439,8 @@ if (selectedBarber) {
   };
 
   const openEdit = (appt: Appointment) => {
-    const empId = typeof appt.employee==='object' ? appt.employee._id : appt.employee;
-    const cliId = typeof appt.client==='object'   ? appt.client._id   : appt.client;
+    const empId = appt.employee && typeof appt.employee === 'object' ? appt.employee._id : appt.employee;
+    const cliId = appt.client && typeof appt.client === 'object'     ? appt.client._id   : appt.client;
     const svcIds = appt.services.map(s => typeof s==='object' ? s._id : s);
     setEditForm({
       clientId:cliId, employeeId:empId, serviceIds:svcIds,
@@ -519,6 +530,12 @@ if (selectedBarber) {
   const statusLabel = (status: string) => t(`statuses.${status}`);
 
   if (loading) return <div className="text-center py-12 text-ink-muted">{t('common.loading')}</div>;
+  if (loadError) return (
+    <div className="text-center py-12">
+      <p className="text-sm text-red-600 mb-3">{loadError}</p>
+      <button onClick={fetchAll} className="btn btn-secondary">{t('common.retry')}</button>
+    </div>
+  );
 
   return (
     <div className="space-y-4">

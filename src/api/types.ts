@@ -121,8 +121,8 @@ export interface Review {
   appointment: Appointment;
   employee: Employee;
   rating: number;
-  comment?: string;
-  date: string;
+  text?: string;
+  createdAt: string;
 }
 
 // Request DTOs (Data Transfer Objects)
@@ -182,7 +182,7 @@ export interface CreateReviewDto {
   appointment: string; // appointment ID
   employee: string; // employee ID
   rating: number;
-  comment?: string;
+  text?: string;
 }
 
 // Salon registration (multi-tenant onboarding)

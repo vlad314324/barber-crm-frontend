@@ -33,6 +33,7 @@ const uk = {
     importUpdated: 'Оновлено: {{count}}',
     importFailed: 'Помилки: {{count}}',
     importRowError: 'Рядок {{row}}',
+    retry: 'Спробувати ще раз',
   },
   errors: {
     salonNotFound: 'Салон з такою назвою не знайдено',
@@ -265,6 +266,7 @@ const uk = {
   },
   appointments: {
     title: 'Записи',
+    loadError: 'Не вдалося завантажити записи. Перевірте з’єднання і спробуйте ще раз.',
     addNew: 'Новий запис',
     dayOff: 'Вихідний',
     notes: 'Коментарі',
@@ -462,6 +464,7 @@ const uk = {
   settings: {
     addressPlaceholder: 'вул. Франка 10, Львів',
     title: 'Налаштування',
+    loadError: 'Не вдалося завантажити налаштування. Перевірте з’єднання і спробуйте ще раз.',
     tabGeneral: 'Заклад',
     tabBookingPage: 'Сторінка бронювання',
     tabSecurity: 'Безпека',
@@ -689,6 +692,7 @@ const en: typeof uk = {
     importUpdated: 'Updated: {{count}}',
     importFailed: 'Failed: {{count}}',
     importRowError: 'Row {{row}}',
+    retry: 'Try again',
   },
   errors: {
     salonNotFound: 'No salon found with that name',
@@ -921,6 +925,7 @@ const en: typeof uk = {
   },
   appointments: {
     title: 'Appointments',
+    loadError: 'Couldn’t load appointments. Check your connection and try again.',
     addNew: 'Add New Appointment',
     dayOff: 'Day off',
     notes: 'Comments',
@@ -1118,6 +1123,7 @@ const en: typeof uk = {
   settings: {
     addressPlaceholder: '123 Main St, New York',
     title: 'Settings',
+    loadError: 'Couldn’t load settings. Check your connection and try again.',
     tabGeneral: 'Business',
     tabBookingPage: 'Booking page',
     tabSecurity: 'Security',

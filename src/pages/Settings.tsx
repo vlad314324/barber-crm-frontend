@@ -40,13 +40,16 @@ const Settings = () => {
   });
 
   const [loading, setLoading]       = useState(true);
+  const [loadError, setLoadError]   = useState('');
   const [saving, setSaving]         = useState(false);
   const [savingPass, setSavingPass] = useState(false);
   const [savedInfo, setSavedInfo]   = useState(false);
   const [savedPass, setSavedPass]   = useState(false);
   const [errorPass, setErrorPass]   = useState('');
 
-  useEffect(() => {
+  const loadSettings = () => {
+    setLoading(true);
+    setLoadError('');
     api.get('/settings').then(r => {
       const data = r.data;
       setSettings({
@@ -59,8 +62,16 @@ const Settings = () => {
         serviceRangesEnabled: !!data.serviceRangesEnabled,
         durationDisplayUnit: data.durationDisplayUnit === 'hours' ? 'hours' : 'minutes',
       });
+    }).catch(err => {
+      setLoadError(getErrorMessage(err) || t('settings.loadError'));
+    }).finally(() => {
       setLoading(false);
     });
+  };
+
+  useEffect(() => {
+    loadSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleInfoSave = async () => {
@@ -126,6 +137,12 @@ const Settings = () => {
   };
 
   if (loading) return <div className="text-center py-12 text-ink-muted">{t('common.loading')}</div>;
+  if (loadError) return (
+    <div className="text-center py-12">
+      <p className="text-sm text-red-600 mb-3">{loadError}</p>
+      <button onClick={loadSettings} className="btn btn-secondary">{t('common.retry')}</button>
+    </div>
+  );
 
   return (
     <div className="space-y-6">

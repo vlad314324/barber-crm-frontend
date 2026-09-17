@@ -69,6 +69,10 @@ interface BookingDict {
     bookingError: string;
     minutes: string;
     hours: string;
+    loading: string;
+    loadError: string;
+    retry: string;
+    slotsLoadError: string;
   };
 }
 
@@ -122,6 +126,10 @@ const uk: BookingDict = {
     bookingError: 'Помилка при бронюванні',
     minutes: 'хв',
     hours: 'год',
+    loading: 'Завантаження...',
+    loadError: 'Не вдалося завантажити дані сторінки. Перевірте з’єднання і спробуйте ще раз.',
+    retry: 'Спробувати ще раз',
+    slotsLoadError: 'Не вдалося завантажити вільний час. Спробуйте ще раз.',
   },
 };
 
@@ -175,6 +183,10 @@ const en: BookingDict = {
     bookingError: 'Error while booking',
     minutes: 'min',
     hours: 'hr',
+    loading: 'Loading...',
+    loadError: 'Couldn’t load the page data. Check your connection and try again.',
+    retry: 'Try again',
+    slotsLoadError: 'Couldn’t load available times. Please try again.',
   },
 };
 
@@ -228,6 +240,10 @@ const cs: BookingDict = {
     bookingError: 'Chyba při rezervaci',
     minutes: 'min',
     hours: 'hod',
+    loading: 'Načítání...',
+    loadError: 'Nepodařilo se načíst data stránky. Zkontrolujte připojení a zkuste to znovu.',
+    retry: 'Zkusit znovu',
+    slotsLoadError: 'Nepodařilo se načíst volné termíny. Zkuste to prosím znovu.',
   },
 };
 
@@ -281,6 +297,10 @@ const pl: BookingDict = {
     bookingError: 'Błąd podczas rezerwacji',
     minutes: 'min',
     hours: 'godz',
+    loading: 'Ładowanie...',
+    loadError: 'Nie udało się załadować danych strony. Sprawdź połączenie i spróbuj ponownie.',
+    retry: 'Spróbuj ponownie',
+    slotsLoadError: 'Nie udało się załadować wolnych terminów. Spróbuj ponownie.',
   },
 };
 

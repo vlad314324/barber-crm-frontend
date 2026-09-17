@@ -89,6 +89,16 @@ const BookingPage = () => {
   const [slots, setSlots]         = useState<string[]>([]);
   const [isClosed, setIsClosed]   = useState(false);
 
+  // Каталог (послуги/майстри) — без нього сторінка непридатна для
+  // бронювання взагалі, тож збій тут показуємо як явну помилку з
+  // повторною спробою, а не мовчазний порожній список (branding —
+  // декоративний, лишає свій вже наявний тихий фолбек нижче).
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError]     = useState('');
+
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotsError, setSlotsError]     = useState('');
+
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [selectedDate, setSelectedDate]         = useState('');
@@ -113,11 +123,28 @@ const BookingPage = () => {
     return true;
   };
 
-  useEffect(() => {
+  const loadCatalog = () => {
     if (!salonSlug) return;
-    api.get('/booking/services').then(r => setServices(r.data));
-    api.get('/booking/employees').then(r => setEmployees(r.data));
+    setCatalogLoading(true);
+    setCatalogError('');
+    // branding/settings лишається з власним тихим фолбеком — це лише
+    // оформлення сторінки, а не дані, без яких бронювання неможливе.
     api.get('/booking/settings').then(r => setBranding(r.data)).catch(() => setBranding(null));
+    Promise.all([
+      api.get('/booking/services'),
+      api.get('/booking/employees'),
+    ])
+      .then(([servicesRes, employeesRes]) => {
+        setServices(servicesRes.data);
+        setEmployees(employeesRes.data);
+      })
+      .catch(err => setCatalogError(getErrorMessage(err) || t('booking.loadError')))
+      .finally(() => setCatalogLoading(false));
+  };
+
+  useEffect(() => {
+    loadCatalog();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api, salonSlug]);
 
   // Фіксуємо факт відкриття сторінки для аналітики конверсії (панель
@@ -159,27 +186,53 @@ const BookingPage = () => {
   const totalDurationMin = selectedServices.reduce((sum, s) => sum + s.duration, 0);
   const bookingDurationLabels = { hour: t('booking.hours'), minute: t('booking.minutes') };
 
+  // AbortController per запит: новий вибір дати/майстра скасовує ще не
+  // завершений попередній запит — інакше відповідь на СТАРІШИЙ запит могла
+  // дійти пізніше за новішу (мережа не гарантує порядок) і мовчки
+  // перезаписати вже показані слоти застарілими даними.
+  const slotsAbortRef = useRef<AbortController | null>(null);
+
+  const loadSlots = () => {
+    if (!selectedEmployee || !selectedDate) return;
+
+    slotsAbortRef.current?.abort();
+    const controller = new AbortController();
+    slotsAbortRef.current = controller;
+
+    setSlotsLoading(true);
+    setSlotsError('');
+
+    const durationParam = totalDuration > 0 ? `&durationMinutes=${totalDuration}` : '';
+    api.get(`/booking/available-slots?employeeId=${selectedEmployee._id}&date=${selectedDate}${durationParam}`, { signal: controller.signal })
+      .then(r => {
+        setIsClosed(r.data.closed || false);
+        let available = r.data.availableSlots;
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (selectedDate === todayStr) {
+          const now = new Date();
+          const currentMinutes = now.getHours() * 60 + now.getMinutes();
+          available = available.filter((slot: string) => {
+            const [h, m] = slot.split(':').map(Number);
+            return h * 60 + m > currentMinutes;
+          });
+        }
+
+        setSlots(available);
+      })
+      .catch(err => {
+        if (axios.isCancel(err) || (err as { code?: string })?.code === 'ERR_CANCELED') return;
+        setSlotsError(getErrorMessage(err) || t('booking.slotsLoadError'));
+        setSlots([]);
+      })
+      .finally(() => {
+        if (slotsAbortRef.current === controller) setSlotsLoading(false);
+      });
+  };
+
   useEffect(() => {
-    if (selectedEmployee && selectedDate) {
-      const durationParam = totalDuration > 0 ? `&durationMinutes=${totalDuration}` : '';
-      api.get(`/booking/available-slots?employeeId=${selectedEmployee._id}&date=${selectedDate}${durationParam}`)
-        .then(r => {
-          setIsClosed(r.data.closed || false);
-          let available = r.data.availableSlots;
-
-          const todayStr = new Date().toISOString().split('T')[0];
-          if (selectedDate === todayStr) {
-            const now = new Date();
-            const currentMinutes = now.getHours() * 60 + now.getMinutes();
-            available = available.filter((slot: string) => {
-              const [h, m] = slot.split(':').map(Number);
-              return h * 60 + m > currentMinutes;
-            });
-          }
-
-          setSlots(available);
-        });
-    }
+    loadSlots();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedEmployee, selectedDate, totalDuration, api]);
 
   const toggleService = (s: Service) => {
@@ -236,6 +289,24 @@ const BookingPage = () => {
       <div className="text-center max-w-sm">
         <h2 className="text-xl font-bold text-ink mb-2">{t('booking.noSalonTitle')}</h2>
         <p className="text-ink-secondary text-sm">{t('booking.noSalonSubtitle')}</p>
+      </div>
+    </div>
+  );
+
+  if (catalogLoading || catalogError) return (
+    <div className="min-h-screen bg-canvas flex items-center justify-center px-4">
+      <div className="absolute top-4 right-4">
+        <LanguageToggle langs={enabledLangs} labels={BOOKING_LANG_LABELS} value={lang} onChange={setLang} />
+      </div>
+      <div className="text-center max-w-sm">
+        {catalogError ? (
+          <>
+            <p className="text-ink-secondary text-sm mb-4">{catalogError}</p>
+            <button onClick={loadCatalog} className="btn btn-primary">{t('booking.retry')}</button>
+          </>
+        ) : (
+          <p className="text-ink-muted text-sm">{t('booking.loading')}</p>
+        )}
       </div>
     </div>
   );
@@ -462,7 +533,14 @@ const BookingPage = () => {
           {selectedDate && (
             <div>
               <label className="field-label">{t('booking.availableTimeLabel')}</label>
-              {isClosed ? (
+              {slotsLoading ? (
+                <p className="text-ink-muted text-sm">{t('booking.loading')}</p>
+              ) : slotsError ? (
+                <div className="bg-red-50 border border-red-200 rounded-sm px-4 py-3">
+                  <p className="text-sm text-red-600 mb-2">{slotsError}</p>
+                  <button onClick={loadSlots} className="btn btn-secondary">{t('booking.retry')}</button>
+                </div>
+              ) : isClosed ? (
                 <div className="bg-amber-50 border border-amber-200 rounded-sm px-4 py-3">
                   <p className="text-sm text-amber-700">{t('booking.closedMessage')}</p>
                 </div>

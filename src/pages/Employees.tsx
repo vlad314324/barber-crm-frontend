@@ -280,7 +280,7 @@ const Employees = () => {
         employee: reviewsEmp._id,
         client: newReview.clientId,
         rating: newReview.rating,
-        comment: newReview.text,
+        text: newReview.text,
       });
       setNewReview({ rating: 5, text: '', clientId: '' });
       openReviews(reviewsEmp);
@@ -610,10 +610,10 @@ const Employees = () => {
                   <Stars rating={r.rating} size={12}/>
                 </div>
                 <span className="text-xs text-ink-muted">
-                  {new Date(r.date).toLocaleDateString(lang === 'uk' ? 'uk-UA' : 'en-US')}
+                  {new Date(r.createdAt).toLocaleDateString(lang === 'uk' ? 'uk-UA' : 'en-US')}
                 </span>
               </div>
-              {r.comment && <p className="text-sm text-ink-secondary">{r.comment}</p>}
+              {r.text && <p className="text-sm text-ink-secondary">{r.text}</p>}
             </div>
           ))}
 
