@@ -53,9 +53,11 @@ const ScreenHeader = ({ title, onBack }: { title: string; onBack: () => void }) 
 const MenuRow = ({ icon, title, subtitle, disabled, disabledHint, onClick }: {
   icon: ReactNode; title: string; subtitle?: string; disabled?: boolean; disabledHint?: string; onClick: () => void;
 }) => (
-  <div
-    onClick={disabled ? undefined : onClick}
-    className={`flex items-center gap-3 px-4 py-3.5 ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-canvas-soft'}`}>
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    className={`w-full flex items-center gap-3 px-4 py-3.5 text-left ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-canvas-soft'}`}>
     <div className="w-9 h-9 rounded-full bg-canvas-soft flex items-center justify-center flex-shrink-0 text-ink-secondary">
       {icon}
     </div>
@@ -65,7 +67,7 @@ const MenuRow = ({ icon, title, subtitle, disabled, disabledHint, onClick }: {
       {disabled && disabledHint && <p className="text-xs text-ink-muted mt-0.5">{disabledHint}</p>}
     </div>
     {!disabled && <ChevronRight size={18} className="text-ink-muted flex-shrink-0"/>}
-  </div>
+  </button>
 );
 
 const BookingPage = () => {
@@ -491,14 +493,15 @@ const BookingPage = () => {
             {employees.map(e => {
               const initials = e.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
               return (
-                <div key={e._id}
+                <button key={e._id} type="button"
+                  aria-pressed={selectedEmployee?._id === e._id}
                   onClick={() => {
                     const allowedIds = !e.services || e.services.length === 0 ? null : new Set(e.services);
                     setSelectedServices(prev => allowedIds ? prev.filter(s => allowedIds.has(s._id)) : prev);
                     setSelectedEmployee(e);
                     setScreen('menu');
                   }}
-                  className={`p-4 rounded-md border-2 cursor-pointer transition-colors flex items-center gap-4
+                  className={`w-full p-4 rounded-md border-2 cursor-pointer transition-colors flex items-center gap-4 text-left
                     ${selectedEmployee?._id === e._id
                       ? 'border-brand bg-brand-extra-soft'
                       : 'border-line bg-surface hover:border-line-medium'}`}>
@@ -513,7 +516,7 @@ const BookingPage = () => {
                     )}
                     {employeeBio(e, lang) && <p className="text-sm text-ink-secondary mt-1">{employeeBio(e, lang)}</p>}
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -578,9 +581,10 @@ const BookingPage = () => {
           <ScreenHeader title={t('booking.chooseService')} onBack={() => setScreen('menu')} />
           <div className="space-y-3">
             {availableServices.map(s => (
-              <div key={s._id}
+              <button key={s._id} type="button"
+                aria-pressed={!!selectedServices.find(x => x._id === s._id)}
                 onClick={() => toggleService(s)}
-                className={`p-4 rounded-md border-2 cursor-pointer transition-colors
+                className={`w-full p-4 rounded-md border-2 cursor-pointer transition-colors text-left
                   ${selectedServices.find(x => x._id === s._id)
                     ? 'border-brand bg-brand-extra-soft'
                     : 'border-line bg-surface hover:border-line-medium'}`}>
@@ -592,7 +596,7 @@ const BookingPage = () => {
                   </div>
                   <p className="font-semibold text-brand-dark">{formatPriceRange(s.price, s.priceMax, branding?.currency)}</p>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
           {selectedServices.length > 0 && (

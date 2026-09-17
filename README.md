@@ -55,6 +55,10 @@ If `VITE_API_URL` is unset, the app falls back to `http://localhost:5000/api`.
 | `npm run lint`    | Run ESLint across the repo           |
 | `npm run preview` | Preview a production build locally   |
 
+CI (`.github/workflows/ci.yml`) runs type-checking (`tsc --noEmit`), lint,
+and the production build on every push/PR to `main` — no repository
+secrets needed.
+
 ## Project structure
 
 ```
