@@ -23,11 +23,21 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalProps) =>
   const { t } = useLocale();
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   // Фокус-менеджмент і клавіатура — модалка раніше не мала жодного:
   // фокус лишався на елементі, що відкрив модалку (клавіатурний
   // користувач не міг дістатись до її вмісту через Tab), Escape нічого
   // не робив, а Tab міг вийти за межі модалки на фон.
+  //
+  // Залежність лише від `isOpen` (не від `onClose`): батьківські
+  // компоненти зазвичай передають `onClose` як новий inline-колбек на
+  // кожен рендер, а рендер батька відбувається на кожне натискання
+  // символу в контрольованому полі всередині модалки. Якби ефект
+  // залежав від `onClose`, він перезапускався б після кожного символу
+  // і `panelRef.current?.focus()` щоразу забирав би фокус назад із
+  // інпута на панель — актуальний `onClose` читаємо через ref.
   useEffect(() => {
     if (!isOpen) return;
 
@@ -39,7 +49,7 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalProps) =>
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== 'Tab' || !panelRef.current) return;
@@ -64,7 +74,7 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalProps) =>
       document.body.style.overflow = previousOverflow;
       previouslyFocused?.focus();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
