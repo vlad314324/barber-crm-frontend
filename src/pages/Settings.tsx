@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../i18n/LocaleContext';
 import { ShopSettings, WorkingDay } from '../api/types';
 import { getErrorMessage } from '../utils/errors';
+import { getSiteUrl } from '../utils/siteUrl';
 import { useRefreshShopSettings } from '../context/SettingsContext';
 import BookingLinkCard from '../components/BookingLinkCard';
 import { BOOKING_LANGS, BookingLang } from '../i18n/bookingTranslations';
@@ -437,7 +438,7 @@ const Settings = () => {
                 <p className="text-xs text-ink-muted mt-1.5">{t('settings.branding.languagesMinHint')}</p>
               </div>
               {salonSlug && (
-                <a href={`${window.location.origin}/book/${salonSlug}`} target="_blank" rel="noreferrer"
+                <a href={`${getSiteUrl()}/book/${salonSlug}`} target="_blank" rel="noreferrer"
                   className="text-xs text-brand hover:text-brand-dark font-medium w-fit block">
                   {t('settings.branding.previewLink')}
                 </a>

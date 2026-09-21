@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { Copy, Check, Download, ExternalLink } from 'lucide-react';
 import { useLocale } from '../i18n/LocaleContext';
+import { getSiteUrl } from '../utils/siteUrl';
 
 interface BookingLinkCardProps {
   slug: string;
@@ -12,7 +13,7 @@ const BookingLinkCard = ({ slug }: BookingLinkCardProps) => {
   const [copied, setCopied] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const url = `${window.location.origin}/book/${slug}`;
+  const url = `${getSiteUrl()}/book/${slug}`;
 
   const handleCopy = async () => {
     try {
