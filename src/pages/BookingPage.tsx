@@ -11,10 +11,11 @@ import { API_BASE_URL } from '../api';
 import { BOOKING_LANG_LABELS, BookingLang, tBooking } from '../i18n/bookingTranslations';
 import LanguageToggle from '../components/LanguageToggle';
 import LocationMap from '../components/LocationMap';
-import { getErrorMessage } from '../utils/errors';
+import { getErrorMessage, getErrorCode } from '../utils/errors';
 import { PublicBookingSettings } from '../api/types';
 import { formatPriceRange } from '../utils/money';
 import { formatDurationRange } from '../utils/duration';
+import { trackEvent } from '../utils/tracking';
 
 interface Service {
   _id: string; name: string; description?: string; price: number; priceMax?: number; duration: number; durationMax?: number; category: string;
@@ -149,14 +150,14 @@ const BookingPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api, salonSlug]);
 
-  // Фіксуємо факт відкриття сторінки для аналітики конверсії (панель
-  // платформного адміна) — раз на реальне завантаження, ref рятує від
-  // подвійного виклику через React 18 StrictMode у дев-режимі.
+  // Фіксуємо факт відкриття сторінки для воронки бронювання (видно лише в
+  // platform-admin) — раз на реальне завантаження, ref рятує від подвійного
+  // виклику через React 18 StrictMode у дев-режимі.
   const loggedVisit = useRef(false);
   useEffect(() => {
     if (!salonSlug || loggedVisit.current) return;
     loggedVisit.current = true;
-    api.post('/booking/visit').catch(() => {});
+    trackEvent(api, 'page_view');
   }, [api, salonSlug]);
 
   const accentColor = branding?.accentColor && HEX_COLOR_RE.test(branding.accentColor) ? branding.accentColor : null;
@@ -266,7 +267,7 @@ const BookingPage = () => {
     if (!validateEmail(clientEmail)) return;
     setLoading(true); setError('');
     try {
-      await api.post('/booking', {
+      const res = await api.post('/booking', {
         employeeId: selectedEmployee!._id,
         serviceIds: selectedServices.map(s => s._id),
         date: selectedDate,
@@ -276,8 +277,10 @@ const BookingPage = () => {
         clientEmail,
       });
       setDone(true);
+      trackEvent(api, 'submit_success', { appointmentId: res.data?.appointment?.id });
     } catch (err) {
       setError(getErrorMessage(err) || t('booking.bookingError'));
+      trackEvent(api, 'submit_failed', { failureReason: getErrorCode(err) });
     } finally {
       setLoading(false);
     }
@@ -500,6 +503,7 @@ const BookingPage = () => {
                     setSelectedServices(prev => allowedIds ? prev.filter(s => allowedIds.has(s._id)) : prev);
                     setSelectedEmployee(e);
                     setScreen('menu');
+                    trackEvent(api, 'master_selected', { employeeId: e._id });
                   }}
                   className={`w-full p-4 rounded-md border-2 cursor-pointer transition-colors flex items-center gap-4 text-left
                     ${selectedEmployee?._id === e._id
@@ -553,7 +557,7 @@ const BookingPage = () => {
                 <div className="grid grid-cols-4 gap-2">
                   {slots.map(slot => (
                     <button key={slot}
-                      onClick={() => setSelectedTime(slot)}
+                      onClick={() => { setSelectedTime(slot); trackEvent(api, 'slot_selected', { date: selectedDate, time: slot }); }}
                       style={selectedTime === slot ? accentStyle : undefined}
                       className={`py-2 rounded-sm text-sm font-medium border transition-colors
                         ${selectedTime === slot
@@ -607,7 +611,10 @@ const BookingPage = () => {
           )}
           <button
             disabled={selectedServices.length === 0}
-            onClick={() => setScreen('menu')}
+            onClick={() => {
+              setScreen('menu');
+              trackEvent(api, 'service_selected', { serviceIds: selectedServices.map(s => s._id) });
+            }}
             className="btn btn-primary w-full mt-6 py-3">
             {t('booking.confirmSelection')}
           </button>
@@ -653,7 +660,11 @@ const BookingPage = () => {
           </div>
           <button
             disabled={!clientName || !clientPhone || !clientEmail}
-            onClick={() => { if (!validateEmail(clientEmail)) return; setScreen('confirm'); }}
+            onClick={() => {
+              if (!validateEmail(clientEmail)) return;
+              setScreen('confirm');
+              trackEvent(api, 'contacts_entered');
+            }}
             className="btn btn-primary w-full mt-6 py-3">
             {t('booking.next')}
           </button>

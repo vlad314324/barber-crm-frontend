@@ -13,7 +13,13 @@ const BookingLinkCard = ({ slug }: BookingLinkCardProps) => {
   const [copied, setCopied] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const url = `${getSiteUrl()}/book/${slug}`;
+  // Посилання/QR, які власниця копіює собі в біо тощо — з UTM-міткою, щоб
+  // platform-admin аналітика могла надійно відрізнити цей канал від інших
+  // (сам лише referrer не показує "Instagram", коли перехід через in-app
+  // браузер). "Preview"-посилання нижче лишається без мітки — воно не для
+  // поширення, а лише щоб глянути публічну сторінку.
+  const url = `${getSiteUrl()}/book/${slug}?utm_source=instagram_bio&utm_medium=bio_link`;
+  const previewUrl = `${getSiteUrl()}/book/${slug}`;
 
   const handleCopy = async () => {
     try {
@@ -55,7 +61,7 @@ const BookingLinkCard = ({ slug }: BookingLinkCardProps) => {
           </div>
           {copied && <p className="text-xs text-brand-dark mt-1">{t('settings.bookingLink.copiedLabel')}</p>}
         </div>
-        <a href={url} target="_blank" rel="noreferrer" className="text-xs text-ink-secondary hover:text-brand flex items-center gap-1 w-fit">
+        <a href={previewUrl} target="_blank" rel="noreferrer" className="text-xs text-ink-secondary hover:text-brand flex items-center gap-1 w-fit">
           <ExternalLink size={12} /> {t('settings.bookingLink.previewLink')}
         </a>
       </div>

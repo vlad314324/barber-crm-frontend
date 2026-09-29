@@ -36,6 +36,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const savedSlug = getSalonSlug();
       if (!savedToken || !savedSlug) {
         localStorage.removeItem('token');
+        localStorage.removeItem('crmSessionId');
         clearSalonSlug();
         setToken(null);
         setSalonSlugState(null);
@@ -49,6 +50,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSalonSlugState(savedSlug);
       } catch {
         localStorage.removeItem('token');
+        localStorage.removeItem('crmSessionId');
         clearSalonSlug();
         setToken(null);
         setSalonSlugState(null);
@@ -59,12 +61,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     initAuth();
   }, []);
 
+  // Активність у кабінеті (для platform-admin аналітики) — периодичний
+  // heartbeat, поки вкладка відкрита й видима. Сам користувач кабінету
+  // про це нічого не бачить, немає жодного UI.
+  useEffect(() => {
+    if (!token) return;
+    const sendHeartbeat = () => {
+      if (document.visibilityState !== 'visible') return;
+      const sessionId = localStorage.getItem('crmSessionId');
+      if (!sessionId) return;
+      api.post('/auth/heartbeat', { sessionId }).catch(() => {});
+    };
+    const interval = setInterval(sendHeartbeat, 60000);
+    return () => clearInterval(interval);
+  }, [token]);
+
   const login = async (slug: string, email: string, password: string): Promise<User> => {
     setSalonSlug(slug);
     setSalonSlugState(slug);
     const res = await api.post('/auth/login', { email, password });
-    const { token: newToken, user: newUser } = res.data;
+    const { token: newToken, user: newUser, crmSessionId } = res.data;
     localStorage.setItem('token', newToken);
+    if (crmSessionId) localStorage.setItem('crmSessionId', crmSessionId);
     setToken(newToken);
     setUser(newUser);
     return newUser;
@@ -94,6 +112,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('crmSessionId');
     clearSalonSlug();
     setToken(null);
     setSalonSlugState(null);
