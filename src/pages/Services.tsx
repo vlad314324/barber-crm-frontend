@@ -10,6 +10,7 @@ import { Service, Category } from '../api/types';
 import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
+import { errorFieldClass } from '../utils/formValidation';
 import { useShopCurrency, useShopServiceRangesEnabled, useShopDurationUnit, useShopBookingLanguages, useShopDefaultBookingLanguage } from '../context/SettingsContext';
 import { formatPrice, formatPriceRange } from '../utils/money';
 import { formatDurationRangeForUnit } from '../utils/duration';
@@ -69,6 +70,7 @@ const Services = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [formData, setFormData] = useState(defaultForm);
+  const [fieldErrors, setFieldErrors] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   // Одиниця відображення/вводу тривалості — керується глобальним
   // налаштуванням закладу (Settings > Загальні), а не локальним перемикачем.
@@ -123,6 +125,7 @@ const Services = () => {
   const openAddModal = () => {
     setEditingService(null);
     setFormData({ ...defaultForm, category: categories[0]?.name || '' });
+    setFieldErrors(new Set());
     setIsModalOpen(true);
   };
 
@@ -139,6 +142,7 @@ const Services = () => {
       isAvailable: service.isAvailable,
       translations: service.translations || {},
     });
+    setFieldErrors(new Set());
     setIsModalOpen(true);
   };
 
@@ -153,8 +157,13 @@ const Services = () => {
   };
 
   const handleSave = async () => {
-    if (!formData.name) {
-      alert(t('services.fillRequired'));
+    const missing = new Set<string>();
+    if (!formData.name.trim()) missing.add('name');
+    if (!formData.category) missing.add('category');
+    if (!(formData.price > 0)) missing.add('price');
+    if (!(formData.duration > 0)) missing.add('duration');
+    if (missing.size > 0) {
+      setFieldErrors(missing);
       return;
     }
     if (rangesEnabled && formData.priceMax !== undefined && formData.priceMax < formData.price) {
@@ -350,14 +359,15 @@ const Services = () => {
       >
         <div className="space-y-3">
           <div>
-            <label className="field-label">{t('services.fieldName')}</label>
+            <label className="field-label">{t('services.fieldName')} <span className="text-red-500">*</span></label>
             <input
               type="text"
-              className="field-input"
+              className={`field-input ${errorFieldClass(fieldErrors.has('name'))}`}
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) => { setFormData({ ...formData, name: e.target.value }); setFieldErrors(prev => { const n = new Set(prev); n.delete('name'); return n; }); }}
               placeholder={t('services.fieldNamePlaceholder')}
             />
+            {fieldErrors.has('name') && <p className="text-xs text-red-500 mt-1">{t('common.fieldRequired')}</p>}
           </div>
           <div>
             <label className="field-label">{t('services.fieldDescription')}</label>
@@ -398,24 +408,26 @@ const Services = () => {
           )}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="field-label">{t('services.fieldPrice')} ({getCurrencySymbol(currency)})</label>
+              <label className="field-label">{t('services.fieldPrice')} ({getCurrencySymbol(currency)}) <span className="text-red-500">*</span></label>
               <input
                 type="number"
-                className="field-input"
+                className={`field-input ${errorFieldClass(fieldErrors.has('price'))}`}
                 value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+                onChange={(e) => { setFormData({ ...formData, price: Number(e.target.value) }); setFieldErrors(prev => { const n = new Set(prev); n.delete('price'); return n; }); }}
                 onFocus={(e) => e.target.select()}
                 min="0"
               />
+              {fieldErrors.has('price') && <p className="text-xs text-red-500 mt-1">{t('services.priceMustBePositive')}</p>}
             </div>
             <div>
-              <label className="field-label">{t('services.fieldDuration')}{durationUnit === 'min' ? ` (${durationLabels.minute})` : ''}</label>
+              <label className="field-label">{t('services.fieldDuration')}{durationUnit === 'min' ? ` (${durationLabels.minute})` : ''} <span className="text-red-500">*</span></label>
               <DurationInput
                 unit={durationUnit}
                 value={formData.duration}
                 min={5}
-                onChange={(v) => setFormData({ ...formData, duration: v ?? 0 })}
+                onChange={(v) => { setFormData({ ...formData, duration: v ?? 0 }); setFieldErrors(prev => { const n = new Set(prev); n.delete('duration'); return n; }); }}
               />
+              {fieldErrors.has('duration') && <p className="text-xs text-red-500 mt-1">{t('services.durationMustBePositive')}</p>}
             </div>
           </div>
           {rangesEnabled && (
@@ -444,15 +456,16 @@ const Services = () => {
             </div>
           )}
           <div>
-            <label className="field-label">{t('services.fieldCategory')}</label>
+            <label className="field-label">{t('services.fieldCategory')} <span className="text-red-500">*</span></label>
             <select
-              className="field-input"
+              className={`field-input ${errorFieldClass(fieldErrors.has('category'))}`}
               value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              onChange={(e) => { setFormData({ ...formData, category: e.target.value }); setFieldErrors(prev => { const n = new Set(prev); n.delete('category'); return n; }); }}
             >
               {categories.length === 0 && <option value="">{t('services.noCategoriesYet')}</option>}
               {categories.map(c => <option key={c._id} value={c.name}>{categoryLabel(c.name)}</option>)}
             </select>
+            {fieldErrors.has('category') && <p className="text-xs text-red-500 mt-1">{t('common.fieldRequired')}</p>}
           </div>
           <div className="flex items-center gap-2">
             <input

@@ -6,6 +6,7 @@ import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
 import { getPasswordError } from '../utils/passwordValidation';
+import { missingFields, errorFieldClass } from '../utils/formValidation';
 import { useShopCurrency, useShopBookingLanguages, useShopDefaultBookingLanguage } from '../context/SettingsContext';
 import { getCurrencySymbol } from '../constants/currencies';
 import { BookingLang, BOOKING_LANG_LABELS } from '../i18n/bookingTranslations';
@@ -75,6 +76,7 @@ const Employees = () => {
   const [isModalOpen,    setIsModalOpen]    = useState(false);
   const [editingEmployee,setEditingEmployee]= useState<Employee|null>(null);
   const [formData,       setFormData]       = useState(defaultForm);
+  const [fieldErrors,    setFieldErrors]    = useState<Set<string>>(new Set());
   const [saving,         setSaving]         = useState(false);
 
   // reviews modal
@@ -104,6 +106,7 @@ const Employees = () => {
   const openAdd = () => {
     setEditingEmployee(null);
     setFormData(defaultForm);
+    setFieldErrors(new Set());
     setIsModalOpen(true);
   };
 
@@ -124,6 +127,7 @@ const Employees = () => {
         Object.entries(emp.translations || {}).map(([l, v]) => [l, { bio: v.bio, specialtiesText: v.specialties.join(', ') }])
       ),
     });
+    setFieldErrors(new Set());
     setIsModalOpen(true);
   };
 
@@ -157,8 +161,10 @@ const Employees = () => {
 
   // ── save ───────────────────────────────────────────────────────────────────
   const handleSave = async () => {
-    if (!formData.name || !formData.email || !formData.phone) {
-      alert(t('employees.fillRequired')); return;
+    const missing = missingFields({ name: formData.name, email: formData.email, phone: formData.phone }, ['name', 'email', 'phone']);
+    if (missing.size > 0) {
+      setFieldErrors(missing);
+      return;
     }
     setSaving(true);
     try {
@@ -450,20 +456,24 @@ const Employees = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-3">
               {[
-                { label: t('employees.fieldName'),         key: 'name' as const,       type: 'text',   placeholder: 'Employee name' },
-                { label: t('employees.fieldPhone'),        key: 'phone' as const,      type: 'tel',    placeholder: '+380...' },
-                { label: t('employees.fieldEmail'),        key: 'email' as const,      type: 'email',  placeholder: 'email@example.com' },
-                { label: `${t('employees.fieldHourlyRate')} (${getCurrencySymbol(currency)})`, key: 'hourlyRate' as const, type: 'number', placeholder: '0' },
-                { label: t('employees.fieldSpecialties'), key: 'specialties' as const, type: 'text', placeholder: t('employees.fieldSpecialtiesPlaceholder') },
-                { label: t('employees.fieldBio'),            key: 'bio' as const,        type: 'text',   placeholder: t('employees.fieldBioPlaceholder') },
-              ].map(({ label, key, type, placeholder }) => (
+                { label: t('employees.fieldName'),         key: 'name' as const,       type: 'text',   placeholder: 'Employee name', required: true },
+                { label: t('employees.fieldPhone'),        key: 'phone' as const,      type: 'tel',    placeholder: '+380...', required: true },
+                { label: t('employees.fieldEmail'),        key: 'email' as const,      type: 'email',  placeholder: 'email@example.com', required: true },
+                { label: `${t('employees.fieldHourlyRate')} (${getCurrencySymbol(currency)})`, key: 'hourlyRate' as const, type: 'number', placeholder: '0', required: false },
+                { label: t('employees.fieldSpecialties'), key: 'specialties' as const, type: 'text', placeholder: t('employees.fieldSpecialtiesPlaceholder'), required: false },
+                { label: t('employees.fieldBio'),            key: 'bio' as const,        type: 'text',   placeholder: t('employees.fieldBioPlaceholder'), required: false },
+              ].map(({ label, key, type, placeholder, required }) => (
                 <div key={key}>
-                  <label className="field-label">{label}</label>
+                  <label className="field-label">{label} {required && <span className="text-red-500">*</span>}</label>
                   <input type={type}
-                    className="field-input"
+                    className={`field-input ${errorFieldClass(fieldErrors.has(key))}`}
                     value={String(formData[key])}
                     placeholder={placeholder}
-                    onChange={e => setFormData({ ...formData, [key]: type === 'number' ? Number(e.target.value) : e.target.value })}/>
+                    onChange={e => {
+                      setFormData({ ...formData, [key]: type === 'number' ? Number(e.target.value) : e.target.value });
+                      setFieldErrors(prev => { const n = new Set(prev); n.delete(key); return n; });
+                    }}/>
+                  {fieldErrors.has(key) && <p className="text-xs text-red-500 mt-1">{t('common.fieldRequired')}</p>}
                 </div>
               ))}
 
@@ -665,12 +675,12 @@ const Employees = () => {
           {!isManageMode && (
             <>
               <div>
-                <label className="field-label">{t('employees.fieldName')}</label>
+                <label className="field-label">{t('employees.fieldName')} <span className="text-red-500">*</span></label>
                 <input className="field-input" value={loginForm.name}
                   onChange={e => setLoginForm(p => ({ ...p, name: e.target.value }))}/>
               </div>
               <div>
-                <label className="field-label">{t('employees.fieldEmail')}</label>
+                <label className="field-label">{t('employees.fieldEmail')} <span className="text-red-500">*</span></label>
                 <input type="email" className="field-input" value={loginForm.email}
                   onChange={e => setLoginForm(p => ({ ...p, email: e.target.value }))}/>
               </div>
@@ -686,7 +696,7 @@ const Employees = () => {
           </div>
           <div>
             <label className="field-label">
-              {isManageMode ? t('employees.fieldNewPassword') : t('employees.fieldPassword')}
+              {isManageMode ? t('employees.fieldNewPassword') : t('employees.fieldPassword')} {!isManageMode && <span className="text-red-500">*</span>}
             </label>
             <input type="password" className="field-input" value={loginForm.password}
               placeholder={isManageMode ? t('employees.leavePasswordBlank') : ''}

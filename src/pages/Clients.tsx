@@ -7,6 +7,7 @@ import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
 import { downloadBlob } from '../utils/download';
+import { missingFields, errorFieldClass } from '../utils/formValidation';
 
 type SortBy = 'name' | 'visits' | 'lastVisit' | 'createdAt';
 type SortDir = 'asc' | 'desc';
@@ -32,6 +33,7 @@ const Clients = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [formData, setFormData] = useState({ name: '', phone: '', email: '' });
+  const [fieldErrors, setFieldErrors] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
 
   // Import/export
@@ -97,18 +99,21 @@ const Clients = () => {
   const openAddModal = () => {
     setEditingClient(null);
     setFormData({ name: '', phone: '', email: '' });
+    setFieldErrors(new Set());
     setIsModalOpen(true);
   };
 
   const openEditModal = (client: Client) => {
     setEditingClient(client);
     setFormData({ name: client.name, phone: client.phone, email: client.email });
+    setFieldErrors(new Set());
     setIsModalOpen(true);
   };
 
   const handleSave = async () => {
-    if (!formData.name || !formData.phone || !formData.email) {
-      alert(t('clients.fillAll'));
+    const missing = missingFields(formData, ['name', 'phone', 'email']);
+    if (missing.size > 0) {
+      setFieldErrors(missing);
       return;
     }
     setSaving(true);
@@ -311,34 +316,37 @@ const Clients = () => {
       >
         <div className="space-y-4">
           <div>
-            <label className="field-label">{t('common.name')}</label>
+            <label className="field-label">{t('common.name')} <span className="text-red-500">*</span></label>
             <input
               type="text"
-              className="field-input"
+              className={`field-input ${errorFieldClass(fieldErrors.has('name'))}`}
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) => { setFormData({ ...formData, name: e.target.value }); setFieldErrors(prev => { const n = new Set(prev); n.delete('name'); return n; }); }}
               placeholder={t('clients.namePlaceholder')}
             />
+            {fieldErrors.has('name') && <p className="text-xs text-red-500 mt-1">{t('common.fieldRequired')}</p>}
           </div>
           <div>
-            <label className="field-label">{t('common.phone')}</label>
+            <label className="field-label">{t('common.phone')} <span className="text-red-500">*</span></label>
             <input
               type="tel"
-              className="field-input"
+              className={`field-input ${errorFieldClass(fieldErrors.has('phone'))}`}
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              onChange={(e) => { setFormData({ ...formData, phone: e.target.value }); setFieldErrors(prev => { const n = new Set(prev); n.delete('phone'); return n; }); }}
               placeholder="+380..."
             />
+            {fieldErrors.has('phone') && <p className="text-xs text-red-500 mt-1">{t('common.fieldRequired')}</p>}
           </div>
           <div>
-            <label className="field-label">{t('common.email')}</label>
+            <label className="field-label">{t('common.email')} <span className="text-red-500">*</span></label>
             <input
               type="email"
-              className="field-input"
+              className={`field-input ${errorFieldClass(fieldErrors.has('email'))}`}
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={(e) => { setFormData({ ...formData, email: e.target.value }); setFieldErrors(prev => { const n = new Set(prev); n.delete('email'); return n; }); }}
               placeholder={t('clients.emailPlaceholder')}
             />
+            {fieldErrors.has('email') && <p className="text-xs text-red-500 mt-1">{t('common.fieldRequired')}</p>}
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button onClick={() => setIsModalOpen(false)} className="btn btn-secondary">
