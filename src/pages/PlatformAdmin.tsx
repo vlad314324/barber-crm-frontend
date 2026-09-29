@@ -4,9 +4,10 @@ import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
 import InvitationsTab from '../components/platform/InvitationsTab';
 import SalonsTab from '../components/platform/SalonsTab';
+import PlatformAnalyticsTab from '../components/platform/PlatformAnalyticsTab';
 import SettingsTab from '../components/platform/SettingsTab';
 
-type Tab = 'invitations' | 'salons' | 'settings';
+type Tab = 'invitations' | 'salons' | 'analytics' | 'settings';
 
 // Службова панель лише для оператора платформи та колег — керування
 // салонами й запрошеннями. Не пов'язана з salon-логіном (окремий контекст,
@@ -64,6 +65,7 @@ const PlatformAdmin = () => {
   const TABS: { key: Tab; label: string }[] = [
     { key: 'invitations', label: t('platformAdmin.tabInvitations') },
     { key: 'salons', label: t('platformAdmin.tabSalons') },
+    { key: 'analytics', label: t('platformAdmin.tabAnalytics') },
     { key: 'settings', label: t('platformAdmin.tabSettings') },
   ];
 
@@ -171,6 +173,7 @@ const PlatformAdmin = () => {
 
             {activeTab === 'invitations' && <InvitationsTab />}
             {activeTab === 'salons' && <SalonsTab />}
+            {activeTab === 'analytics' && <PlatformAnalyticsTab />}
             {activeTab === 'settings' && <SettingsTab />}
           </div>
         )}

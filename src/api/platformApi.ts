@@ -118,6 +118,24 @@ export interface PlatformSalonUsageAnalytics {
   bookingsByStatus: { Scheduled: number; Completed: number; Cancelled: number; 'No-show': number };
 }
 
+export interface PlatformSalonHealthSummary {
+  id: string;
+  name: string;
+  slug: string;
+  totalVisits: number;
+  totalBookings: number;
+  crmLogins: number;
+  cancellationRate: number;
+  healthScore: number | null;
+  churnRisk: boolean;
+}
+
+export interface PlatformAnalyticsOverview {
+  days: number;
+  platformTotals: { totalVisits: number; totalBookings: number; crmLogins: number };
+  salons: PlatformSalonHealthSummary[];
+}
+
 export interface PlatformAdminListItem {
   id: string;
   name: string;
@@ -181,6 +199,9 @@ export const platformAuthApi = {
 
   getSalonUsageAnalytics: async (id: string, days = 30): Promise<PlatformSalonUsageAnalytics> =>
     (await platformApi.get(`/salons/${id}/analytics/usage`, { params: { days } })).data,
+
+  getAnalyticsOverview: async (days = 30): Promise<PlatformAnalyticsOverview> =>
+    (await platformApi.get('/analytics/overview', { params: { days } })).data,
 };
 
 export default platformApi;
