@@ -6,7 +6,7 @@ import type {
   RegisterSalonDto, RegisterSalonResponse,
   CreateStaffLoginDto, CreateStaffLoginResponse,
   UpdateStaffLoginDto, UpdateStaffLoginResponse,
-  ImportResult, ClientPageParams, ClientPageResult
+  ImportResult, ClientPageParams, ClientPageResult, EmployeeStats
 } from './types';
 import { getSalonSlug, clearSalonSlug } from '../utils/tenant';
 
@@ -102,6 +102,8 @@ export const employeeApi = {
   reactivate: async (id: string): Promise<Employee> => (await api.post(`/employees/${id}/reactivate`)).data,
   export: async (): Promise<Blob> => (await api.get('/employees/export', { responseType: 'blob' })).data,
   import: (file: File): Promise<ImportResult> => importFile('/employees/import', file),
+  getAppointments: async (id: string): Promise<Appointment[]> => (await api.get(`/employees/${id}/appointments`)).data,
+  getStats: async (id: string): Promise<EmployeeStats> => (await api.get(`/employees/${id}/stats`)).data,
 };
 
 export const appointmentApi = {

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router';
 import { User, Plus, Star, Scissors, Pencil, UserX, UserCheck } from 'lucide-react';
 import { employeeApi, reviewApi, clientApi, serviceApi, authApi } from '../api';
 import { Employee, Client, Review, Service } from '../api/types';
@@ -345,7 +346,9 @@ const Employees = () => {
                 <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=random&size=128`}
                   alt={emp.name} className="h-14 w-14 rounded-full flex-shrink-0 ring-1 ring-line"/>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-semibold text-ink truncate">{emp.name}</h3>
+                  <Link to={`/employees/${emp._id}`} className="text-base font-semibold text-ink truncate hover:text-brand block">
+                    {emp.name}
+                  </Link>
                   <p className="text-sm text-brand">{emp.customRoleLabel?.trim() || t(`roles.${emp.role}`)}</p>
                   <p className="text-xs text-ink-muted truncate">{emp.email}</p>
                   {(emp.rating || 0) > 0 ? (

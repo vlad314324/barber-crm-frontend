@@ -118,6 +118,28 @@ export interface Appointment {
   notes?: AppointmentNote[];
 }
 
+export interface EmployeeMonthlyEarning {
+  month: string;
+  amount: number;
+  appointments: number;
+}
+
+export interface EmployeeClientSummary {
+  id: string;
+  name: string;
+  phone: string;
+  visits: number;
+  totalSpent: number;
+  lastVisit: string;
+}
+
+export interface EmployeeStats {
+  totalEarnings: number;
+  totalCompletedAppointments: number;
+  monthlyEarnings: EmployeeMonthlyEarning[];
+  clients: EmployeeClientSummary[];
+}
+
 export interface AppointmentResponse {
   _id: string;
   client: string;

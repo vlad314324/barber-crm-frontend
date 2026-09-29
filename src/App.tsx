@@ -19,6 +19,7 @@ const Clients = lazy(() => import('./pages/Clients'));
 const ClientDetails = lazy(() => import('./pages/ClientDetails'));
 const Appointments = lazy(() => import('./pages/Appointments'));
 const Employees = lazy(() => import('./pages/Employees'));
+const EmployeeDetails = lazy(() => import('./pages/EmployeeDetails'));
 const Services = lazy(() => import('./pages/Services'));
 const Reports = lazy(() => import('./pages/Reports'));
 const Settings = lazy(() => import('./pages/Settings'));
@@ -71,6 +72,11 @@ function App() {
             <Route path="employees" element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <Employees />
+              </ProtectedRoute>
+            }/>
+            <Route path="employees/:id" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <EmployeeDetails />
               </ProtectedRoute>
             }/>
             <Route path="services" element={
