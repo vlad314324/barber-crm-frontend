@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Users, Plus, Search, Pencil, Trash2, Download, Upload, MoreVertical } from 'lucide-react';
+import { Users, Plus, Search, Pencil, Trash2, Download, Upload, MoreVertical, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
 import { clientApi } from '../api';
 import { Client, ImportResult } from '../api/types';
@@ -8,11 +8,23 @@ import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
 import { downloadBlob } from '../utils/download';
 
+type SortBy = 'name' | 'visits' | 'lastVisit' | 'createdAt';
+type SortDir = 'asc' | 'desc';
+const PAGE_LIMIT = 25;
+const SEARCH_DEBOUNCE_MS = 300;
+
 const Clients = () => {
   const { t } = useLocale();
   const [searchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') || '');
+  const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
+  const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<SortBy>('createdAt');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
   const [clients, setClients] = useState<Client[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,25 +52,47 @@ const Clients = () => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Дебаунс пошуку — інакше кожен символ бив би окремим запитом на бекенд;
+  // зміна пошукового запиту скидає на першу сторінку.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setPage(1);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   const fetchClients = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await clientApi.getAll();
-      setClients(data);
+      const data = await clientApi.getPage({ page, limit: PAGE_LIMIT, search: debouncedSearch, sortBy, sortDir });
+      setClients(data.clients);
+      setTotal(data.total);
+      setTotalPages(data.totalPages);
+      setError(null);
     } catch {
       setError(t('clients.fetchError'));
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [page, debouncedSearch, sortBy, sortDir, t]);
 
   useEffect(() => { fetchClients(); }, [fetchClients]);
 
-  const filteredClients = clients.filter(c =>
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.phone.includes(searchTerm)
-  );
+  const toggleSort = (field: SortBy) => {
+    if (sortBy === field) {
+      setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(field);
+      setSortDir(field === 'name' ? 'asc' : 'desc');
+    }
+    setPage(1);
+  };
+
+  const SortIcon = ({ field }: { field: SortBy }) => {
+    if (sortBy !== field) return null;
+    return sortDir === 'asc' ? <ChevronUp size={13} className="inline ml-0.5" /> : <ChevronDown size={13} className="inline ml-0.5" />;
+  };
 
   const openAddModal = () => {
     setEditingClient(null);
@@ -97,7 +131,7 @@ const Clients = () => {
     if (!confirm(t('clients.deleteConfirm'))) return;
     try {
       await clientApi.delete(id);
-      setClients(prev => prev.filter(c => c._id !== id));
+      fetchClients();
     } catch {
       alert(t('clients.deleteError'));
     }
@@ -185,13 +219,17 @@ const Clients = () => {
           </div>
         </div>
 
-        <div className="border-t border-line overflow-x-auto">
+        <div className="border-t border-line overflow-x-auto overflow-y-auto max-h-[65vh]">
           <table className="min-w-full divide-y divide-line">
-            <thead className="table-head">
+            <thead className="table-head sticky top-0 z-10">
               <tr>
-                <th className="px-6 py-3 text-left">{t('clients.tableClient')}</th>
+                <th className="px-6 py-3 text-left cursor-pointer select-none hover:text-ink" onClick={() => toggleSort('name')}>
+                  {t('clients.tableClient')}<SortIcon field="name" />
+                </th>
                 <th className="px-6 py-3 text-left">{t('clients.tablePhone')}</th>
-                <th className="px-6 py-3 text-left">{t('clients.tableVisits')}</th>
+                <th className="px-6 py-3 text-left cursor-pointer select-none hover:text-ink" onClick={() => toggleSort('visits')}>
+                  {t('clients.tableVisits')}<SortIcon field="visits" />
+                </th>
                 <th className="px-6 py-3 text-left">{t('clients.tableLastVisit')}</th>
                 <th className="px-6 py-3 text-right">{t('clients.tableActions')}</th>
               </tr>
@@ -201,9 +239,9 @@ const Clients = () => {
                 <tr><td colSpan={5} className="px-6 py-4 text-center text-sm text-ink-muted">{t('common.loading')}</td></tr>
               ) : error ? (
                 <tr><td colSpan={5} className="px-6 py-4 text-center text-sm text-red-600">{error}</td></tr>
-              ) : filteredClients.length === 0 ? (
+              ) : clients.length === 0 ? (
                 <tr><td colSpan={5} className="px-6 py-4 text-center text-sm text-ink-muted">{t('clients.notFound')}</td></tr>
-              ) : filteredClients.map((client) => (
+              ) : clients.map((client) => (
                 <tr key={client._id} className="hover:bg-canvas-soft transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -239,6 +277,31 @@ const Clients = () => {
             </tbody>
           </table>
         </div>
+
+        {!loading && !error && total > 0 && (
+          <div className="flex items-center justify-between px-5 py-3 border-t border-line text-sm">
+            <span className="text-ink-muted">{t('clients.totalCount', { count: total })}</span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="btn btn-secondary p-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                aria-label={t('clients.prevPage')}
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span className="text-ink-secondary">{t('clients.pageInfo', { page, totalPages })}</span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="btn btn-secondary p-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                aria-label={t('clients.nextPage')}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <Modal

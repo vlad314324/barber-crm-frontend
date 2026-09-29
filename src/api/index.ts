@@ -6,7 +6,7 @@ import type {
   RegisterSalonDto, RegisterSalonResponse,
   CreateStaffLoginDto, CreateStaffLoginResponse,
   UpdateStaffLoginDto, UpdateStaffLoginResponse,
-  ImportResult
+  ImportResult, ClientPageParams, ClientPageResult
 } from './types';
 import { getSalonSlug, clearSalonSlug } from '../utils/tenant';
 
@@ -79,6 +79,11 @@ export const authApi = {
 
 export const clientApi = {
   getAll: async (): Promise<Client[]> => (await api.get('/clients')).data,
+  // Пагінований/сортований/пошуковий шлях — окремий від getAll() (яким і
+  // далі користуються дропдауни вибору клієнта, огляди майстра, дашборд,
+  // онбординг: їм потрібен повний список, не сторінка).
+  getPage: async (params: ClientPageParams): Promise<ClientPageResult> =>
+    (await api.get('/clients', { params })).data,
   getById: async (id: string): Promise<Client> => (await api.get(`/clients/${id}`)).data,
   create: async (data: CreateClientDto): Promise<Client> => (await api.post('/clients', data)).data,
   update: async (id: string, data: Partial<CreateClientDto>): Promise<Client> => (await api.put(`/clients/${id}`, data)).data,

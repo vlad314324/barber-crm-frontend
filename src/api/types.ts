@@ -14,6 +14,22 @@ export interface Client {
   createdAt?: string;
 }
 
+export interface ClientPageParams {
+  page: number;
+  limit?: number;
+  search?: string;
+  sortBy?: 'name' | 'visits' | 'lastVisit' | 'createdAt';
+  sortDir?: 'asc' | 'desc';
+}
+
+export interface ClientPageResult {
+  clients: Client[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export interface Employee {
   _id: string;
   name: string;

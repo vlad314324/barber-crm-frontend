@@ -300,6 +300,10 @@ const uk = {
     saveError: 'Помилка збереження',
     deleteConfirm: 'Видалити клієнта?',
     deleteError: 'Помилка видалення',
+    totalCount: 'Всього: {{count}}',
+    prevPage: 'Попередня сторінка',
+    nextPage: 'Наступна сторінка',
+    pageInfo: 'Сторінка {{page}} з {{totalPages}}',
   },
   clientDetails: {
     back: 'Назад до клієнтів',
@@ -1029,6 +1033,10 @@ const en: typeof uk = {
     saveError: 'Save error',
     deleteConfirm: 'Delete this client?',
     deleteError: 'Delete error',
+    totalCount: 'Total: {{count}}',
+    prevPage: 'Previous page',
+    nextPage: 'Next page',
+    pageInfo: 'Page {{page}} of {{totalPages}}',
   },
   clientDetails: {
     back: 'Back to Clients',
