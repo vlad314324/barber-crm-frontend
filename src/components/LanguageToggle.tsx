@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { useLocale } from '../i18n/LocaleContext';
+import type { Lang } from '../i18n/translations';
 
 interface LanguageToggleProps {
   variant?: 'light' | 'dark';
@@ -18,9 +19,17 @@ const LanguageToggle = ({ variant = 'light', langs, labels, value, onChange }: L
   const ref = useRef<HTMLDivElement>(null);
 
   const activeLang = value ?? globalLang;
-  const setActiveLang = onChange ?? setGlobalLang;
   const options = langs ?? (['uk', 'en'] as const);
   const isDropdown = options.length > 2;
+
+  // Некеровано (без langs/onChange) компонент завжди працює з дефолтним
+  // списком ['uk', 'en'] — тобто фактичним Lang, хоч TS цього тут і не
+  // виводить із двох незалежних пропів. У керованому режимі (використовує
+  // BookingPage) мову задає викликач через onChange: string.
+  const setActiveLang = (l: string) => {
+    if (onChange) onChange(l);
+    else setGlobalLang(l as Lang);
+  };
 
   useEffect(() => {
     if (!isDropdown) return;

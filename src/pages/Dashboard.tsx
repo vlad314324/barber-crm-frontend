@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Calendar, Users, Clock, Banknote, TrendingUp, Scissors } from 'lucide-react';
 import { Link } from 'react-router';
 import MetricCard from '../components/dashboard/MetricCard';
+import Avatar from '../components/Avatar';
 import { appointmentApi, clientApi } from '../api';
 import { Appointment, Client } from '../api/types';
 import { useLocale } from '../i18n/LocaleContext';
@@ -152,11 +153,7 @@ const Dashboard = () => {
               <p className="px-5 py-6 text-sm text-center text-ink-muted">{t('dashboard.noClients')}</p>
             ) : recentClients.map(c => (
               <div key={c._id} className="px-5 py-3 flex items-center gap-3">
-                <img
-                  className="h-8 w-8 rounded-full ring-1 ring-line"
-                  src={`https://ui-avatars.com/api/?name=${encodeURIComponent(c.name)}&background=random&size=64`}
-                  alt={c.name}
-                />
+                <Avatar name={c.name} size={32} className="ring-1 ring-line" />
                 <div>
                   <p className="text-sm font-medium text-ink">{c.name}</p>
                   <p className="text-xs text-ink-muted">{c.visits || 0} {t('dashboard.visits')}</p>

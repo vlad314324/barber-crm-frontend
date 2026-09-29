@@ -8,6 +8,7 @@ import { clientApi } from '../api';
 import api from '../api';
 import { Client, Appointment } from '../api/types';
 import Modal from '../components/Modal';
+import Avatar from '../components/Avatar';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
 import { useShopCurrency } from '../context/SettingsContext';
@@ -95,11 +96,7 @@ const ClientDetails = () => {
         <div className="px-6 py-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center">
-              <img
-                className="h-16 w-16 rounded-full mr-4 ring-1 ring-line"
-                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(client.name)}&background=random&size=128`}
-                alt={client.name}
-              />
+              <Avatar name={client.name} size={64} className="mr-4 ring-1 ring-line" />
               <div>
                 <h2 className="text-2xl font-bold text-ink tracking-tight">{client.name}</h2>
                 <p className="text-sm text-ink-muted">

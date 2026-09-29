@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router';
 import { ArrowLeft, Phone, Mail, Star, Calendar, TrendingUp, Users } from 'lucide-react';
 import { employeeApi } from '../api';
 import { Employee, Appointment, EmployeeStats } from '../api/types';
+import Avatar from '../components/Avatar';
 import { useLocale } from '../i18n/LocaleContext';
 import { useShopCurrency } from '../context/SettingsContext';
 import { formatPrice } from '../utils/money';
@@ -66,11 +67,7 @@ const EmployeeDetails = () => {
         <div className="px-6 py-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center">
-              <img
-                className="h-16 w-16 rounded-full mr-4 ring-1 ring-line"
-                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(employee.name)}&background=random&size=128`}
-                alt={employee.name}
-              />
+              <Avatar name={employee.name} size={64} className="mr-4 ring-1 ring-line" />
               <div>
                 <h2 className="text-2xl font-bold text-ink tracking-tight">{employee.name}</h2>
                 <p className="text-sm text-ink-muted">{employee.customRoleLabel?.trim() || t(`roles.${employee.role}`)}</p>

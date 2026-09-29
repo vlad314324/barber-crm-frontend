@@ -140,12 +140,13 @@ export const notificationApi = {
   markRead: async (id: string): Promise<Notification> => (await api.patch(`/notifications/${id}/read`)).data,
 };
 
+// getById/update прибрані: бекенд не має GET /reviews/:id чи PUT /reviews/:id
+// (лише /, /employee/:id, POST /, DELETE /:id — див. reviewRoutes.js), і жоден
+// компонент їх не викликав — не мертвий контракт, а неіснуючий.
 export const reviewApi = {
   getAll: async (): Promise<Review[]> => (await api.get('/reviews')).data,
   getByEmployee: async (employeeId: string): Promise<Review[]> => (await api.get(`/reviews/employee/${employeeId}`)).data,
-  getById: async (id: string): Promise<Review> => (await api.get(`/reviews/${id}`)).data,
   create: async (data: CreateReviewDto): Promise<Review> => (await api.post('/reviews', data)).data,
-  update: async (id: string, data: Partial<CreateReviewDto>): Promise<Review> => (await api.put(`/reviews/${id}`, data)).data,
   delete: async (id: string): Promise<void> => { await api.delete(`/reviews/${id}`); },
 };
 

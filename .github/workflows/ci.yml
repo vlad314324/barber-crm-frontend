@@ -20,8 +20,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Корінний tsconfig.json — solution-style ("files": [] + "references"),
+      # тож голий `tsc --noEmit` перевіряє нуль файлів і завжди виходить з 0,
+      # мовчки пропускаючи будь-які помилки в tsconfig.app.json/tsconfig.node.json.
+      # `-b` (build mode) реально збирає обидва referenced-проєкти.
       - name: Type-check
-        run: npx tsc --noEmit
+        run: npx tsc -b
 
       - name: Lint
         run: npm run lint

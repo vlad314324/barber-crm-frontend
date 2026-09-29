@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router';
 import { clientApi } from '../api';
 import { Client, ImportResult } from '../api/types';
 import Modal from '../components/Modal';
+import Avatar from '../components/Avatar';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
 import { downloadBlob } from '../utils/download';
@@ -250,11 +251,7 @@ const Clients = () => {
                 <tr key={client._id} className="hover:bg-canvas-soft transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <img
-                        className="h-10 w-10 rounded-full ring-1 ring-line"
-                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(client.name)}&background=random`}
-                        alt={client.name}
-                      />
+                      <Avatar name={client.name} size={40} className="ring-1 ring-line" />
                       <div className="ml-4">
                         <div className="text-sm font-medium text-ink">{client.name}</div>
                         <div className="text-sm text-ink-muted">{client.email}</div>

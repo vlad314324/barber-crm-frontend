@@ -104,6 +104,10 @@ export interface AppointmentNote {
   createdAt: string;
 }
 
+export type AppointmentStatus = 'Scheduled' | 'Completed' | 'Cancelled' | 'No-show';
+export const APPOINTMENT_STATUSES: readonly AppointmentStatus[] =
+  ['Scheduled', 'Completed', 'Cancelled', 'No-show'];
+
 // Тип, який використовуєш у фронтенді
 export interface Appointment {
   _id: string;
@@ -114,7 +118,7 @@ export interface Appointment {
   startTime: string;
   totalDuration: number;
   totalPrice: number;
-  status: 'Scheduled' | 'Completed' | 'Cancelled' | 'No-show';
+  status: AppointmentStatus;
   notes?: AppointmentNote[];
 }
 
@@ -149,14 +153,17 @@ export interface AppointmentResponse {
   startTime: string;
   totalDuration: number;
   totalPrice: number;
-  status: 'Scheduled' | 'Completed' | 'Cancelled' | 'No-show';
+  status: AppointmentStatus;
 }
 
 
 export interface Review {
   _id: string;
   client: Client;
-  appointment: Appointment;
+  // Бекенд не вимагає appointment при створенні відгуку (не `required` в
+  // моделі Review) і не підвантажує його в GET-відповідях — тож тут це
+  // необов'язкове поле, а не гарантований об'єкт.
+  appointment?: Appointment;
   employee: Employee;
   rating: number;
   text?: string;
@@ -212,12 +219,14 @@ export interface CreateAppointmentDto {
   startTime: string;
   totalDuration: number;
   totalPrice: number;
-  status?: 'Scheduled' | 'Completed' | 'Cancelled' | 'No-show';
+  status?: AppointmentStatus;
 }
 
 export interface CreateReviewDto {
   client: string; // client ID
-  appointment: string; // appointment ID
+  // Бекенд приймає відгук без appointment (не required в моделі/route) —
+  // необов'язкове, а не приховано відсутнє обов'язкове поле.
+  appointment?: string; // appointment ID
   employee: string; // employee ID
   rating: number;
   text?: string;

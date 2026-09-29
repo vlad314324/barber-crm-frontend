@@ -4,6 +4,7 @@ import { User, Plus, Star, Scissors, Pencil, UserX, UserCheck } from 'lucide-rea
 import { employeeApi, reviewApi, clientApi, serviceApi, authApi } from '../api';
 import { Employee, Client, Review, Service } from '../api/types';
 import Modal from '../components/Modal';
+import Avatar from '../components/Avatar';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
 import { getPasswordError } from '../utils/passwordValidation';
@@ -343,8 +344,7 @@ const Employees = () => {
 
               {/* Header */}
               <div className="p-5 flex items-start gap-4">
-                <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=random&size=128`}
-                  alt={emp.name} className="h-14 w-14 rounded-full flex-shrink-0 ring-1 ring-line"/>
+                <Avatar name={emp.name} size={56} className="ring-1 ring-line" />
                 <div className="flex-1 min-w-0">
                   <Link to={`/employees/${emp._id}`} className="text-base font-semibold text-ink truncate hover:text-brand block">
                     {emp.name}

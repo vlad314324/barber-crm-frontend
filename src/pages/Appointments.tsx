@@ -3,8 +3,9 @@ import { useSearchParams } from 'react-router';
 import { Calendar, ChevronLeft, ChevronRight, Plus, UserPlus, ChevronDown, Download, Upload, MessageSquare, MoreVertical } from 'lucide-react';
 import { appointmentApi, clientApi, employeeApi, serviceApi } from '../api';
 import api from '../api';
-import { Appointment, Client, Employee, Service, ShopSettings, ImportResult } from '../api/types';
+import { Appointment, Client, Employee, Service, ShopSettings, ImportResult, APPOINTMENT_STATUSES } from '../api/types';
 import Modal from '../components/Modal';
+import Avatar from '../components/Avatar';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
@@ -635,10 +636,8 @@ if (selectedBarber) {
                   const off = isDayOff(emp, currentDate);
                   return (
                     <div key={emp._id} className="border-l border-l-line border-b border-b-line py-2 px-2 text-center bg-canvas-soft">
-                      <img
-                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=random&size=40`}
-                        alt={emp.name}
-                        className={`w-8 h-8 rounded-full mx-auto mb-1 ${off ? 'opacity-40 grayscale' : ''}`}/>
+                      <Avatar name={emp.name} size={32}
+                        className={`mx-auto mb-1 ${off ? 'opacity-40 grayscale' : ''}`}/>
                       <p className={`text-xs font-semibold truncate ${off ? 'text-ink-muted' : 'text-ink'}`}>{emp.name}</p>
                       <p className="text-xs text-ink-muted truncate">{off ? `😴 ${t('appointments.dayOff')}` : (emp.customRoleLabel?.trim() || t(`roles.${emp.role}`))}</p>
                     </div>
@@ -916,7 +915,7 @@ if (selectedBarber) {
             <div>
               <label className="field-label mb-2">{t('appointments.status')}</label>
               <div className="flex gap-2 flex-wrap">
-                {['Scheduled','Completed','Cancelled','No-show'].map(s => (
+                {APPOINTMENT_STATUSES.map(s => (
                   <button key={s} onClick={() => setEditForm({...editForm, status:s})}
                     className={`px-3 py-1 rounded-full text-xs font-medium border transition-all
                       ${editForm.status===s ? 'bg-brand text-white border-brand' : 'bg-surface text-ink-secondary border-line hover:border-brand/50'}`}>
