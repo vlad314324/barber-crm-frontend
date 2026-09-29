@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Calendar, Users, Clock, Banknote, TrendingUp, Scissors } from 'lucide-react';
+import { Link } from 'react-router';
 import MetricCard from '../components/dashboard/MetricCard';
 import { appointmentApi, clientApi } from '../api';
 import { Appointment, Client } from '../api/types';
@@ -107,6 +108,9 @@ const Dashboard = () => {
               <Calendar size={18} className="mr-2 text-brand" />
               <h3 className="text-base font-semibold text-ink">{t('dashboard.todayAppointments')}</h3>
             </div>
+            <Link to="/appointments" className="text-sm text-brand hover:text-brand-dark font-medium flex-shrink-0">
+              {t('dashboard.viewAllAppointments')}
+            </Link>
           </div>
           <div className="divide-y divide-line">
             {loading ? (
@@ -137,6 +141,9 @@ const Dashboard = () => {
               <Users size={18} className="mr-2 text-brand" />
               <h3 className="text-base font-semibold text-ink">{t('dashboard.recentClients')}</h3>
             </div>
+            <Link to="/clients" className="text-sm text-brand hover:text-brand-dark font-medium flex-shrink-0">
+              {t('dashboard.viewAllClients')}
+            </Link>
           </div>
           <div className="divide-y divide-line">
             {loading ? (

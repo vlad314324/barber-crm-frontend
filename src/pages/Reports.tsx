@@ -70,9 +70,11 @@ const Reports = () => {
   const [rfm,       setRfm]       = useState<RfmData | null>(null);
   const [loading,   setLoading]   = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'forecast' | 'rfm'>('overview');
+  const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
 
   const fetchAll = async () => {
     setLoading(true);
+    setSelectedSegment(null);
     try {
       const [d, f, r] = await Promise.all([
         api.get<DashboardData>('/analytics/dashboard'),
@@ -301,20 +303,38 @@ const Reports = () => {
       {activeTab === 'rfm' && rfm && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {rfm.summary.map((s) => (
-              <div key={s.segment}
-                className={`rounded-lg border p-4 ${SEGMENT_COLORS[s.segment] || 'bg-canvas-soft text-ink-secondary border-line'}`}>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-semibold text-sm">{segmentLabel(s.segment)}</p>
-                    <p className="text-xs opacity-75 mt-0.5">{segmentDesc(s.segment)}</p>
+            {rfm.summary.map((s) => {
+              const isSelected = selectedSegment === s.segment;
+              return (
+                <button
+                  key={s.segment}
+                  type="button"
+                  onClick={() => setSelectedSegment(prev => (prev === s.segment ? null : s.segment))}
+                  aria-pressed={isSelected}
+                  className={`text-left rounded-lg border p-4 transition-shadow cursor-pointer hover:shadow-md
+                    ${SEGMENT_COLORS[s.segment] || 'bg-canvas-soft text-ink-secondary border-line'}
+                    ${isSelected ? 'ring-2 ring-offset-1 ring-current' : ''}`}>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-semibold text-sm">{segmentLabel(s.segment)}</p>
+                      <p className="text-xs opacity-75 mt-0.5">{segmentDesc(s.segment)}</p>
+                    </div>
+                    <span className="text-2xl font-bold">{s.count}</span>
                   </div>
-                  <span className="text-2xl font-bold">{s.count}</span>
-                </div>
-                <p className="text-xs mt-2 opacity-75">{t('reports.revenueLabel')}: {formatPrice(s.revenue, currency)}</p>
-              </div>
-            ))}
+                  <p className="text-xs mt-2 opacity-75">{t('reports.revenueLabel')}: {formatPrice(s.revenue, currency)}</p>
+                </button>
+              );
+            })}
           </div>
+
+          {selectedSegment && (
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-ink-secondary">{t('reports.filteredBySegment', { segment: segmentLabel(selectedSegment) })}</span>
+              <button onClick={() => setSelectedSegment(null)} className="text-brand hover:text-brand-dark font-medium">
+                {t('reports.clearFilter')}
+              </button>
+            </div>
+          )}
 
           {rfm.summary.length === 0 && (
             <div className="ds-card p-8 text-center">
@@ -340,7 +360,7 @@ const Reports = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
-                    {rfm.segments.map((c) => (
+                    {(selectedSegment ? rfm.segments.filter(c => c.segment === selectedSegment) : rfm.segments).map((c) => (
                       <tr key={c.clientId} className="hover:bg-canvas-soft transition-colors">
                         <td className="px-4 py-3 text-sm font-medium text-ink">{c.name}</td>
                         <td className="px-4 py-3 text-sm text-ink-secondary">{c.R}{t('reports.daysShort')}</td>
