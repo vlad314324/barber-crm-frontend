@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../i18n/LocaleContext';
 import LanguageToggle from '../components/LanguageToggle';
 import { resolveErrorMessage, getErrorCode } from '../utils/errors';
+import { getPasswordError } from '../utils/passwordValidation';
 
 const ResetPassword = () => {
   const { t } = useLocale();
@@ -22,7 +23,9 @@ const ResetPassword = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!slugParam || !token) return;
-    if (password.length < 6) { setError(t('resetPassword.passwordTooShort')); return; }
+    const pwError = getPasswordError(password);
+    if (pwError === 'tooShort') { setError(t('resetPassword.passwordTooShort')); return; }
+    if (pwError === 'tooWeak') { setError(t('resetPassword.passwordTooWeak')); return; }
     if (password !== confirmPassword) { setError(t('resetPassword.passwordMismatch')); return; }
 
     setLoading(true); setError('');

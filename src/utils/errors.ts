@@ -21,6 +21,7 @@ const CODE_MESSAGE_KEYS: Record<string, string> = {
   TENANT_MISMATCH: 'errors.tenantMismatch',
   RESET_TOKEN_INVALID: 'resetPassword.invalidToken',
   PASSWORD_TOO_SHORT: 'resetPassword.passwordTooShort',
+  PASSWORD_TOO_WEAK: 'resetPassword.passwordTooWeak',
   ACCOUNT_DEACTIVATED: 'login.accountDeactivated',
 };
 

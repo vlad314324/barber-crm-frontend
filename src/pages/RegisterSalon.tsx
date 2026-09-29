@@ -7,6 +7,7 @@ import { useLocale } from '../i18n/LocaleContext';
 import LanguageToggle from '../components/LanguageToggle';
 import { defaultRouteForRole } from '../utils/roleRoutes';
 import { resolveErrorMessage } from '../utils/errors';
+import { getPasswordError } from '../utils/passwordValidation';
 
 // 32 символи — межа, зумовлена лімітом MongoDB Atlas на довжину назви бази
 // даних (38 байт мінус префікс `salon_`, 6 символів). Див. routes/salonRoutes.js.
@@ -72,6 +73,9 @@ const RegisterSalon = () => {
       setError(t('registerSalon.fillAll'));
       return;
     }
+    const pwError = getPasswordError(ownerPassword);
+    if (pwError === 'tooShort') { setError(t('registerSalon.passwordTooShort')); return; }
+    if (pwError === 'tooWeak') { setError(t('registerSalon.passwordTooWeak')); return; }
     if (ownerPassword !== confirmPassword) {
       setError(t('registerSalon.passwordMismatch'));
       return;

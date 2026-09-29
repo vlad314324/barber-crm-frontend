@@ -6,6 +6,7 @@ import { useLocale } from '../i18n/LocaleContext';
 import { ShopSettings, WorkingDay } from '../api/types';
 import { getErrorMessage } from '../utils/errors';
 import { getSiteUrl } from '../utils/siteUrl';
+import { getPasswordError } from '../utils/passwordValidation';
 import { useRefreshShopSettings } from '../context/SettingsContext';
 import BookingLinkCard from '../components/BookingLinkCard';
 import { BOOKING_LANGS, BookingLang } from '../i18n/bookingTranslations';
@@ -97,9 +98,9 @@ const Settings = () => {
     if (passwords.newPassword !== passwords.confirmPassword) {
       setErrorPass(t('settings.passwordsMismatch')); return;
     }
-    if (passwords.newPassword.length < 6) {
-      setErrorPass(t('settings.passwordTooShort')); return;
-    }
+    const pwError = getPasswordError(passwords.newPassword);
+    if (pwError === 'tooShort') { setErrorPass(t('settings.passwordTooShort')); return; }
+    if (pwError === 'tooWeak') { setErrorPass(t('settings.passwordTooWeak')); return; }
     setSavingPass(true);
     try {
       await api.put('/settings/change-password', {

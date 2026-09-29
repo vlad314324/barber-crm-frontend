@@ -5,6 +5,7 @@ import { Employee, Client, Review, Service } from '../api/types';
 import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
+import { getPasswordError } from '../utils/passwordValidation';
 import { useShopCurrency, useShopBookingLanguages, useShopDefaultBookingLanguage } from '../context/SettingsContext';
 import { getCurrencySymbol } from '../constants/currencies';
 import { BookingLang, BOOKING_LANG_LABELS } from '../i18n/bookingTranslations';
@@ -218,8 +219,11 @@ const Employees = () => {
     if (!loginEmp) return;
 
     if (isManageMode) {
-      if (loginForm.password && loginForm.password !== loginForm.confirmPassword) {
-        alert(t('employees.passwordMismatch')); return;
+      if (loginForm.password) {
+        const pwError = getPasswordError(loginForm.password);
+        if (pwError === 'tooShort') { alert(t('employees.passwordTooShort')); return; }
+        if (pwError === 'tooWeak') { alert(t('employees.passwordTooWeak')); return; }
+        if (loginForm.password !== loginForm.confirmPassword) { alert(t('employees.passwordMismatch')); return; }
       }
       setLoginSaving(true);
       try {
@@ -235,6 +239,9 @@ const Employees = () => {
     }
 
     if (!loginForm.email || !loginForm.password) { alert(t('employees.fillRequired')); return; }
+    const pwError = getPasswordError(loginForm.password);
+    if (pwError === 'tooShort') { alert(t('employees.passwordTooShort')); return; }
+    if (pwError === 'tooWeak') { alert(t('employees.passwordTooWeak')); return; }
     if (loginForm.password !== loginForm.confirmPassword) { alert(t('employees.passwordMismatch')); return; }
     setLoginSaving(true);
     try {
