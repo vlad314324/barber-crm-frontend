@@ -23,7 +23,8 @@
     "react-hook-form": "^7.51.0",
     "react-leaflet": "^4.2.1",
     "react-phone-number-input": "^3.4.16",
-    "react-router": "^7.18.3"
+    "react-router": "^7.18.3",
+    "recharts": "^3.10.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

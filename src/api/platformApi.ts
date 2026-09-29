@@ -75,11 +75,47 @@ export interface PlatformSalonDailyTrend {
   bookings: number;
 }
 
-export interface PlatformSalonAnalytics {
+export type BookingFunnelStep =
+  | 'page_view'
+  | 'master_selected'
+  | 'service_selected'
+  | 'slot_selected'
+  | 'contacts_entered'
+  | 'submit_success';
+
+export interface PlatformFunnelStepStat {
+  event: BookingFunnelStep;
+  count: number;
+  uniqueSessions: number;
+}
+
+export interface PlatformSourceStat {
+  source: string;
+  count: number;
+}
+
+export interface PlatformSalonFunnelAnalytics {
+  days: number;
   totalVisits: number;
+  uniqueVisitors: number;
   totalBookings: number;
   conversionRate: number;
+  funnel: PlatformFunnelStepStat[];
+  submitFailedCount: number;
+  sourceBreakdown: PlatformSourceStat[];
   dailyTrend: PlatformSalonDailyTrend[];
+}
+
+export interface PlatformSalonUsageAnalytics {
+  days: number;
+  loginCount: number;
+  activeDaysCount: number;
+  totalActiveMinutes: number;
+  avgSessionMinutes: number;
+  hourHistogram: number[];
+  totalBookings: number;
+  bookingsBySource: { public: number; admin: number };
+  bookingsByStatus: { Scheduled: number; Completed: number; Cancelled: number; 'No-show': number };
 }
 
 export interface PlatformAdminListItem {
@@ -140,8 +176,11 @@ export const platformAuthApi = {
   getAdmins: async (): Promise<PlatformAdminListItem[]> =>
     (await platformApi.get('/admins')).data,
 
-  getSalonAnalytics: async (id: string): Promise<PlatformSalonAnalytics> =>
-    (await platformApi.get(`/salons/${id}/analytics`)).data,
+  getSalonFunnelAnalytics: async (id: string, days = 30): Promise<PlatformSalonFunnelAnalytics> =>
+    (await platformApi.get(`/salons/${id}/analytics/funnel`, { params: { days } })).data,
+
+  getSalonUsageAnalytics: async (id: string, days = 30): Promise<PlatformSalonUsageAnalytics> =>
+    (await platformApi.get(`/salons/${id}/analytics/usage`, { params: { days } })).data,
 };
 
 export default platformApi;
