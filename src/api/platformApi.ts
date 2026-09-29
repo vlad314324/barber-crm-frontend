@@ -136,6 +136,23 @@ export interface PlatformAnalyticsOverview {
   salons: PlatformSalonHealthSummary[];
 }
 
+export type RetentionWeekOffset = '1' | '4' | '12';
+
+export interface PlatformCohortRow {
+  cohortWeekStart: string;
+  salonCount: number;
+  retention: Record<RetentionWeekOffset, number | null>;
+}
+
+export interface PlatformStartupMetrics {
+  northStar: { weekStart: string; bookings: number }[];
+  activation: { activatedCount: number; eligibleCount: number; rate: number | null };
+  timeToFirstBooking: { medianDays: number | null; sampleSize: number };
+  retention: Record<RetentionWeekOffset, number | null>;
+  cohortTable: PlatformCohortRow[];
+  churn: { churnedCount: number; everActiveCount: number; rate: number | null };
+}
+
 export interface PlatformAdminListItem {
   id: string;
   name: string;
@@ -202,6 +219,9 @@ export const platformAuthApi = {
 
   getAnalyticsOverview: async (days = 30): Promise<PlatformAnalyticsOverview> =>
     (await platformApi.get('/analytics/overview', { params: { days } })).data,
+
+  getStartupMetrics: async (weeks = 12): Promise<PlatformStartupMetrics> =>
+    (await platformApi.get('/analytics/startup-metrics', { params: { weeks } })).data,
 };
 
 export default platformApi;
