@@ -84,6 +84,8 @@ const Services = () => {
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editCategoryName, setEditCategoryName] = useState('');
   const [editCategoryIcon, setEditCategoryIcon] = useState(DEFAULT_ICON);
+  const [newCategoryTranslations, setNewCategoryTranslations] = useState<NonNullable<Category['translations']>>({});
+  const [editCategoryTranslations, setEditCategoryTranslations] = useState<NonNullable<Category['translations']>>({});
 
   const categoryLabel = (name: string) => {
     const translated = t(`categories.${name}`);
@@ -205,10 +207,11 @@ const Services = () => {
     if (!name) return;
     setSavingCategory(true);
     try {
-      const created = await categoryApi.create({ name, icon: newCategoryIcon });
+      const created = await categoryApi.create({ name, icon: newCategoryIcon, translations: newCategoryTranslations });
       setCategories(prev => [...prev, created]);
       setNewCategoryName('');
       setNewCategoryIcon(DEFAULT_ICON);
+      setNewCategoryTranslations({});
     } catch (err) {
       alert(getErrorMessage(err) || t('services.categorySaveError'));
     } finally {
@@ -220,7 +223,24 @@ const Services = () => {
     setEditingCategoryId(cat._id);
     setEditCategoryName(cat.name);
     setEditCategoryIcon(cat.icon || DEFAULT_ICON);
+    setEditCategoryTranslations(cat.translations || {});
   };
+
+  // Поля перекладу назви категорії — по одному на кожну додаткову мову
+  // сторінки бронювання (як у формі послуги).
+  const renderCategoryTranslationInputs = (
+    value: NonNullable<Category['translations']>,
+    onChange: (next: NonNullable<Category['translations']>) => void,
+  ) => translationLangs.map(lang => (
+    <input
+      key={lang}
+      type="text"
+      className="field-input"
+      value={value[lang] || ''}
+      onChange={(e) => onChange({ ...value, [lang]: e.target.value })}
+      placeholder={`${BOOKING_LANG_LABELS[lang]} — ${t('services.categoryNamePlaceholder')}`}
+    />
+  ));
 
   const cancelEditCategory = () => setEditingCategoryId(null);
 
@@ -229,7 +249,7 @@ const Services = () => {
     const name = editCategoryName.trim();
     if (!name) return;
     try {
-      const updated = await categoryApi.update(editingCategoryId, { name, icon: editCategoryIcon });
+      const updated = await categoryApi.update(editingCategoryId, { name, icon: editCategoryIcon, translations: editCategoryTranslations });
       setCategories(prev => prev.map(c => c._id === editingCategoryId ? updated : c));
       setEditingCategoryId(null);
       fetchServices();
@@ -499,6 +519,7 @@ const Services = () => {
               onChange={(e) => setNewCategoryName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleAddCategory(); }}
             />
+            {renderCategoryTranslationInputs(newCategoryTranslations, setNewCategoryTranslations)}
             <IconPicker value={newCategoryIcon} onChange={setNewCategoryIcon} />
             <div className="flex justify-end">
               <button onClick={handleAddCategory} disabled={savingCategory || !newCategoryName.trim()} className="btn btn-primary">
@@ -522,6 +543,7 @@ const Services = () => {
                     onKeyDown={(e) => { if (e.key === 'Enter') saveEditCategory(); }}
                     autoFocus
                   />
+                  {renderCategoryTranslationInputs(editCategoryTranslations, setEditCategoryTranslations)}
                   <IconPicker value={editCategoryIcon} onChange={setEditCategoryIcon} />
                   <div className="flex justify-end gap-2">
                     <button onClick={cancelEditCategory} className="btn btn-secondary">{t('common.cancel')}</button>

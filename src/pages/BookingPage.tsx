@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, ReactNode } from 'react';
+import { useState, useEffect, useMemo, useRef, ReactNode, CSSProperties } from 'react';
 import { useParams } from 'react-router';
 import axios from 'axios';
 import {
@@ -16,6 +16,7 @@ import { PublicBookingSettings } from '../api/types';
 import { formatPriceRange } from '../utils/money';
 import { formatDurationRange } from '../utils/duration';
 import { trackEvent } from '../utils/tracking';
+import { useTheme } from '../context/ThemeContext';
 
 interface Service {
   _id: string; name: string; description?: string; price: number; priceMax?: number; duration: number; durationMax?: number; category: string;
@@ -23,19 +24,51 @@ interface Service {
 }
 interface Employee {
   _id: string; name: string; role: string; customRoleLabel?: string; services?: string[]; specialties?: string[]; bio?: string;
-  translations?: Partial<Record<BookingLang, { bio: string; specialties: string[] }>>;
+  translations?: Partial<Record<BookingLang, { bio: string; specialties: string[]; customRoleLabel?: string }>>;
 }
 
 // Ім'я майстра свідомо не перекладається — лише опис послуги та bio/спеціалізації.
 const serviceName = (s: Service, lang: BookingLang) => s.translations?.[lang]?.name?.trim() || s.name;
 const serviceDescription = (s: Service, lang: BookingLang) => s.translations?.[lang]?.description?.trim() || s.description || '';
 const employeeBio = (e: Employee, lang: BookingLang) => e.translations?.[lang]?.bio?.trim() || e.bio || '';
+const employeeRoleLabel = (e: Employee, lang: BookingLang) =>
+  e.translations?.[lang]?.customRoleLabel?.trim() || e.customRoleLabel?.trim() || '';
 const employeeSpecialties = (e: Employee, lang: BookingLang) => {
   const translated = e.translations?.[lang]?.specialties;
   return translated && translated.length > 0 ? translated : (e.specialties || []);
 };
 
 const HEX_COLOR_RE = /^#([0-9a-f]{3}){1,2}$/i;
+
+// Акцентний колір салону підміняє brand-палітру (CSS-змінні --color-brand*,
+// на яких побудовані bg-brand/text-brand-dark/btn-primary тощо) у межах
+// сторінки бронювання — так акцент отримують усі кнопки, ціни, вибрані
+// картки й слоти, а не лише окремі елементи з inline-стилем.
+type Rgb = [number, number, number];
+const hexToRgb = (hex: string): Rgb => {
+  const h = hex.replace('#', '');
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+  return [0, 2, 4].map(i => parseInt(full.slice(i, i + 2), 16)) as Rgb;
+};
+const mix = (a: Rgb, b: Rgb, weightB: number): string =>
+  a.map((v, i) => Math.round(v * (1 - weightB) + b[i] * weightB)).join(' ');
+const accentVars = (hex: string, dark: boolean): Record<string, string> => {
+  const c = hexToRgb(hex);
+  const white: Rgb = [255, 255, 255];
+  const black: Rgb = [0, 0, 0];
+  const darkBg: Rgb = [18, 20, 22];
+  return dark ? {
+    '--color-brand': c.join(' '),
+    '--color-brand-dark': mix(c, white, 0.2),
+    '--color-brand-soft': mix(c, darkBg, 0.78),
+    '--color-brand-extra-soft': mix(c, darkBg, 0.86),
+  } : {
+    '--color-brand': c.join(' '),
+    '--color-brand-dark': mix(c, black, 0.25),
+    '--color-brand-soft': mix(c, white, 0.82),
+    '--color-brand-extra-soft': mix(c, white, 0.9),
+  };
+};
 // Довші описи послуг згортаються до 2 рядків з кнопкою "Читати далі".
 const DESCRIPTION_CLAMP_CHARS = 110;
 
@@ -75,6 +108,7 @@ const MenuRow = ({ icon, title, subtitle, disabled, disabledHint, onClick }: {
 
 const BookingPage = () => {
   const { salonSlug } = useParams<{ salonSlug?: string }>();
+  const { theme } = useTheme();
   const [lang, setLangState] = useState<BookingLang>('uk');
   const [langTouched, setLangTouched] = useState(false);
   const t = (path: string, vars?: Record<string, string | number>) => tBooking(lang, path, vars);
@@ -165,7 +199,9 @@ const BookingPage = () => {
   }, [api, salonSlug]);
 
   const accentColor = branding?.accentColor && HEX_COLOR_RE.test(branding.accentColor) ? branding.accentColor : null;
-  const accentStyle = accentColor ? { backgroundColor: accentColor, borderColor: accentColor } : undefined;
+  const pageStyle = accentColor ? accentVars(accentColor, theme === 'dark') as CSSProperties : undefined;
+  const categoryLabel = (category: string) =>
+    branding?.serviceCategoryTranslations?.[category]?.[lang]?.trim() || category;
 
   const enabledLangs = (branding?.bookingLanguages?.length
     ? branding.bookingLanguages.filter((l): l is BookingLang => (DEFAULT_BOOKING_LANGS as string[]).includes(l) || l === 'cs' || l === 'pl')
@@ -316,7 +352,6 @@ const BookingPage = () => {
               <button type="button"
                 aria-expanded={expanded}
                 onClick={e => { e.stopPropagation(); toggleDescription(s._id); }}
-                style={accentColor ? { color: accentColor } : undefined}
                 className="text-sm font-medium text-brand-dark hover:underline mt-0.5">
                 {expanded ? t('booking.showLess') : t('booking.readMore')}
               </button>
@@ -367,7 +402,7 @@ const BookingPage = () => {
   };
 
   if (!salonSlug) return (
-    <div className="min-h-screen bg-canvas flex items-center justify-center px-4">
+    <div style={pageStyle} className="min-h-screen bg-canvas flex items-center justify-center px-4">
       <div className="absolute top-4 right-4">
         <LanguageToggle langs={enabledLangs} labels={BOOKING_LANG_LABELS} value={lang} onChange={setLang} />
       </div>
@@ -379,7 +414,7 @@ const BookingPage = () => {
   );
 
   if (catalogLoading || catalogError) return (
-    <div className="min-h-screen bg-canvas flex items-center justify-center px-4">
+    <div style={pageStyle} className="min-h-screen bg-canvas flex items-center justify-center px-4">
       <div className="absolute top-4 right-4">
         <LanguageToggle langs={enabledLangs} labels={BOOKING_LANG_LABELS} value={lang} onChange={setLang} />
       </div>
@@ -397,7 +432,7 @@ const BookingPage = () => {
   );
 
   if (done) return (
-    <div className="min-h-screen bg-canvas flex items-center justify-center px-4">
+    <div style={pageStyle} className="min-h-screen bg-canvas flex items-center justify-center px-4">
       <div className="absolute top-4 right-4">
         <LanguageToggle langs={enabledLangs} labels={BOOKING_LANG_LABELS} value={lang} onChange={setLang} />
       </div>
@@ -424,7 +459,7 @@ const BookingPage = () => {
   );
 
   return (
-    <div className="min-h-screen bg-canvas">
+    <div style={pageStyle} className="min-h-screen bg-canvas">
       {screen === 'menu' ? (
         <div className="bg-neutral-900 text-white py-6 px-4 text-center relative"
           style={branding?.coverImageUrl ? {
@@ -493,7 +528,6 @@ const BookingPage = () => {
           <button
             disabled={!selectedEmployee || !selectedDate || !selectedTime || selectedServices.length === 0}
             onClick={() => setScreen('contacts')}
-            style={accentStyle}
             className="btn btn-primary w-full py-3">
             {t('booking.bookNow')}
           </button>
@@ -594,7 +628,7 @@ const BookingPage = () => {
                   </div>
                   <div className="min-w-0">
                     <p className="font-medium text-ink">{e.name}</p>
-                    <p className="text-sm text-ink-muted">{e.customRoleLabel?.trim() || t(`roles.${e.role}`)}</p>
+                    <p className="text-sm text-ink-muted">{employeeRoleLabel(e, lang) || t(`roles.${e.role}`)}</p>
                     {employeeSpecialties(e, lang).length > 0 && (
                       <p className="text-xs text-ink-muted mt-0.5">{employeeSpecialties(e, lang).join(', ')}</p>
                     )}
@@ -638,7 +672,6 @@ const BookingPage = () => {
                   {slots.map(slot => (
                     <button key={slot}
                       onClick={() => { setSelectedTime(slot); trackEvent(api, 'slot_selected', { date: selectedDate, time: slot }); }}
-                      style={selectedTime === slot ? accentStyle : undefined}
                       className={`py-2 rounded-sm text-sm font-medium border transition-colors
                         ${selectedTime === slot
                           ? 'bg-brand text-white border-brand'
@@ -674,9 +707,9 @@ const BookingPage = () => {
                       aria-expanded={isOpen}
                       onClick={() => toggleCategory(category)}
                       className="w-full flex items-center gap-3 px-4 py-3.5 text-left cursor-pointer hover:bg-canvas-soft">
-                      <span className="flex-1 min-w-0 font-semibold text-ink">{category}</span>
+                      <span className="flex-1 min-w-0 font-semibold text-ink">{categoryLabel(category)}</span>
                       {selectedInGroup > 0 && (
-                        <span className="badge badge-neutral flex-shrink-0" style={accentColor ? { backgroundColor: accentColor, color: '#fff' } : undefined}>
+                        <span className="badge bg-brand text-white flex-shrink-0">
                           {selectedInGroup}
                         </span>
                       )}
@@ -800,7 +833,7 @@ const BookingPage = () => {
               <p className="text-sm text-red-600">{error}</p>
             </div>
           )}
-          <button onClick={handleSubmit} disabled={loading} style={accentStyle} className="btn btn-primary w-full py-3">
+          <button onClick={handleSubmit} disabled={loading} className="btn btn-primary w-full py-3">
             {loading ? t('booking.booking') : t('booking.confirmBtn')}
           </button>
         </div>

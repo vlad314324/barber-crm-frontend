@@ -130,8 +130,8 @@ export const serviceApi = {
 
 export const categoryApi = {
   getAll: async (): Promise<Category[]> => (await api.get('/categories')).data,
-  create: async (data: { name: string; icon?: string }): Promise<Category> => (await api.post('/categories', data)).data,
-  update: async (id: string, data: { name: string; icon?: string }): Promise<Category> => (await api.put(`/categories/${id}`, data)).data,
+  create: async (data: { name: string; icon?: string; translations?: Category['translations'] }): Promise<Category> => (await api.post('/categories', data)).data,
+  update: async (id: string, data: { name: string; icon?: string; translations?: Category['translations'] }): Promise<Category> => (await api.put(`/categories/${id}`, data)).data,
   delete: async (id: string): Promise<void> => { await api.delete(`/categories/${id}`); },
 };
 

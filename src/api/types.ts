@@ -59,7 +59,7 @@ export interface Employee {
   userId?: string | null;
   // Переклади bio/спеціалізацій для мов сторінки бронювання, крім мови за
   // замовчуванням салону (та лишається в базових полях name/bio/specialties).
-  translations?: Partial<Record<BookingLang, { bio: string; specialties: string[] }>>;
+  translations?: Partial<Record<BookingLang, { bio: string; specialties: string[]; customRoleLabel?: string }>>;
 }
 
 export interface Service {
@@ -81,6 +81,8 @@ export interface Category {
   _id: string;
   name: string;
   icon: string;
+  // Перекладені назви для мов сторінки бронювання (ключ — код мови)
+  translations?: Partial<Record<BookingLang, string>>;
 }
 
 export interface Notification {
@@ -189,7 +191,7 @@ export interface CreateEmployeeDto {
   };
   specialties?: string[];
   services?: string[];
-  translations?: Partial<Record<BookingLang, { bio: string; specialties: string[] }>>;
+  translations?: Partial<Record<BookingLang, { bio: string; specialties: string[]; customRoleLabel?: string }>>;
 }
 
 export interface CreateServiceDto {
@@ -328,4 +330,6 @@ export interface PublicBookingSettings {
   bookingGroupByCategory?: boolean;
   // Назви категорій у порядку показу (лише коли bookingGroupByCategory)
   serviceCategories?: string[];
+  // { [назва категорії]: { [мова]: переклад } }
+  serviceCategoryTranslations?: Record<string, Partial<Record<string, string>>>;
 }
