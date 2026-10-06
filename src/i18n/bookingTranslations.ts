@@ -45,6 +45,8 @@ interface BookingDict {
     contactsTitle: string;
     confirmTitle: string;
     selectedCount: string;
+    readMore: string;
+    showLess: string;
     dateLabel: string;
     availableTimeLabel: string;
     closedMessage: string;
@@ -102,6 +104,8 @@ const uk: BookingDict = {
     contactsTitle: 'Ваші контакти',
     confirmTitle: 'Підтвердження запису',
     selectedCount: 'Обрано: {{count}} послуг • {{duration}}',
+    readMore: 'Читати далі',
+    showLess: 'Згорнути',
     dateLabel: 'Дата',
     availableTimeLabel: 'Вільний час',
     closedMessage: '🚫 Заклад не працює в цей день',
@@ -159,6 +163,8 @@ const en: BookingDict = {
     contactsTitle: 'Your contacts',
     confirmTitle: 'Booking confirmation',
     selectedCount: '{{count}} services selected • {{duration}}',
+    readMore: 'Read more',
+    showLess: 'Show less',
     dateLabel: 'Date',
     availableTimeLabel: 'Available time',
     closedMessage: '🚫 The shop is closed this day',
@@ -216,6 +222,8 @@ const cs: BookingDict = {
     contactsTitle: 'Vaše kontaktní údaje',
     confirmTitle: 'Potvrzení rezervace',
     selectedCount: 'Vybráno: {{count}} služeb • {{duration}}',
+    readMore: 'Číst dále',
+    showLess: 'Skrýt',
     dateLabel: 'Datum',
     availableTimeLabel: 'Volný čas',
     closedMessage: '🚫 Salon je tento den zavřený',
@@ -273,6 +281,8 @@ const pl: BookingDict = {
     contactsTitle: 'Twoje dane kontaktowe',
     confirmTitle: 'Potwierdzenie rezerwacji',
     selectedCount: 'Wybrano: {{count}} usług • {{duration}}',
+    readMore: 'Czytaj więcej',
+    showLess: 'Zwiń',
     dateLabel: 'Data',
     availableTimeLabel: 'Wolne godziny',
     closedMessage: '🚫 Salon jest zamknięty tego dnia',

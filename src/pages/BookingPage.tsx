@@ -36,6 +36,8 @@ const employeeSpecialties = (e: Employee, lang: BookingLang) => {
 };
 
 const HEX_COLOR_RE = /^#([0-9a-f]{3}){1,2}$/i;
+// Довші описи послуг згортаються до 2 рядків з кнопкою "Читати далі".
+const DESCRIPTION_CLAMP_CHARS = 110;
 
 type Screen = 'menu' | 'about' | 'services' | 'master' | 'datetime' | 'contacts' | 'confirm';
 
@@ -104,6 +106,7 @@ const BookingPage = () => {
 
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
   const [openCategories, setOpenCategories]     = useState<Set<string>>(new Set());
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [selectedDate, setSelectedDate]         = useState('');
   const [selectedTime, setSelectedTime]         = useState('');
@@ -276,24 +279,55 @@ const BookingPage = () => {
     });
   };
 
-  const renderServiceCard = (s: Service) => (
-    <button key={s._id} type="button"
-      aria-pressed={!!selectedServices.find(x => x._id === s._id)}
-      onClick={() => toggleService(s)}
-      className={`w-full p-4 rounded-md border-2 cursor-pointer transition-colors text-left
-        ${selectedServices.find(x => x._id === s._id)
-          ? 'border-brand bg-brand-extra-soft'
-          : 'border-line bg-surface hover:border-line-medium'}`}>
-      <div className="flex justify-between items-center gap-3">
-        <div>
-          <p className="font-medium text-ink">{serviceName(s, lang)}</p>
-          {serviceDescription(s, lang) && <p className="text-sm text-ink-muted mt-0.5">{serviceDescription(s, lang)}</p>}
-          <p className="text-sm text-ink-muted">{formatDurationRange(s.duration, s.durationMax, bookingDurationLabels)}</p>
+  const toggleDescription = (id: string) => {
+    setExpandedDescriptions(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  // Картка — div з role="button", а не <button>: всередині є власна кнопка
+  // "Читати далі", а вкладені <button> — невалідний HTML.
+  const renderServiceCard = (s: Service) => {
+    const selected = !!selectedServices.find(x => x._id === s._id);
+    const description = serviceDescription(s, lang);
+    const collapsible = description.length > DESCRIPTION_CLAMP_CHARS;
+    const expanded = expandedDescriptions.has(s._id);
+    return (
+      <div key={s._id} role="button" tabIndex={0}
+        aria-pressed={selected}
+        onClick={() => toggleService(s)}
+        onKeyDown={e => {
+          if (e.target !== e.currentTarget) return;
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleService(s); }
+        }}
+        className={`w-full p-4 rounded-md border-2 cursor-pointer transition-colors text-left
+          ${selected
+            ? 'border-brand bg-brand-extra-soft'
+            : 'border-line bg-surface hover:border-line-medium'}`}>
+        <div className="flex justify-between items-center gap-3">
+          <div className="min-w-0">
+            <p className="font-medium text-ink">{serviceName(s, lang)}</p>
+            {description && (
+              <p className={`text-sm text-ink-muted mt-0.5 ${collapsible && !expanded ? 'line-clamp-2' : ''}`}>{description}</p>
+            )}
+            {collapsible && (
+              <button type="button"
+                aria-expanded={expanded}
+                onClick={e => { e.stopPropagation(); toggleDescription(s._id); }}
+                style={accentColor ? { color: accentColor } : undefined}
+                className="text-sm font-medium text-brand-dark hover:underline mt-0.5">
+                {expanded ? t('booking.showLess') : t('booking.readMore')}
+              </button>
+            )}
+            <p className="text-sm text-ink-muted">{formatDurationRange(s.duration, s.durationMax, bookingDurationLabels)}</p>
+          </div>
+          <p className="font-semibold text-brand-dark whitespace-nowrap">{formatPriceRange(s.price, s.priceMax, branding?.currency)}</p>
         </div>
-        <p className="font-semibold text-brand-dark whitespace-nowrap">{formatPriceRange(s.price, s.priceMax, branding?.currency)}</p>
       </div>
-    </button>
-  );
+    );
+  };
 
   const todayStr = new Date().toISOString().split('T')[0];
 
