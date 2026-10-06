@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef, ReactNode } from 'react';
 import { useParams } from 'react-router';
 import axios from 'axios';
 import {
-  CheckCircle, ChevronLeft, ChevronRight,
+  CheckCircle, ChevronDown, ChevronLeft, ChevronRight,
   User, CalendarDays, ListChecks, Info, MapPin, Phone, Globe, Copy, Check,
 } from 'lucide-react';
 import PhoneInput from 'react-phone-number-input';
@@ -103,6 +103,7 @@ const BookingPage = () => {
   const [slotsError, setSlotsError]     = useState('');
 
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
+  const [openCategories, setOpenCategories]     = useState<Set<string>>(new Set());
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [selectedDate, setSelectedDate]         = useState('');
   const [selectedTime, setSelectedTime]         = useState('');
@@ -248,6 +249,51 @@ const BookingPage = () => {
   const availableServices = !selectedEmployee || !selectedEmployee.services || selectedEmployee.services.length === 0
     ? services
     : services.filter(s => selectedEmployee.services!.includes(s._id));
+
+  // Групування за категоріями (Settings.bookingGroupByCategory): секції в
+  // порядку serviceCategories з сервера; категорії, яких там немає, — у кінці
+  // в порядку першої появи. Секції згорнуті, доки клієнт їх не розкриє.
+  const groupByCategory = !!branding?.bookingGroupByCategory;
+  const serviceGroups = (() => {
+    if (!groupByCategory) return [];
+    const order = branding?.serviceCategories || [];
+    const groups = new Map<string, Service[]>();
+    availableServices.forEach(s => {
+      const list = groups.get(s.category);
+      if (list) list.push(s); else groups.set(s.category, [s]);
+    });
+    const rank = (c: string) => { const i = order.indexOf(c); return i === -1 ? order.length : i; };
+    return [...groups.entries()]
+      .map(([category, items], i) => ({ category, items, i }))
+      .sort((a, b) => rank(a.category) - rank(b.category) || a.i - b.i);
+  })();
+
+  const toggleCategory = (category: string) => {
+    setOpenCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category); else next.add(category);
+      return next;
+    });
+  };
+
+  const renderServiceCard = (s: Service) => (
+    <button key={s._id} type="button"
+      aria-pressed={!!selectedServices.find(x => x._id === s._id)}
+      onClick={() => toggleService(s)}
+      className={`w-full p-4 rounded-md border-2 cursor-pointer transition-colors text-left
+        ${selectedServices.find(x => x._id === s._id)
+          ? 'border-brand bg-brand-extra-soft'
+          : 'border-line bg-surface hover:border-line-medium'}`}>
+      <div className="flex justify-between items-center gap-3">
+        <div>
+          <p className="font-medium text-ink">{serviceName(s, lang)}</p>
+          {serviceDescription(s, lang) && <p className="text-sm text-ink-muted mt-0.5">{serviceDescription(s, lang)}</p>}
+          <p className="text-sm text-ink-muted">{formatDurationRange(s.duration, s.durationMax, bookingDurationLabels)}</p>
+        </div>
+        <p className="font-semibold text-brand-dark whitespace-nowrap">{formatPriceRange(s.price, s.priceMax, branding?.currency)}</p>
+      </div>
+    </button>
+  );
 
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -583,26 +629,40 @@ const BookingPage = () => {
       {screen === 'services' && (
         <div className="max-w-2xl mx-auto px-4 py-6">
           <ScreenHeader title={t('booking.chooseService')} onBack={() => setScreen('menu')} />
-          <div className="space-y-3">
-            {availableServices.map(s => (
-              <button key={s._id} type="button"
-                aria-pressed={!!selectedServices.find(x => x._id === s._id)}
-                onClick={() => toggleService(s)}
-                className={`w-full p-4 rounded-md border-2 cursor-pointer transition-colors text-left
-                  ${selectedServices.find(x => x._id === s._id)
-                    ? 'border-brand bg-brand-extra-soft'
-                    : 'border-line bg-surface hover:border-line-medium'}`}>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="font-medium text-ink">{serviceName(s, lang)}</p>
-                    {serviceDescription(s, lang) && <p className="text-sm text-ink-muted mt-0.5">{serviceDescription(s, lang)}</p>}
-                    <p className="text-sm text-ink-muted">{formatDurationRange(s.duration, s.durationMax, bookingDurationLabels)}</p>
+          {groupByCategory ? (
+            <div className="space-y-3">
+              {serviceGroups.map(({ category, items }) => {
+                const isOpen = openCategories.has(category);
+                const selectedInGroup = items.filter(s => selectedServices.some(x => x._id === s._id)).length;
+                return (
+                  <div key={category} className="ds-card overflow-hidden">
+                    <button type="button"
+                      aria-expanded={isOpen}
+                      onClick={() => toggleCategory(category)}
+                      className="w-full flex items-center gap-3 px-4 py-3.5 text-left cursor-pointer hover:bg-canvas-soft">
+                      <span className="flex-1 min-w-0 font-semibold text-ink">{category}</span>
+                      {selectedInGroup > 0 && (
+                        <span className="badge badge-neutral flex-shrink-0" style={accentColor ? { backgroundColor: accentColor, color: '#fff' } : undefined}>
+                          {selectedInGroup}
+                        </span>
+                      )}
+                      <span className="text-xs text-ink-muted flex-shrink-0">{items.length}</span>
+                      <ChevronDown size={18} className={`text-ink-muted flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}/>
+                    </button>
+                    {isOpen && (
+                      <div className="px-3 pb-3 space-y-3">
+                        {items.map(renderServiceCard)}
+                      </div>
+                    )}
                   </div>
-                  <p className="font-semibold text-brand-dark">{formatPriceRange(s.price, s.priceMax, branding?.currency)}</p>
-                </div>
-              </button>
-            ))}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {availableServices.map(renderServiceCard)}
+            </div>
+          )}
           {selectedServices.length > 0 && (
             <div className="mt-4 p-3 bg-brand-extra-soft rounded-sm flex justify-between items-center">
               <span className="text-sm text-ink-secondary">{t('booking.selectedCount', { count: selectedServices.length, duration: formatDurationRange(totalDurationMin, totalDuration, bookingDurationLabels) })}</span>

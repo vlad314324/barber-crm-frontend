@@ -305,6 +305,8 @@ export interface ShopSettings {
   timezone?: string;
   serviceRangesEnabled?: boolean;
   durationDisplayUnit?: 'minutes' | 'hours';
+  // Групувати послуги за категоріями (розкривні секції) на сторінці бронювання
+  bookingGroupByCategory?: boolean;
 }
 
 // Публічний підмножина ShopSettings, яку віддає /booking/settings
@@ -323,4 +325,7 @@ export interface PublicBookingSettings {
   bookingLanguages?: string[];
   defaultBookingLanguage?: string;
   currency?: string;
+  bookingGroupByCategory?: boolean;
+  // Назви категорій у порядку показу (лише коли bookingGroupByCategory)
+  serviceCategories?: string[];
 }

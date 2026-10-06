@@ -35,6 +35,7 @@ const Settings = () => {
     currency: 'UAH', timezone: 'Europe/Kyiv',
     serviceRangesEnabled: false,
     durationDisplayUnit: 'minutes',
+    bookingGroupByCategory: false,
   });
 
   const [passwords, setPasswords] = useState({
@@ -63,6 +64,7 @@ const Settings = () => {
         timezone: data.timezone || 'Europe/Kyiv',
         serviceRangesEnabled: !!data.serviceRangesEnabled,
         durationDisplayUnit: data.durationDisplayUnit === 'hours' ? 'hours' : 'minutes',
+        bookingGroupByCategory: !!data.bookingGroupByCategory,
       });
     }).catch(err => {
       setLoadError(getErrorMessage(err) || t('settings.loadError'));
@@ -258,6 +260,19 @@ const Settings = () => {
                   <label htmlFor="serviceRangesEnabled" className="field-label !mb-0">{t('settings.fieldServiceRanges')}</label>
                 </div>
                 <p className="text-xs text-ink-muted mt-1.5">{t('settings.fieldServiceRangesHint')}</p>
+              </div>
+              <div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="bookingGroupByCategory"
+                    checked={!!settings.bookingGroupByCategory}
+                    onChange={e => setSettings(prev => ({ ...prev, bookingGroupByCategory: e.target.checked }))}
+                    className="w-4 h-4 text-brand rounded flex-shrink-0 focus:ring-brand"
+                  />
+                  <label htmlFor="bookingGroupByCategory" className="field-label !mb-0">{t('settings.fieldGroupByCategory')}</label>
+                </div>
+                <p className="text-xs text-ink-muted mt-1.5">{t('settings.fieldGroupByCategoryHint')}</p>
               </div>
               <div>
                 <label className="field-label">{t('settings.fieldDurationUnit')}</label>
