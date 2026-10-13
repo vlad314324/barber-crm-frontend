@@ -269,6 +269,15 @@ export interface UpdateStaffLoginResponse {
   user: AuthUser;
 }
 
+export interface TelegramLinkCodeResponse {
+  code: string;
+  deepLink: string | null;
+}
+
+export interface TelegramStatusResponse {
+  linked: boolean;
+}
+
 // Excel import/export
 export interface ImportRowError {
   row: number;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Clock, Lock, Save, Check, Link2, Palette } from 'lucide-react';
-import api from '../api';
+import { Settings as SettingsIcon, Clock, Lock, Save, Check, Link2, Palette, Send, X } from 'lucide-react';
+import api, { authApi } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../i18n/LocaleContext';
 import { ShopSettings, WorkingDay } from '../api/types';
@@ -49,6 +49,11 @@ const Settings = () => {
   const [savedPass, setSavedPass]   = useState(false);
   const [errorPass, setErrorPass]   = useState('');
 
+  const [telegramLinked, setTelegramLinked] = useState<boolean | null>(null);
+  const [telegramDeepLink, setTelegramDeepLink] = useState<string | null>(null);
+  const [telegramBusy, setTelegramBusy] = useState(false);
+  const [telegramError, setTelegramError] = useState('');
+
   const loadSettings = () => {
     setLoading(true);
     setLoadError('');
@@ -73,8 +78,20 @@ const Settings = () => {
 
   useEffect(() => {
     loadSettings();
+    authApi.getTelegramStatus().then(r => setTelegramLinked(r.linked)).catch(() => setTelegramLinked(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Прив'язка завершується в Telegram (окрема вкладка/застосунок), не на
+  // цій сторінці — без опитування статусу користувач не побачив би, що
+  // підключення вже спрацювало, доки сам не перезавантажить сторінку.
+  useEffect(() => {
+    if (!telegramDeepLink || telegramLinked) return;
+    const interval = setInterval(() => {
+      authApi.getTelegramStatus().then(r => { if (r.linked) setTelegramLinked(true); }).catch(() => {});
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [telegramDeepLink, telegramLinked]);
 
   const handleInfoSave = async () => {
     setSaving(true);
@@ -114,6 +131,34 @@ const Settings = () => {
       setErrorPass(getErrorMessage(err) || t('settings.changePasswordError'));
     } finally {
       setSavingPass(false);
+    }
+  };
+
+  const handleGenerateTelegramLink = async () => {
+    setTelegramError('');
+    setTelegramBusy(true);
+    try {
+      const { deepLink } = await authApi.generateTelegramLinkCode();
+      setTelegramDeepLink(deepLink);
+      if (!deepLink) setTelegramError(t('settings.telegramNotConfigured'));
+    } catch (err) {
+      setTelegramError(getErrorMessage(err) || t('settings.telegramError'));
+    } finally {
+      setTelegramBusy(false);
+    }
+  };
+
+  const handleUnlinkTelegram = async () => {
+    setTelegramError('');
+    setTelegramBusy(true);
+    try {
+      await authApi.unlinkTelegram();
+      setTelegramLinked(false);
+      setTelegramDeepLink(null);
+    } catch (err) {
+      setTelegramError(getErrorMessage(err) || t('settings.telegramError'));
+    } finally {
+      setTelegramBusy(false);
     }
   };
 
@@ -499,6 +544,46 @@ const Settings = () => {
                   {savedPass ? <><Check size={16}/> {t('settings.changed')}</> : <><Lock size={16}/> {t('settings.changePasswordBtn')}</>}
                 </button>
               </div>
+            </div>
+          </div>
+
+          <div className="ds-card overflow-hidden mt-6">
+            <div className="ds-card-header">
+              <div>
+                <h2 className="text-base font-semibold text-ink flex items-center gap-2">
+                  <Send size={18} className="text-brand" /> {t('settings.telegramTitle')}
+                </h2>
+                <p className="text-sm text-ink-muted mt-0.5">{t('settings.telegramDesc')}</p>
+              </div>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              {telegramLinked === true ? (
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2 text-brand-dark text-sm font-medium">
+                    <Check size={16} /> {t('settings.telegramLinked')}
+                  </div>
+                  <button onClick={handleUnlinkTelegram} disabled={telegramBusy} className="btn btn-secondary">
+                    <X size={16} /> {t('settings.telegramUnlink')}
+                  </button>
+                </div>
+              ) : telegramDeepLink ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-ink-secondary">{t('settings.telegramOpenLink')}</p>
+                  <a href={telegramDeepLink} target="_blank" rel="noopener noreferrer" className="btn btn-primary inline-flex">
+                    <Send size={16} /> {t('settings.telegramOpenBtn')}
+                  </a>
+                  <p className="text-xs text-ink-muted">{t('settings.telegramWaiting')}</p>
+                </div>
+              ) : (
+                <button onClick={handleGenerateTelegramLink} disabled={telegramBusy} className="btn btn-primary">
+                  <Send size={16} /> {t('settings.telegramConnectBtn')}
+                </button>
+              )}
+              {telegramError && (
+                <div className="bg-red-50 border border-red-200 rounded-sm px-4 py-3">
+                  <p className="text-sm text-red-600">{telegramError}</p>
+                </div>
+              )}
             </div>
           </div>
 

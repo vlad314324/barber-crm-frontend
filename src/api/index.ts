@@ -6,7 +6,8 @@ import type {
   RegisterSalonDto, RegisterSalonResponse,
   CreateStaffLoginDto, CreateStaffLoginResponse,
   UpdateStaffLoginDto, UpdateStaffLoginResponse,
-  ImportResult, ClientPageParams, ClientPageResult, EmployeeStats
+  ImportResult, ClientPageParams, ClientPageResult, EmployeeStats,
+  TelegramLinkCodeResponse, TelegramStatusResponse
 } from './types';
 import { getSalonSlug, clearSalonSlug } from '../utils/tenant';
 
@@ -75,6 +76,11 @@ export const authApi = {
     (await api.post('/auth/register', data)).data,
   updateStaffLogin: async (employeeId: string, data: UpdateStaffLoginDto): Promise<UpdateStaffLoginResponse> =>
     (await api.put(`/auth/staff/${employeeId}`, data)).data,
+  generateTelegramLinkCode: async (): Promise<TelegramLinkCodeResponse> =>
+    (await api.post('/auth/telegram-link-code')).data,
+  getTelegramStatus: async (): Promise<TelegramStatusResponse> =>
+    (await api.get('/auth/telegram-status')).data,
+  unlinkTelegram: async (): Promise<void> => { await api.delete('/auth/telegram-link'); },
 };
 
 export const clientApi = {
