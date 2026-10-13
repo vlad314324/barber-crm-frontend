@@ -193,6 +193,50 @@ const Settings = () => {
     </div>
   );
 
+  // Telegram-сповіщення персональні для кожного користувача: адмін бачить їх
+  // на вкладці «Сторінка бронювання», інші ролі — у «Безпеці».
+  const telegramCard = (
+    <div className="ds-card overflow-hidden">
+      <div className="ds-card-header">
+        <div>
+          <h2 className="text-base font-semibold text-ink flex items-center gap-2">
+            <Send size={18} className="text-brand" /> {t('settings.telegramTitle')}
+          </h2>
+          <p className="text-sm text-ink-muted mt-0.5">{t('settings.telegramDesc')}</p>
+        </div>
+      </div>
+      <div className="px-6 py-5 space-y-4">
+        {telegramLinked === true ? (
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-brand-dark text-sm font-medium">
+              <Check size={16} /> {t('settings.telegramLinked')}
+            </div>
+            <button onClick={handleUnlinkTelegram} disabled={telegramBusy} className="btn btn-secondary">
+              <X size={16} /> {t('settings.telegramUnlink')}
+            </button>
+          </div>
+        ) : telegramDeepLink ? (
+          <div className="space-y-3">
+            <p className="text-sm text-ink-secondary">{t('settings.telegramOpenLink')}</p>
+            <a href={telegramDeepLink} target="_blank" rel="noopener noreferrer" className="btn btn-primary inline-flex">
+              <Send size={16} /> {t('settings.telegramOpenBtn')}
+            </a>
+            <p className="text-xs text-ink-muted">{t('settings.telegramWaiting')}</p>
+          </div>
+        ) : (
+          <button onClick={handleGenerateTelegramLink} disabled={telegramBusy} className="btn btn-primary">
+            <Send size={16} /> {t('settings.telegramConnectBtn')}
+          </button>
+        )}
+        {telegramError && (
+          <div className="bg-red-50 border border-red-200 rounded-sm px-4 py-3">
+            <p className="text-sm text-red-600">{telegramError}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-extrabold text-ink tracking-tight flex items-center gap-2">
@@ -400,6 +444,7 @@ const Settings = () => {
       {activeTab === 'booking' && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
+          <div className="space-y-6 h-fit">
           {/* Посилання для запису */}
           {salonSlug && (
             <div className="ds-card overflow-hidden h-fit">
@@ -416,6 +461,9 @@ const Settings = () => {
               </div>
             </div>
           )}
+
+          {telegramCard}
+          </div>
 
           {/* Оформлення сторінки бронювання */}
           <div className="ds-card overflow-hidden h-fit">
@@ -562,45 +610,7 @@ const Settings = () => {
             </div>
           </div>
 
-          <div className="ds-card overflow-hidden mt-6">
-            <div className="ds-card-header">
-              <div>
-                <h2 className="text-base font-semibold text-ink flex items-center gap-2">
-                  <Send size={18} className="text-brand" /> {t('settings.telegramTitle')}
-                </h2>
-                <p className="text-sm text-ink-muted mt-0.5">{t('settings.telegramDesc')}</p>
-              </div>
-            </div>
-            <div className="px-6 py-5 space-y-4">
-              {telegramLinked === true ? (
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-2 text-brand-dark text-sm font-medium">
-                    <Check size={16} /> {t('settings.telegramLinked')}
-                  </div>
-                  <button onClick={handleUnlinkTelegram} disabled={telegramBusy} className="btn btn-secondary">
-                    <X size={16} /> {t('settings.telegramUnlink')}
-                  </button>
-                </div>
-              ) : telegramDeepLink ? (
-                <div className="space-y-3">
-                  <p className="text-sm text-ink-secondary">{t('settings.telegramOpenLink')}</p>
-                  <a href={telegramDeepLink} target="_blank" rel="noopener noreferrer" className="btn btn-primary inline-flex">
-                    <Send size={16} /> {t('settings.telegramOpenBtn')}
-                  </a>
-                  <p className="text-xs text-ink-muted">{t('settings.telegramWaiting')}</p>
-                </div>
-              ) : (
-                <button onClick={handleGenerateTelegramLink} disabled={telegramBusy} className="btn btn-primary">
-                  <Send size={16} /> {t('settings.telegramConnectBtn')}
-                </button>
-              )}
-              {telegramError && (
-                <div className="bg-red-50 border border-red-200 rounded-sm px-4 py-3">
-                  <p className="text-sm text-red-600">{telegramError}</p>
-                </div>
-              )}
-            </div>
-          </div>
+          {!isAdmin && <div className="mt-6">{telegramCard}</div>}
 
       </div>
       )}
