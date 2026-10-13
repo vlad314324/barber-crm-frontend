@@ -14,7 +14,7 @@ import { BookingLang, BOOKING_LANG_LABELS } from '../i18n/bookingTranslations';
 
 // Локальний стан форми зберігає спеціалізації рядком через кому — так само,
 // як базове поле specialties — і розбивається на масив лише перед відправкою.
-type EmployeeTranslationsForm = Partial<Record<BookingLang, { bio: string; specialtiesText: string }>>;
+type EmployeeTranslationsForm = Partial<Record<BookingLang, { bio: string; specialtiesText: string; customRoleLabel: string }>>;
 
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 
@@ -125,19 +125,24 @@ const Employees = () => {
         ? { ...defaultSchedule, ...emp.schedule }
         : { ...defaultSchedule },
       translations: Object.fromEntries(
-        Object.entries(emp.translations || {}).map(([l, v]) => [l, { bio: v.bio, specialtiesText: v.specialties.join(', ') }])
+        Object.entries(emp.translations || {}).map(([l, v]) => [l, { bio: v.bio, specialtiesText: v.specialties.join(', '), customRoleLabel: v.customRoleLabel || '' }])
       ),
     });
     setFieldErrors(new Set());
     setIsModalOpen(true);
   };
 
-  const updateTranslation = (lang: BookingLang, field: 'bio' | 'specialtiesText', value: string) => {
+  const updateTranslation = (lang: BookingLang, field: 'bio' | 'specialtiesText' | 'customRoleLabel', value: string) => {
     setFormData(p => ({
       ...p,
       translations: {
         ...p.translations,
-        [lang]: { bio: p.translations[lang]?.bio || '', specialtiesText: p.translations[lang]?.specialtiesText || '', [field]: value },
+        [lang]: {
+          bio: p.translations[lang]?.bio || '',
+          specialtiesText: p.translations[lang]?.specialtiesText || '',
+          customRoleLabel: p.translations[lang]?.customRoleLabel || '',
+          [field]: value,
+        },
       },
     }));
   };
@@ -178,6 +183,7 @@ const Employees = () => {
           Object.entries(translations).map(([l, v]) => [l, {
             bio: v?.bio || '',
             specialties: (v?.specialtiesText || '').split(',').map(s => s.trim()).filter(Boolean),
+            customRoleLabel: v?.customRoleLabel?.trim() || '',
           }])
         ),
       };
@@ -489,6 +495,13 @@ const Employees = () => {
                   {translationLangs.map(lng => (
                     <div key={lng} className="space-y-2">
                       <p className="text-xs font-medium text-brand">{BOOKING_LANG_LABELS[lng]}</p>
+                      <input
+                        type="text"
+                        className="field-input"
+                        value={formData.translations[lng]?.customRoleLabel || ''}
+                        onChange={e => updateTranslation(lng, 'customRoleLabel', e.target.value)}
+                        placeholder={t('employees.fieldCustomRole')}
+                      />
                       <input
                         type="text"
                         className="field-input"

@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo, useRef, ReactNode } from 'react';
+import { useState, useEffect, useMemo, useRef, ReactNode, CSSProperties } from 'react';
 import { useParams } from 'react-router';
 import axios from 'axios';
 import {
-  CheckCircle, ChevronLeft, ChevronRight,
+  CheckCircle, ChevronDown, ChevronLeft, ChevronRight,
   User, CalendarDays, ListChecks, Info, MapPin, Phone, Globe, Copy, Check,
 } from 'lucide-react';
 import PhoneInput from 'react-phone-number-input';
@@ -16,6 +16,7 @@ import { PublicBookingSettings } from '../api/types';
 import { formatPriceRange } from '../utils/money';
 import { formatDurationRange } from '../utils/duration';
 import { trackEvent } from '../utils/tracking';
+import { useTheme } from '../context/ThemeContext';
 
 interface Service {
   _id: string; name: string; description?: string; price: number; priceMax?: number; duration: number; durationMax?: number; category: string;
@@ -23,19 +24,53 @@ interface Service {
 }
 interface Employee {
   _id: string; name: string; role: string; customRoleLabel?: string; services?: string[]; specialties?: string[]; bio?: string;
-  translations?: Partial<Record<BookingLang, { bio: string; specialties: string[] }>>;
+  translations?: Partial<Record<BookingLang, { bio: string; specialties: string[]; customRoleLabel?: string }>>;
 }
 
 // Ім'я майстра свідомо не перекладається — лише опис послуги та bio/спеціалізації.
 const serviceName = (s: Service, lang: BookingLang) => s.translations?.[lang]?.name?.trim() || s.name;
 const serviceDescription = (s: Service, lang: BookingLang) => s.translations?.[lang]?.description?.trim() || s.description || '';
 const employeeBio = (e: Employee, lang: BookingLang) => e.translations?.[lang]?.bio?.trim() || e.bio || '';
+const employeeRoleLabel = (e: Employee, lang: BookingLang) =>
+  e.translations?.[lang]?.customRoleLabel?.trim() || e.customRoleLabel?.trim() || '';
 const employeeSpecialties = (e: Employee, lang: BookingLang) => {
   const translated = e.translations?.[lang]?.specialties;
   return translated && translated.length > 0 ? translated : (e.specialties || []);
 };
 
 const HEX_COLOR_RE = /^#([0-9a-f]{3}){1,2}$/i;
+
+// Акцентний колір салону підміняє brand-палітру (CSS-змінні --color-brand*,
+// на яких побудовані bg-brand/text-brand-dark/btn-primary тощо) у межах
+// сторінки бронювання — так акцент отримують усі кнопки, ціни, вибрані
+// картки й слоти, а не лише окремі елементи з inline-стилем.
+type Rgb = [number, number, number];
+const hexToRgb = (hex: string): Rgb => {
+  const h = hex.replace('#', '');
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+  return [0, 2, 4].map(i => parseInt(full.slice(i, i + 2), 16)) as Rgb;
+};
+const mix = (a: Rgb, b: Rgb, weightB: number): string =>
+  a.map((v, i) => Math.round(v * (1 - weightB) + b[i] * weightB)).join(' ');
+const accentVars = (hex: string, dark: boolean): Record<string, string> => {
+  const c = hexToRgb(hex);
+  const white: Rgb = [255, 255, 255];
+  const black: Rgb = [0, 0, 0];
+  const darkBg: Rgb = [18, 20, 22];
+  return dark ? {
+    '--color-brand': c.join(' '),
+    '--color-brand-dark': mix(c, white, 0.2),
+    '--color-brand-soft': mix(c, darkBg, 0.78),
+    '--color-brand-extra-soft': mix(c, darkBg, 0.86),
+  } : {
+    '--color-brand': c.join(' '),
+    '--color-brand-dark': mix(c, black, 0.25),
+    '--color-brand-soft': mix(c, white, 0.82),
+    '--color-brand-extra-soft': mix(c, white, 0.9),
+  };
+};
+// Довші описи послуг згортаються до 2 рядків з кнопкою "Читати далі".
+const DESCRIPTION_CLAMP_CHARS = 110;
 
 type Screen = 'menu' | 'about' | 'services' | 'master' | 'datetime' | 'contacts' | 'confirm';
 
@@ -73,6 +108,7 @@ const MenuRow = ({ icon, title, subtitle, disabled, disabledHint, onClick }: {
 
 const BookingPage = () => {
   const { salonSlug } = useParams<{ salonSlug?: string }>();
+  const { theme } = useTheme();
   const [lang, setLangState] = useState<BookingLang>('uk');
   const [langTouched, setLangTouched] = useState(false);
   const t = (path: string, vars?: Record<string, string | number>) => tBooking(lang, path, vars);
@@ -103,6 +139,8 @@ const BookingPage = () => {
   const [slotsError, setSlotsError]     = useState('');
 
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
+  const [openCategories, setOpenCategories]     = useState<Set<string>>(new Set());
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [selectedDate, setSelectedDate]         = useState('');
   const [selectedTime, setSelectedTime]         = useState('');
@@ -161,7 +199,9 @@ const BookingPage = () => {
   }, [api, salonSlug]);
 
   const accentColor = branding?.accentColor && HEX_COLOR_RE.test(branding.accentColor) ? branding.accentColor : null;
-  const accentStyle = accentColor ? { backgroundColor: accentColor, borderColor: accentColor } : undefined;
+  const pageStyle = accentColor ? accentVars(accentColor, theme === 'dark') as CSSProperties : undefined;
+  const categoryLabel = (category: string) =>
+    branding?.serviceCategoryTranslations?.[category]?.[lang]?.trim() || category;
 
   const enabledLangs = (branding?.bookingLanguages?.length
     ? branding.bookingLanguages.filter((l): l is BookingLang => (DEFAULT_BOOKING_LANGS as string[]).includes(l) || l === 'cs' || l === 'pl')
@@ -249,6 +289,81 @@ const BookingPage = () => {
     ? services
     : services.filter(s => selectedEmployee.services!.includes(s._id));
 
+  // Групування за категоріями (Settings.bookingGroupByCategory): секції в
+  // порядку serviceCategories з сервера; категорії, яких там немає, — у кінці
+  // в порядку першої появи. Секції згорнуті, доки клієнт їх не розкриє.
+  const groupByCategory = !!branding?.bookingGroupByCategory;
+  const serviceGroups = (() => {
+    if (!groupByCategory) return [];
+    const order = branding?.serviceCategories || [];
+    const groups = new Map<string, Service[]>();
+    availableServices.forEach(s => {
+      const list = groups.get(s.category);
+      if (list) list.push(s); else groups.set(s.category, [s]);
+    });
+    const rank = (c: string) => { const i = order.indexOf(c); return i === -1 ? order.length : i; };
+    return [...groups.entries()]
+      .map(([category, items], i) => ({ category, items, i }))
+      .sort((a, b) => rank(a.category) - rank(b.category) || a.i - b.i);
+  })();
+
+  const toggleCategory = (category: string) => {
+    setOpenCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category); else next.add(category);
+      return next;
+    });
+  };
+
+  const toggleDescription = (id: string) => {
+    setExpandedDescriptions(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  // Картка — div з role="button", а не <button>: всередині є власна кнопка
+  // "Читати далі", а вкладені <button> — невалідний HTML.
+  const renderServiceCard = (s: Service) => {
+    const selected = !!selectedServices.find(x => x._id === s._id);
+    const description = serviceDescription(s, lang);
+    const collapsible = description.length > DESCRIPTION_CLAMP_CHARS;
+    const expanded = expandedDescriptions.has(s._id);
+    return (
+      <div key={s._id} role="button" tabIndex={0}
+        aria-pressed={selected}
+        onClick={() => toggleService(s)}
+        onKeyDown={e => {
+          if (e.target !== e.currentTarget) return;
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleService(s); }
+        }}
+        className={`w-full p-4 rounded-md border-2 cursor-pointer transition-colors text-left
+          ${selected
+            ? 'border-brand bg-brand-extra-soft'
+            : 'border-line bg-surface hover:border-line-medium'}`}>
+        <div className="flex justify-between items-center gap-3">
+          <div className="min-w-0">
+            <p className="font-medium text-ink">{serviceName(s, lang)}</p>
+            {description && (
+              <p className={`text-sm text-ink-muted mt-0.5 ${collapsible && !expanded ? 'line-clamp-2' : ''}`}>{description}</p>
+            )}
+            {collapsible && (
+              <button type="button"
+                aria-expanded={expanded}
+                onClick={e => { e.stopPropagation(); toggleDescription(s._id); }}
+                className="text-sm font-medium text-brand-dark hover:underline mt-0.5">
+                {expanded ? t('booking.showLess') : t('booking.readMore')}
+              </button>
+            )}
+            <p className="text-sm text-ink-muted">{formatDurationRange(s.duration, s.durationMax, bookingDurationLabels)}</p>
+          </div>
+          <p className="font-semibold text-brand-dark whitespace-nowrap">{formatPriceRange(s.price, s.priceMax, branding?.currency)}</p>
+        </div>
+      </div>
+    );
+  };
+
   const todayStr = new Date().toISOString().split('T')[0];
 
   const handleCopyAddress = async () => {
@@ -287,7 +402,7 @@ const BookingPage = () => {
   };
 
   if (!salonSlug) return (
-    <div className="min-h-screen bg-canvas flex items-center justify-center px-4">
+    <div style={pageStyle} className="min-h-screen bg-canvas flex items-center justify-center px-4">
       <div className="absolute top-4 right-4">
         <LanguageToggle langs={enabledLangs} labels={BOOKING_LANG_LABELS} value={lang} onChange={setLang} />
       </div>
@@ -299,7 +414,7 @@ const BookingPage = () => {
   );
 
   if (catalogLoading || catalogError) return (
-    <div className="min-h-screen bg-canvas flex items-center justify-center px-4">
+    <div style={pageStyle} className="min-h-screen bg-canvas flex items-center justify-center px-4">
       <div className="absolute top-4 right-4">
         <LanguageToggle langs={enabledLangs} labels={BOOKING_LANG_LABELS} value={lang} onChange={setLang} />
       </div>
@@ -317,7 +432,7 @@ const BookingPage = () => {
   );
 
   if (done) return (
-    <div className="min-h-screen bg-canvas flex items-center justify-center px-4">
+    <div style={pageStyle} className="min-h-screen bg-canvas flex items-center justify-center px-4">
       <div className="absolute top-4 right-4">
         <LanguageToggle langs={enabledLangs} labels={BOOKING_LANG_LABELS} value={lang} onChange={setLang} />
       </div>
@@ -344,7 +459,7 @@ const BookingPage = () => {
   );
 
   return (
-    <div className="min-h-screen bg-canvas">
+    <div style={pageStyle} className="min-h-screen bg-canvas">
       {screen === 'menu' ? (
         <div className="bg-neutral-900 text-white py-6 px-4 text-center relative"
           style={branding?.coverImageUrl ? {
@@ -413,7 +528,6 @@ const BookingPage = () => {
           <button
             disabled={!selectedEmployee || !selectedDate || !selectedTime || selectedServices.length === 0}
             onClick={() => setScreen('contacts')}
-            style={accentStyle}
             className="btn btn-primary w-full py-3">
             {t('booking.bookNow')}
           </button>
@@ -514,7 +628,7 @@ const BookingPage = () => {
                   </div>
                   <div className="min-w-0">
                     <p className="font-medium text-ink">{e.name}</p>
-                    <p className="text-sm text-ink-muted">{e.customRoleLabel?.trim() || t(`roles.${e.role}`)}</p>
+                    <p className="text-sm text-ink-muted">{employeeRoleLabel(e, lang) || t(`roles.${e.role}`)}</p>
                     {employeeSpecialties(e, lang).length > 0 && (
                       <p className="text-xs text-ink-muted mt-0.5">{employeeSpecialties(e, lang).join(', ')}</p>
                     )}
@@ -558,7 +672,6 @@ const BookingPage = () => {
                   {slots.map(slot => (
                     <button key={slot}
                       onClick={() => { setSelectedTime(slot); trackEvent(api, 'slot_selected', { date: selectedDate, time: slot }); }}
-                      style={selectedTime === slot ? accentStyle : undefined}
                       className={`py-2 rounded-sm text-sm font-medium border transition-colors
                         ${selectedTime === slot
                           ? 'bg-brand text-white border-brand'
@@ -583,26 +696,40 @@ const BookingPage = () => {
       {screen === 'services' && (
         <div className="max-w-2xl mx-auto px-4 py-6">
           <ScreenHeader title={t('booking.chooseService')} onBack={() => setScreen('menu')} />
-          <div className="space-y-3">
-            {availableServices.map(s => (
-              <button key={s._id} type="button"
-                aria-pressed={!!selectedServices.find(x => x._id === s._id)}
-                onClick={() => toggleService(s)}
-                className={`w-full p-4 rounded-md border-2 cursor-pointer transition-colors text-left
-                  ${selectedServices.find(x => x._id === s._id)
-                    ? 'border-brand bg-brand-extra-soft'
-                    : 'border-line bg-surface hover:border-line-medium'}`}>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="font-medium text-ink">{serviceName(s, lang)}</p>
-                    {serviceDescription(s, lang) && <p className="text-sm text-ink-muted mt-0.5">{serviceDescription(s, lang)}</p>}
-                    <p className="text-sm text-ink-muted">{formatDurationRange(s.duration, s.durationMax, bookingDurationLabels)}</p>
+          {groupByCategory ? (
+            <div className="space-y-3">
+              {serviceGroups.map(({ category, items }) => {
+                const isOpen = openCategories.has(category);
+                const selectedInGroup = items.filter(s => selectedServices.some(x => x._id === s._id)).length;
+                return (
+                  <div key={category} className="ds-card overflow-hidden">
+                    <button type="button"
+                      aria-expanded={isOpen}
+                      onClick={() => toggleCategory(category)}
+                      className="w-full flex items-center gap-3 px-4 py-3.5 text-left cursor-pointer hover:bg-canvas-soft">
+                      <span className="flex-1 min-w-0 font-semibold text-ink">{categoryLabel(category)}</span>
+                      {selectedInGroup > 0 && (
+                        <span className="badge bg-brand text-white flex-shrink-0">
+                          {selectedInGroup}
+                        </span>
+                      )}
+                      <span className="text-xs text-ink-muted flex-shrink-0">{items.length}</span>
+                      <ChevronDown size={18} className={`text-ink-muted flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}/>
+                    </button>
+                    {isOpen && (
+                      <div className="px-3 pb-3 space-y-3">
+                        {items.map(renderServiceCard)}
+                      </div>
+                    )}
                   </div>
-                  <p className="font-semibold text-brand-dark">{formatPriceRange(s.price, s.priceMax, branding?.currency)}</p>
-                </div>
-              </button>
-            ))}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {availableServices.map(renderServiceCard)}
+            </div>
+          )}
           {selectedServices.length > 0 && (
             <div className="mt-4 p-3 bg-brand-extra-soft rounded-sm flex justify-between items-center">
               <span className="text-sm text-ink-secondary">{t('booking.selectedCount', { count: selectedServices.length, duration: formatDurationRange(totalDurationMin, totalDuration, bookingDurationLabels) })}</span>
@@ -706,7 +833,7 @@ const BookingPage = () => {
               <p className="text-sm text-red-600">{error}</p>
             </div>
           )}
-          <button onClick={handleSubmit} disabled={loading} style={accentStyle} className="btn btn-primary w-full py-3">
+          <button onClick={handleSubmit} disabled={loading} className="btn btn-primary w-full py-3">
             {loading ? t('booking.booking') : t('booking.confirmBtn')}
           </button>
         </div>
