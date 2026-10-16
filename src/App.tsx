@@ -55,12 +55,12 @@ function App() {
               </ProtectedRoute>
             }/>
             <Route path="clients" element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['admin', 'barber']}>
                 <Clients />
               </ProtectedRoute>
             }/>
             <Route path="clients/:id" element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['admin', 'barber']}>
                 <ClientDetails />
               </ProtectedRoute>
             }/>
@@ -80,12 +80,12 @@ function App() {
               </ProtectedRoute>
             }/>
             <Route path="services" element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['admin', 'barber']}>
                 <Services />
               </ProtectedRoute>
             }/>
             <Route path="reports" element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['admin', 'barber']}>
                 <Reports />
               </ProtectedRoute>
             }/>

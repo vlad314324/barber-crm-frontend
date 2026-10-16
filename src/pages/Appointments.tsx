@@ -381,7 +381,8 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
     breaks.filter(b => b.employee === id && b.date.slice(0, 10) === dateStr(date));
 
   // Майстер, прив'язаний до поточного логіна (для barber — "моя колонка").
-  const myEmployee = employees.find(e => e.userId && e.userId === user?.id);
+  const myEmployee = employees.find(e => !!user?.employeeId && e._id === user.employeeId)
+    || employees.find(e => e.userId && e.userId === user?.id);
   const canEditBreaks = (emp: Employee) => isAdmin || emp._id === myEmployee?._id;
 
   // Деактивований майстер зникає з колонок календаря на майбутні дати (щоб
@@ -669,11 +670,13 @@ if (selectedBarber) {
           {isAdmin && (
           <input ref={importFileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFileChange}/>
           )}
+          {(isAdmin || myEmployee) && (
           <button
-            onClick={() => { setAddForm({...defaultAdd, date:dateStr(currentDate)}); setAddingNC(false); setIsAddOpen(true); }}
+            onClick={() => { setAddForm({...defaultAdd, date:dateStr(currentDate), employeeId: isAdmin ? '' : (myEmployee?._id || '')}); setAddingNC(false); setIsAddOpen(true); }}
             className="btn btn-primary">
             <Plus size={16}/> <span className="hidden sm:inline">{t('appointments.addNew')}</span>
           </button>
+          )}
         </div>
       </div>
 
@@ -717,7 +720,7 @@ if (selectedBarber) {
             </button>
 
             <div className="flex items-center gap-2 ml-auto">
-              {view === 'week' && (
+              {view === 'week' && isAdmin && (
                 <select value={weekEmployee?._id || ''} onChange={e => setWeekEmployeeId(e.target.value)}
                   aria-label={t('appointments.master')}
                   className="field-input py-1 text-sm w-auto max-w-[200px]">
@@ -738,7 +741,7 @@ if (selectedBarber) {
 
           <ScheduleGrid
             columns={gridColumns}
-            emptyText={t('appointments.noBarbers')}
+            emptyText={isAdmin ? t('appointments.noBarbers') : t('appointments.notLinked')}
             breakLabel={t('appointments.breakLabel')}
             onAppointmentClick={openEdit}
             renderAppointment={(a, height) => {
@@ -819,7 +822,8 @@ if (selectedBarber) {
 
             <div>
               <label className="field-label">{t('appointments.master')}</label>
-              <select className="field-input"
+              {/* Майстер записує лише на себе — поле зафіксоване */}
+              <select className="field-input disabled:opacity-70" disabled={!isAdmin}
                 value={addForm.employeeId} onChange={e => {
                   const newEmpId = e.target.value;
                   const allowed = allowedServices(newEmpId);
@@ -901,7 +905,7 @@ if (selectedBarber) {
               </div>
               <div>
                 <label className="field-label">{t('appointments.master')}</label>
-                <select className="field-input"
+                <select className="field-input disabled:opacity-70" disabled={!isAdmin}
                   value={editForm.employeeId} onChange={e => {
                     const newEmpId = e.target.value;
                     const allowed = allowedServices(newEmpId);

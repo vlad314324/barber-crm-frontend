@@ -9,6 +9,7 @@ import { serviceApi, categoryApi } from '../api';
 import { Service, Category } from '../api/types';
 import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
+import { useAuth } from '../context/AuthContext';
 import { getErrorMessage } from '../utils/errors';
 import { errorFieldClass } from '../utils/formValidation';
 import { useShopCurrency, useShopServiceRangesEnabled, useShopDurationUnit, useShopBookingLanguages, useShopDefaultBookingLanguage } from '../context/SettingsContext';
@@ -58,6 +59,8 @@ const IconPicker = ({ value, onChange }: { value: string; onChange: (icon: strin
 
 const Services = () => {
   const { t } = useLocale();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const currency = useShopCurrency();
   const rangesEnabled = useShopServiceRangesEnabled();
   const bookingLanguages = useShopBookingLanguages();
@@ -299,6 +302,8 @@ const Services = () => {
           <Scissors size={24} className="mr-2 text-brand flex-shrink-0" />
           <span className="truncate">{t('services.title')}</span>
         </h1>
+        {/* Майстер лише переглядає послуги */}
+        {isAdmin && (
         <div className="flex items-center gap-2 flex-shrink-0">
           <button onClick={() => setIsCategoryModalOpen(true)} className="btn btn-secondary">
             <Tags size={16} /> <span className="hidden sm:inline">{t('services.categoriesBtn')}</span>
@@ -308,6 +313,7 @@ const Services = () => {
             <span className="hidden sm:inline">{t('services.addNew')}</span>
           </button>
         </div>
+        )}
       </div>
 
       <div className="relative max-w-sm">
@@ -368,6 +374,7 @@ const Services = () => {
                 </div>
               </div>
 
+              {isAdmin && (
               <div className="px-5 py-3 border-t border-line flex justify-end gap-3">
                 <button
                   onClick={() => openEditModal(service)}
@@ -382,6 +389,7 @@ const Services = () => {
                   <Trash2 size={14} className="mr-1" /> {t('common.delete')}
                 </button>
               </div>
+              )}
             </div>
             );
           })}

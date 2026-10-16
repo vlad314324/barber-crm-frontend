@@ -16,7 +16,7 @@ import { TIMEZONES } from '../constants/timezones';
 
 const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
 
-type Tab = 'general' | 'booking' | 'security';
+type Tab = 'general' | 'booking' | 'notifications' | 'security';
 
 const Settings = () => {
   const { user, salonSlug } = useAuth();
@@ -25,7 +25,7 @@ const Settings = () => {
   const DAYS = DAY_KEYS.map(key => ({ key, label: t(`settings.days.${key}`) }));
 
   const isAdmin = user?.role === 'admin';
-  const [activeTab, setActiveTab] = useState<Tab>(isAdmin ? 'general' : 'security');
+  const [activeTab, setActiveTab] = useState<Tab>(isAdmin ? 'general' : 'notifications');
 
   const [settings, setSettings] = useState<ShopSettings>({
     shopName: '', address: '', phone: '', email: '',
@@ -214,8 +214,8 @@ const Settings = () => {
     </div>
   );
 
-  // Telegram-сповіщення персональні для кожного користувача: адмін бачить їх
-  // на вкладці «Сторінка бронювання», інші ролі — у «Безпеці».
+  // Telegram-сповіщення персональні для кожного користувача — окрема вкладка
+  // «Сповіщення», однакова для адміна й майстра.
   const telegramCard = (
     <div className="ds-card overflow-hidden">
       <div className="ds-card-header">
@@ -270,8 +270,10 @@ const Settings = () => {
         {(isAdmin ? [
           ['general', t('settings.tabGeneral')],
           ['booking', t('settings.tabBookingPage')],
+          ['notifications', t('settings.tabNotifications')],
           ['security', t('settings.tabSecurity')],
         ] as const : [
+          ['notifications', t('settings.tabNotifications')],
           ['security', t('settings.tabSecurity')],
         ] as const).map(([tab, label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
@@ -482,8 +484,6 @@ const Settings = () => {
               </div>
             </div>
           )}
-
-          {telegramCard}
           </div>
 
           {/* Оформлення сторінки бронювання */}
@@ -648,9 +648,12 @@ const Settings = () => {
             </div>
           </div>
 
-          {!isAdmin && <div className="mt-6">{telegramCard}</div>}
-
       </div>
+      )}
+
+      {/* Сповіщення: Telegram */}
+      {activeTab === 'notifications' && (
+      <div className="max-w-xl">{telegramCard}</div>
       )}
     </div>
   );

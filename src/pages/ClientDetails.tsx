@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router';
 import {
   User, Calendar, Phone, Mail, Clock,
-  ArrowLeft, Edit, Trash2
+  ArrowLeft, Edit, Trash2, MessageSquare
 } from 'lucide-react';
 import { clientApi } from '../api';
 import api from '../api';
-import { Client, Appointment } from '../api/types';
+import { Client, Appointment, ClientNote } from '../api/types';
+import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
@@ -14,8 +15,13 @@ import { useShopCurrency } from '../context/SettingsContext';
 import { formatPrice } from '../utils/money';
 
 const ClientDetails = () => {
-  const { t } = useLocale();
+  const { t, lang } = useLocale();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const currency = useShopCurrency();
+  const [notes, setNotes] = useState<ClientNote[]>([]);
+  const [noteText, setNoteText] = useState('');
+  const [addingNote, setAddingNote] = useState(false);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -35,6 +41,7 @@ const ClientDetails = () => {
           api.get(`/clients/${id}/appointments`).then(r => r.data),
         ]);
         setClient(clientData);
+        setNotes(clientData.notes || []);
         setFormData({ name: clientData.name, phone: clientData.phone, email: clientData.email });
         setAppointments(clientAppointments);
       } catch (err) {
@@ -59,6 +66,26 @@ const ClientDetails = () => {
       setSaving(false);
     }
   };
+
+  const handleAddNote = async () => {
+    const text = noteText.trim();
+    if (!id || !text) return;
+    setAddingNote(true);
+    try {
+      setNotes(await clientApi.addNote(id, text));
+      setNoteText('');
+    } catch (err) {
+      alert(getErrorMessage(err) || t('clientDetails.notesError'));
+    } finally {
+      setAddingNote(false);
+    }
+  };
+
+  const noteMeta = (n: ClientNote) => [
+    n.authorName,
+    n.authorRole ? t(`roles.${n.authorRole}`) : null,
+    new Date(n.createdAt).toLocaleString(lang === 'uk' ? 'uk-UA' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+  ].filter(Boolean).join(' · ');
 
   const handleDelete = async () => {
     if (!id || !confirm(t('clientDetails.deleteConfirm'))) return;
@@ -109,12 +136,14 @@ const ClientDetails = () => {
                 </p>
               </div>
             </div>
+            {isAdmin && (
             <div className="mt-4 sm:mt-0 flex gap-3">
               <button onClick={() => setIsEditOpen(true)} className="btn btn-secondary">
                 <Edit size={16} />
                 {t('clientDetails.edit')}
               </button>
             </div>
+            )}
           </div>
         </div>
 
@@ -153,6 +182,44 @@ const ClientDetails = () => {
               </dd>
             </div>
           </dl>
+        </div>
+      </div>
+
+      {/* Коментарі персоналу — бачать усі, з автором */}
+      <div className="ds-card overflow-hidden">
+        <div className="ds-card-header">
+          <div className="flex items-center">
+            <MessageSquare size={18} className="mr-2 text-brand" />
+            <h3 className="text-base font-semibold text-ink">{t('clientDetails.notesTitle')}</h3>
+          </div>
+          <span className="text-sm text-ink-muted">{notes.length}</span>
+        </div>
+        <div className="px-6 py-4 space-y-4">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <textarea
+              className="field-input flex-1 min-h-[44px]"
+              rows={2}
+              maxLength={1000}
+              value={noteText}
+              onChange={e => setNoteText(e.target.value)}
+              placeholder={t('clientDetails.notesPlaceholder')}
+            />
+            <button onClick={handleAddNote} disabled={addingNote || !noteText.trim()} className="btn btn-primary sm:self-start">
+              {addingNote ? t('common.saving') : t('clientDetails.notesAdd')}
+            </button>
+          </div>
+          {notes.length === 0 ? (
+            <p className="text-sm text-ink-muted">{t('clientDetails.notesEmpty')}</p>
+          ) : (
+            <ul className="space-y-3">
+              {notes.map((n, i) => (
+                <li key={n._id || i} className="rounded-sm bg-canvas-soft px-3 py-2">
+                  <p className="text-sm text-ink whitespace-pre-line break-words">{n.text}</p>
+                  <p className="text-xs text-ink-muted mt-1">{noteMeta(n)}</p>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
 
@@ -208,6 +275,7 @@ const ClientDetails = () => {
       </div>
 
       {/* Danger Zone */}
+      {isAdmin && (
       <div className="ds-card overflow-hidden">
         <div className="px-6 py-4 border-b border-line">
           <h3 className="text-base font-semibold text-red-600">{t('clientDetails.dangerZone')}</h3>
@@ -220,6 +288,7 @@ const ClientDetails = () => {
           </button>
         </div>
       </div>
+      )}
 
       {/* Edit Modal */}
       <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title={t('clientDetails.editTitle')}>

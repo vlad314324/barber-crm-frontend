@@ -31,11 +31,11 @@ const Sidebar = ({ closeSidebar }: SidebarProps) => {
 
   const navItems = [
     { name: t('sidebar.nav.dashboard'),    path: '/',            icon: <LayoutDashboard size={20}/>, show: isAdmin },
-    { name: t('sidebar.nav.clients'),      path: '/clients',     icon: <Users size={20}/>,           show: isAdmin },
+    { name: t('sidebar.nav.clients'),      path: '/clients',     icon: <Users size={20}/>,           show: isAdmin || isBarber },
     { name: t('sidebar.nav.appointments'), path: '/appointments',icon: <Calendar size={20}/>,        show: isAdmin || isBarber },
     { name: t('sidebar.nav.employees'),    path: '/employees',   icon: <User size={20}/>,            show: isAdmin },
-    { name: t('sidebar.nav.services'),     path: '/services',    icon: <Scissors size={20}/>,        show: isAdmin },
-    { name: t('sidebar.nav.reports'),      path: '/reports',     icon: <BarChart2 size={20}/>,       show: isAdmin },
+    { name: t('sidebar.nav.services'),     path: '/services',    icon: <Scissors size={20}/>,        show: isAdmin || isBarber },
+    { name: t('sidebar.nav.reports'),      path: '/reports',     icon: <BarChart2 size={20}/>,       show: isAdmin || isBarber },
     { name: t('sidebar.nav.settings'),     path: '/settings',    icon: <Settings size={20}/>,        show: isAdmin || isBarber },
   ].filter(item => item.show);
 

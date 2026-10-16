@@ -12,6 +12,16 @@ export interface Client {
   visits?: number; // Зробимо необов'язковим, якщо це розрахункове поле або ще не реалізовано на бекенді
   lastVisit?: string; // Зробимо необов'язковим, якщо ще не реалізовано на бекенді
   createdAt?: string;
+  // Коментарі персоналу до клієнта (лише в GET /clients/:id), нові зверху.
+  notes?: ClientNote[];
+}
+
+export interface ClientNote {
+  _id?: string;
+  text: string;
+  authorName: string;
+  authorRole?: string;
+  createdAt: string;
 }
 
 export interface ClientPageParams {

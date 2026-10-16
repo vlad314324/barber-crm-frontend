@@ -5,6 +5,7 @@ import { clientApi } from '../api';
 import { Client, ImportResult } from '../api/types';
 import Modal from '../components/Modal';
 import { useLocale } from '../i18n/LocaleContext';
+import { useAuth } from '../context/AuthContext';
 import { getErrorMessage } from '../utils/errors';
 import { downloadBlob } from '../utils/download';
 import { missingFields, errorFieldClass } from '../utils/formValidation';
@@ -16,6 +17,8 @@ const SEARCH_DEBOUNCE_MS = 300;
 
 const Clients = () => {
   const { t } = useLocale();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [searchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') || '');
   const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
@@ -172,6 +175,8 @@ const Clients = () => {
           <Users size={24} className="mr-2 text-brand flex-shrink-0" />
           <span className="truncate">{t('clients.title')}</span>
         </h1>
+        {/* Майстер лише переглядає своїх клієнтів — дії над базою тільки в адміна */}
+        {isAdmin && (
         <div className="flex items-center gap-2 flex-shrink-0">
           <div className="hidden sm:flex items-center gap-2">
             <button onClick={handleExport} className="btn btn-secondary">
@@ -206,6 +211,7 @@ const Clients = () => {
             <span className="hidden sm:inline">{t('clients.addNew')}</span>
           </button>
         </div>
+        )}
       </div>
 
       <div className="ds-card overflow-hidden">
@@ -269,12 +275,14 @@ const Clients = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex items-center justify-end gap-3">
                       <Link to={`/clients/${client._id}`} className="text-brand hover:text-brand-dark">{t('clients.view')}</Link>
+                      {isAdmin && (<>
                       <button onClick={() => openEditModal(client)} className="text-ink-secondary hover:text-ink">
                         <Pencil size={16} />
                       </button>
                       <button onClick={() => handleDelete(client._id)} className="text-red-500 hover:text-red-700">
                         <Trash2 size={16} />
                       </button>
+                      </>)}
                     </div>
                   </td>
                 </tr>

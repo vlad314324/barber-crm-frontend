@@ -8,7 +8,7 @@ import type {
   UpdateStaffLoginDto, UpdateStaffLoginResponse,
   ImportResult, ClientPageParams, ClientPageResult, EmployeeStats,
   TelegramLinkCodeResponse, TelegramStatusResponse, ShopSettings,
-  EmployeeBreak, BreakInterval
+  EmployeeBreak, BreakInterval, ClientNote
 } from './types';
 import { getSalonSlug, clearSalonSlug } from '../utils/tenant';
 
@@ -97,6 +97,8 @@ export const clientApi = {
   delete: async (id: string): Promise<void> => { await api.delete(`/clients/${id}`); },
   export: async (): Promise<Blob> => (await api.get('/clients/export', { responseType: 'blob' })).data,
   import: (file: File): Promise<ImportResult> => importFile('/clients/import', file),
+  addNote: async (id: string, text: string): Promise<ClientNote[]> =>
+    (await api.post(`/clients/${id}/notes`, { text })).data,
 };
 
 export const employeeApi = {

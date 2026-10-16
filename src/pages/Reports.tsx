@@ -8,6 +8,7 @@ import type { PlatformSalonFunnelAnalytics } from '../api/platformApi';
 import DonutChart, { DonutSlice } from '../components/charts/DonutChart';
 import BookingFunnelSection from '../components/charts/BookingFunnelSection';
 import Modal from '../components/Modal';
+import { useAuth } from '../context/AuthContext';
 import {
   axisTick, tooltipProps, BRAND, GRID_STROKE, CATEGORICAL_COLORS, MAX_CATEGORIES, OTHER_COLOR, compactNumber,
 } from '../components/charts/chartTheme';
@@ -96,6 +97,8 @@ const ChartCard = ({ icon, title, sub, children }: { icon: ReactNode; title: str
 
 const Reports = () => {
   const { t, lang } = useLocale();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const currency = useShopCurrency();
   const locale = lang === 'en' ? 'en-US' : 'uk-UA';
   const loadFunnel = useCallback(
@@ -110,22 +113,23 @@ const Reports = () => {
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
   const [forecastInfoOpen, setForecastInfoOpen] = useState(false);
 
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
     setLoading(true);
     setSelectedSegment(null);
     try {
+      // Майстру — лише власна статистика (огляд і прогноз); RFM — адміну.
       const [d, f, r] = await Promise.all([
         api.get<DashboardData>('/analytics/dashboard'),
         api.get<ForecastData>('/analytics/forecast'),
-        api.get<RfmData>('/analytics/rfm'),
+        isAdmin ? api.get<RfmData>('/analytics/rfm') : Promise.resolve(null),
       ]);
       setDashboard(d.data);
       setForecast(f.data);
-      setRfm(r.data);
+      setRfm(r?.data ?? null);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
-  };
-  useEffect(() => { fetchAll(); }, []);
+  }, [isAdmin]);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const segmentLabel = (s: string) => t(`reports.segment${SEGMENT_KEY[s] || 'Champions'}`);
   const segmentDesc = (s: string) => t(`reports.segment${SEGMENT_KEY[s] || 'Champions'}Desc`);
@@ -174,7 +178,7 @@ const Reports = () => {
             <BarChart2 size={24} className="mr-2 text-brand flex-shrink-0"/>
             <span className="truncate">{t('reports.title')}</span>
           </h1>
-          <p className="text-ink-muted text-sm mt-0.5">{t('reports.subtitle')}</p>
+          <p className="text-ink-muted text-sm mt-0.5">{isAdmin ? t('reports.subtitle') : t('reports.subtitleBarber')}</p>
         </div>
         <button onClick={fetchAll} className="btn btn-secondary flex-shrink-0">
           <RefreshCw size={14}/> <span className="hidden sm:inline">{t('reports.refresh')}</span>
@@ -183,7 +187,8 @@ const Reports = () => {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-canvas-soft p-1 rounded-sm w-fit">
-        {([['overview',t('reports.tabOverview')],['forecast',t('reports.tabForecast')],['rfm',t('reports.tabRfm')]] as const).map(([tab, label]) => (
+        {([['overview',t('reports.tabOverview')],['forecast',t('reports.tabForecast')],['rfm',t('reports.tabRfm')]] as const)
+          .filter(([tab]) => isAdmin || tab !== 'rfm').map(([tab, label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`px-4 py-2 rounded-xs text-sm font-medium transition-all
               ${activeTab === tab ? 'bg-surface text-brand-dark shadow-sm' : 'text-ink-secondary hover:text-ink'}`}>
@@ -199,7 +204,7 @@ const Reports = () => {
             {[
               { title: t('reports.totalRevenue'),  value: formatPrice(dashboard.totalRevenue, currency), sub: t('reports.totalRevenueSub', { value: formatPrice(dashboard.monthRevenue, currency) }) },
               { title: t('reports.totalAppointments'),    value: dashboard.totalAppointments,                  sub: t('reports.totalAppointmentsSub', { value: dashboard.monthAppointments }) },
-              { title: t('reports.totalClients'),          value: dashboard.totalClients,                       sub: t('reports.totalClientsSub') },
+              { title: t('reports.totalClients'),          value: dashboard.totalClients,                       sub: isAdmin ? t('reports.totalClientsSub') : t('reports.totalClientsSubBarber') },
               { title: t('reports.avgCheck'),      value: formatPrice(dashboard.avgServiceValue, currency),              sub: t('reports.avgCheckSub') },
             ].map((c, i) => (
               <div key={i} className="ds-card p-5">
@@ -281,7 +286,8 @@ const Reports = () => {
             {/* Права колонка: майстри, дні тижня, статуси — щоб не лишати
                 порожнього місця поруч із довгою карткою послуг */}
             <div className="space-y-6">
-            {/* Майстри: частка виручки + таблиця */}
+            {/* Майстри: частка виручки + таблиця (порівняння майстрів — лише адміну) */}
+            {isAdmin && (
             <div className="ds-card overflow-hidden">
               <div className="ds-card-header">
                 <div className="flex items-center gap-2">
@@ -329,6 +335,7 @@ const Reports = () => {
                 </>
               )}
             </div>
+            )}
 
             {/* Завантаженість по днях тижня */}
             <ChartCard icon={<CalendarDays size={18} className="text-brand"/>} title={t('reports.weekdayTitle')} sub={t('reports.weekdaySub')}>
@@ -365,11 +372,13 @@ const Reports = () => {
             </div>
           </div>
 
-          {/* Воронка публічної сторінки бронювання */}
+          {/* Воронка публічної сторінки бронювання — дані всього салону, лише адміну */}
+          {isAdmin && (
           <div className="ds-card p-6">
             <BookingFunnelSection load={loadFunnel} />
             <p className="text-xs text-ink-muted mt-4">{t('reports.funnelHint')}</p>
           </div>
+          )}
         </div>
       )}
 

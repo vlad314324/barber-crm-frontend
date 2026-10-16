@@ -8,6 +8,9 @@ interface User {
   name: string;
   email: string;
   role: 'admin' | 'barber' | 'client';
+  // Для майстра — id прив'язаного Employee (своя колонка календаря, запис
+  // лише на себе). null — логін ще не прив'язаний до жодного майстра.
+  employeeId?: string | null;
 }
 
 interface AuthContextType {
