@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Clock, Lock, Save, Check, Link2, Palette, Send, X } from 'lucide-react';
-import api, { authApi } from '../api';
+import api, { authApi, settingsImageApi } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../i18n/LocaleContext';
 import { ShopSettings, WorkingDay } from '../api/types';
@@ -9,6 +9,7 @@ import { getSiteUrl } from '../utils/siteUrl';
 import { getPasswordError } from '../utils/passwordValidation';
 import { useRefreshShopSettings } from '../context/SettingsContext';
 import BookingLinkCard from '../components/BookingLinkCard';
+import ImageCropField, { ImageChange } from '../components/ImageCropField';
 import { BOOKING_LANGS, BookingLang } from '../i18n/bookingTranslations';
 import { CURRENCIES } from '../constants/currencies';
 import { TIMEZONES } from '../constants/timezones';
@@ -106,6 +107,26 @@ const Settings = () => {
       alert(t('settings.saveError'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Лого/обкладинка зберігаються одразу після кадрування, окремо від кнопки
+  // "Зберегти": так файл не загубиться, якщо адмін забуде натиснути її.
+  // URL з відповіді кладемо в стан форми, щоб наступний PUT /settings
+  // відправив той самий URL і не вважав зображення заміненим.
+  const [uploadingImage, setUploadingImage] = useState<'logo' | 'cover' | null>(null);
+  const handleBrandingImage = async (kind: 'logo' | 'cover', change: ImageChange) => {
+    if (!change) return;
+    setUploadingImage(kind);
+    try {
+      const updated = change === 'remove'
+        ? await settingsImageApi.delete(kind)
+        : await settingsImageApi.upload(kind, change.blob);
+      setSettings(prev => ({ ...prev, logoUrl: updated.logoUrl, coverImageUrl: updated.coverImageUrl }));
+    } catch (err) {
+      alert(getErrorMessage(err) || t('settings.branding.imageError'));
+    } finally {
+      setUploadingImage(null);
     }
   };
 
@@ -476,22 +497,39 @@ const Settings = () => {
               </div>
             </div>
             <div className="px-6 py-5 space-y-4">
-              {[
-                { label: t('settings.branding.coverImageUrl'), key: 'coverImageUrl' as const, placeholder: 'https://.../cover.jpg' },
-                { label: t('settings.branding.logoUrl'),        key: 'logoUrl' as const,        placeholder: 'https://.../logo.png' },
-                { label: t('settings.branding.tagline'),        key: 'tagline' as const,         placeholder: t('settings.branding.taglinePlaceholder') },
-              ].map(({ label, key, placeholder }) => (
-                <div key={key}>
-                  <label className="field-label">{label}</label>
-                  <input
-                    type="text"
-                    value={settings[key] || ''}
-                    onChange={e => setSettings(prev => ({ ...prev, [key]: e.target.value }))}
-                    placeholder={placeholder}
-                    className="field-input"
-                  />
-                </div>
-              ))}
+              <ImageCropField
+                label={t('settings.branding.coverImageUrl')}
+                hint={t('settings.branding.coverHint')}
+                existingUrl={settings.coverImageUrl || undefined}
+                value={null}
+                onChange={change => handleBrandingImage('cover', change)}
+                aspect={3}
+                maxOutputWidth={1800}
+                previewClassName="w-48 h-16"
+                busy={uploadingImage === 'cover'}
+              />
+              <ImageCropField
+                label={t('settings.branding.logoUrl')}
+                hint={t('settings.branding.logoHint')}
+                existingUrl={settings.logoUrl || undefined}
+                value={null}
+                onChange={change => handleBrandingImage('logo', change)}
+                aspect={1}
+                maxOutputWidth={1000}
+                outputType="image/png"
+                previewClassName="w-16 h-16"
+                busy={uploadingImage === 'logo'}
+              />
+              <div>
+                <label className="field-label">{t('settings.branding.tagline')}</label>
+                <input
+                  type="text"
+                  value={settings.tagline || ''}
+                  onChange={e => setSettings(prev => ({ ...prev, tagline: e.target.value }))}
+                  placeholder={t('settings.branding.taglinePlaceholder')}
+                  className="field-input"
+                />
+              </div>
               <div>
                 <label className="field-label">{t('settings.branding.accentColor')}</label>
                 <div className="flex items-center gap-3">

@@ -15,7 +15,7 @@ import { useShopCurrency, useShopServiceRangesEnabled, useShopDurationUnit, useS
 import { formatPrice, formatPriceRange } from '../utils/money';
 import { formatDurationRangeForUnit } from '../utils/duration';
 import DurationInput from '../components/DurationInput';
-import ServiceImageField, { ServiceImageChange } from '../components/ServiceImageField';
+import ImageCropField, { ImageChange } from '../components/ImageCropField';
 import { getCurrencySymbol } from '../constants/currencies';
 import { BookingLang, BOOKING_LANG_LABELS } from '../i18n/bookingTranslations';
 
@@ -73,7 +73,7 @@ const Services = () => {
   const [formData, setFormData] = useState(defaultForm);
   const [fieldErrors, setFieldErrors] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
-  const [imageChange, setImageChange] = useState<ServiceImageChange>(null);
+  const [imageChange, setImageChange] = useState<ImageChange>(null);
   // Одиниця відображення/вводу тривалості — керується глобальним
   // налаштуванням закладу (Settings > Загальні), а не локальним перемикачем.
   const durationUnit = useShopDurationUnit();
@@ -394,10 +394,15 @@ const Services = () => {
         title={editingService ? t('services.editModalTitle') : t('services.addModalTitle')}
       >
         <div className="space-y-3">
-          <ServiceImageField
+          <ImageCropField
+            label={t('services.fieldPhoto')}
+            hint={t('services.photoHint')}
             existingUrl={editingService?.imageUrl}
             value={imageChange}
             onChange={setImageChange}
+            aspect={1}
+            maxOutputWidth={1000}
+            previewClassName="w-24 h-24"
           />
           <div>
             <label className="field-label">{t('services.fieldName')} <span className="text-red-500">*</span></label>

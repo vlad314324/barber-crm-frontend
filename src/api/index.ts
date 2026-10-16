@@ -7,7 +7,7 @@ import type {
   CreateStaffLoginDto, CreateStaffLoginResponse,
   UpdateStaffLoginDto, UpdateStaffLoginResponse,
   ImportResult, ClientPageParams, ClientPageResult, EmployeeStats,
-  TelegramLinkCodeResponse, TelegramStatusResponse
+  TelegramLinkCodeResponse, TelegramStatusResponse, ShopSettings
 } from './types';
 import { getSalonSlug, clearSalonSlug } from '../utils/tenant';
 
@@ -138,6 +138,16 @@ export const serviceApi = {
     return (await api.post(`/services/${id}/image`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })).data;
   },
   deleteImage: async (id: string): Promise<Service> => (await api.delete(`/services/${id}/image`)).data,
+};
+
+// Лого/обкладинка сторінки бронювання (R2). Повертають оновлені налаштування.
+export const settingsImageApi = {
+  upload: async (kind: 'logo' | 'cover', image: Blob): Promise<ShopSettings> => {
+    const formData = new FormData();
+    formData.append('image', image, kind === 'logo' ? 'logo.png' : 'cover.jpg');
+    return (await api.post(`/settings/images/${kind}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })).data;
+  },
+  delete: async (kind: 'logo' | 'cover'): Promise<ShopSettings> => (await api.delete(`/settings/images/${kind}`)).data,
 };
 
 export const categoryApi = {
