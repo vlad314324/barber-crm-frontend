@@ -132,6 +132,12 @@ export const serviceApi = {
   delete: async (id: string): Promise<void> => { await api.delete(`/services/${id}`); },
   export: async (): Promise<Blob> => (await api.get('/services/export', { responseType: 'blob' })).data,
   import: (file: File): Promise<ImportResult> => importFile('/services/import', file),
+  uploadImage: async (id: string, image: Blob): Promise<Service> => {
+    const formData = new FormData();
+    formData.append('image', image, 'image.jpg');
+    return (await api.post(`/services/${id}/image`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })).data;
+  },
+  deleteImage: async (id: string): Promise<Service> => (await api.delete(`/services/${id}/image`)).data,
 };
 
 export const categoryApi = {

@@ -75,6 +75,9 @@ export interface Service {
   // Переклади назви/опису для мов сторінки бронювання, крім мови за
   // замовчуванням салону (та лишається в базових полях name/description).
   translations?: Partial<Record<BookingLang, { name: string; description: string }>>;
+  // Публічний URL фото послуги (R2). Змінюється лише через
+  // serviceApi.uploadImage/deleteImage, не через create/update.
+  imageUrl?: string;
 }
 
 export interface Category {

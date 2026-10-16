@@ -21,6 +21,7 @@ import { useTheme } from '../context/ThemeContext';
 interface Service {
   _id: string; name: string; description?: string; price: number; priceMax?: number; duration: number; durationMax?: number; category: string;
   translations?: Partial<Record<BookingLang, { name: string; description: string }>>;
+  imageUrl?: string;
 }
 interface Employee {
   _id: string; name: string; role: string; customRoleLabel?: string; services?: string[]; specialties?: string[]; bio?: string;
@@ -343,7 +344,11 @@ const BookingPage = () => {
             ? 'border-brand bg-brand-extra-soft'
             : 'border-line bg-surface hover:border-line-medium'}`}>
         <div className="flex justify-between items-center gap-3">
-          <div className="min-w-0">
+          {s.imageUrl && (
+            <img src={s.imageUrl} alt="" loading="lazy"
+              className="w-16 h-16 sm:w-20 sm:h-20 rounded-md object-cover shrink-0 self-start" />
+          )}
+          <div className="min-w-0 flex-1">
             <p className="font-medium text-ink">{serviceName(s, lang)}</p>
             {description && (
               <p className={`text-sm text-ink-muted mt-0.5 ${collapsible && !expanded ? 'line-clamp-2' : ''}`}>{description}</p>

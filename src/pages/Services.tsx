@@ -15,6 +15,7 @@ import { useShopCurrency, useShopServiceRangesEnabled, useShopDurationUnit, useS
 import { formatPrice, formatPriceRange } from '../utils/money';
 import { formatDurationRangeForUnit } from '../utils/duration';
 import DurationInput from '../components/DurationInput';
+import ServiceImageField, { ServiceImageChange } from '../components/ServiceImageField';
 import { getCurrencySymbol } from '../constants/currencies';
 import { BookingLang, BOOKING_LANG_LABELS } from '../i18n/bookingTranslations';
 
@@ -72,6 +73,7 @@ const Services = () => {
   const [formData, setFormData] = useState(defaultForm);
   const [fieldErrors, setFieldErrors] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [imageChange, setImageChange] = useState<ServiceImageChange>(null);
   // Одиниця відображення/вводу тривалості — керується глобальним
   // налаштуванням закладу (Settings > Загальні), а не локальним перемикачем.
   const durationUnit = useShopDurationUnit();
@@ -127,6 +129,7 @@ const Services = () => {
   const openAddModal = () => {
     setEditingService(null);
     setFormData({ ...defaultForm, category: categories[0]?.name || '' });
+    setImageChange(null);
     setFieldErrors(new Set());
     setIsModalOpen(true);
   };
@@ -144,6 +147,7 @@ const Services = () => {
       isAvailable: service.isAvailable,
       translations: service.translations || {},
     });
+    setImageChange(null);
     setFieldErrors(new Set());
     setIsModalOpen(true);
   };
@@ -177,19 +181,27 @@ const Services = () => {
       return;
     }
     setSaving(true);
+    let saved;
     try {
-      if (editingService) {
-        await serviceApi.update(editingService._id, formData);
-      } else {
-        await serviceApi.create(formData);
-      }
-      setIsModalOpen(false);
-      fetchServices();
+      saved = editingService
+        ? await serviceApi.update(editingService._id, formData)
+        : await serviceApi.create(formData);
     } catch (err) {
       alert(getErrorMessage(err) || t('services.saveError'));
-    } finally {
       setSaving(false);
+      return;
     }
+    // Фото — окремим запитом уже після збереження послуги (для нової
+    // послуги інакше ще немає id). Його помилка не скасовує збережене.
+    try {
+      if (imageChange === 'remove') await serviceApi.deleteImage(saved._id);
+      else if (imageChange) await serviceApi.uploadImage(saved._id, imageChange.blob);
+    } catch (err) {
+      alert(`${t('services.photoSaveError')}: ${getErrorMessage(err) || t('services.saveError')}`);
+    }
+    setSaving(false);
+    setIsModalOpen(false);
+    fetchServices();
   };
 
   const handleDelete = async (id: string) => {
@@ -320,10 +332,14 @@ const Services = () => {
             return (
             <div key={service._id} className="ds-card overflow-hidden flex flex-col">
 
-              {/* Замість картинки — мінімалістична іконка */}
-              <div className="h-32 flex items-center justify-center bg-brand-extra-soft">
-                <CategoryIcon size={40} strokeWidth={1.5} className="text-brand" />
-              </div>
+              {/* Фото послуги, а без нього — мінімалістична іконка категорії */}
+              {service.imageUrl ? (
+                <img src={service.imageUrl} alt="" loading="lazy" className="h-32 w-full object-cover" />
+              ) : (
+                <div className="h-32 flex items-center justify-center bg-brand-extra-soft">
+                  <CategoryIcon size={40} strokeWidth={1.5} className="text-brand" />
+                </div>
+              )}
 
               <div className="p-5 flex-1">
                 <div className="flex justify-between items-start mb-2">
@@ -378,6 +394,11 @@ const Services = () => {
         title={editingService ? t('services.editModalTitle') : t('services.addModalTitle')}
       >
         <div className="space-y-3">
+          <ServiceImageField
+            existingUrl={editingService?.imageUrl}
+            value={imageChange}
+            onChange={setImageChange}
+          />
           <div>
             <label className="field-label">{t('services.fieldName')} <span className="text-red-500">*</span></label>
             <input
