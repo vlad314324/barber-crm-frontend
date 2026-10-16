@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, ReactNode } from 'react';
-import { BarChart2, TrendingUp, Scissors, User, RefreshCw, Users, CalendarDays, ListChecks } from 'lucide-react';
+import { BarChart2, TrendingUp, Scissors, User, RefreshCw, Users, CalendarDays, ListChecks, Info } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
 } from 'recharts';
@@ -7,6 +7,7 @@ import api from '../api';
 import type { PlatformSalonFunnelAnalytics } from '../api/platformApi';
 import DonutChart, { DonutSlice } from '../components/charts/DonutChart';
 import BookingFunnelSection from '../components/charts/BookingFunnelSection';
+import Modal from '../components/Modal';
 import {
   axisTick, tooltipProps, BRAND, GRID_STROKE, CATEGORICAL_COLORS, MAX_CATEGORIES, OTHER_COLOR, compactNumber,
 } from '../components/charts/chartTheme';
@@ -34,7 +35,7 @@ interface DashboardData {
 }
 
 interface ForecastSeriesPoint { date: string; count: number; }
-interface ForecastPoint { date: string; predicted: number; }
+interface ForecastPoint { date: string; isoDate?: string; predicted: number; }
 interface ForecastData {
   sma: number;
   mae: number;
@@ -107,6 +108,7 @@ const Reports = () => {
   const [loading,   setLoading]   = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'forecast' | 'rfm'>('overview');
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
+  const [forecastInfoOpen, setForecastInfoOpen] = useState(false);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -152,6 +154,10 @@ const Reports = () => {
       ...(rest > 0 ? [{ name: t('reports.other'), value: rest, color: OTHER_COLOR }] : []),
     ];
   };
+
+  // "сб, 17 жовт." / "Sat, Oct 17" — мовою інтерфейсу, а не сервера.
+  const forecastDate = (iso: string) =>
+    new Date(`${iso}T00:00:00Z`).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 
   const maxForecast = forecast  ? Math.max(...(forecast.forecast || []).map((d) => d.predicted), 1) : 1;
   const maxSeries   = forecast  ? Math.max(...(forecast.series   || []).map((d) => d.count),    1) : 1;
@@ -370,6 +376,12 @@ const Reports = () => {
       {/* ── FORECAST ── */}
       {activeTab === 'forecast' && forecast && (
         <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <p className="text-sm text-ink-secondary">{t('reports.forecastIntro')}</p>
+            <button type="button" onClick={() => setForecastInfoOpen(true)} className="btn btn-secondary shrink-0 self-start sm:self-auto">
+              <Info size={16}/> {t('reports.infoBtn')}
+            </button>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="ds-card p-5">
               <p className="text-xs text-ink-muted font-semibold uppercase tracking-wide">{t('reports.smaTitle')}</p>
@@ -396,7 +408,7 @@ const Reports = () => {
                     style={{ height: `${barPx(d.count, maxSeries)}px` }}
                   />
                   <span className="text-ink-muted text-center leading-tight" style={{ fontSize: '9px' }}>
-                    {d.date.slice(5)}
+                    {`${d.date.slice(8, 10)}.${d.date.slice(5, 7)}`}
                   </span>
                 </div>
               ))}
@@ -415,13 +427,39 @@ const Reports = () => {
                     className="w-full bg-brand-dark/80 hover:bg-brand-dark rounded-t transition-colors"
                     style={{ height: `${barPx(d.predicted, maxForecast)}px` }}
                   />
-                  <span className="text-xs text-ink-muted text-center leading-tight">{d.date}</span>
+                  <span className="text-xs text-ink-muted text-center leading-tight">{d.isoDate ? forecastDate(d.isoDate) : d.date}</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
       )}
+
+      <Modal isOpen={forecastInfoOpen} onClose={() => setForecastInfoOpen(false)} title={t('reports.forecastInfoTitle')} size="lg">
+        <div className="space-y-5 text-sm text-ink-secondary leading-relaxed">
+          <section>
+            <h4 className="text-sm font-semibold text-ink mb-2">{t('reports.infoWhatTitle')}</h4>
+            <ul className="space-y-1.5 list-disc pl-5">
+              {([['smaTitle', 'infoWhatSma'], ['maeTitle', 'infoWhatMae'], ['historicalTitle', 'infoWhatHistory'], ['forecastTitle', 'infoWhatForecast']] as const).map(([term, text]) => (
+                <li key={term}><span className="font-medium text-ink">{t(`reports.${term}`)}</span> — {t(`reports.${text}`)}</li>
+              ))}
+            </ul>
+          </section>
+          <section>
+            <h4 className="text-sm font-semibold text-ink mb-2">{t('reports.infoHowTitle')}</h4>
+            <ul className="space-y-1.5 list-disc pl-5">
+              {(['infoHow1', 'infoHow2', 'infoHow3'] as const).map(k => <li key={k}>{t(`reports.${k}`)}</li>)}
+            </ul>
+          </section>
+          <section>
+            <h4 className="text-sm font-semibold text-ink mb-2">{t('reports.infoUseTitle')}</h4>
+            <ul className="space-y-1.5 list-disc pl-5">
+              {(['infoUse1', 'infoUse2', 'infoUse3', 'infoUse4'] as const).map(k => <li key={k}>{t(`reports.${k}`)}</li>)}
+            </ul>
+          </section>
+          <p className="text-xs text-ink-muted bg-canvas-soft rounded-sm px-3 py-2">{t('reports.infoNote')}</p>
+        </div>
+      </Modal>
 
       {/* ── RFM ── */}
       {activeTab === 'rfm' && rfm && (
