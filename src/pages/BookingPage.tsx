@@ -208,14 +208,28 @@ const BookingPage = () => {
     ? branding.bookingLanguages.filter((l): l is BookingLang => (DEFAULT_BOOKING_LANGS as string[]).includes(l) || l === 'cs' || l === 'pl')
     : DEFAULT_BOOKING_LANGS);
 
+  // Початкова мова сторінки (нею ж прийде лист клієнту), за пріоритетом:
+  // 1) мова, яку клієнт раніше сам обрав на сторінці цього салону;
+  // 2) мова браузера, якщо салон її увімкнув (uk-UA -> uk, cs -> cs...);
+  // 3) мова салону за замовчуванням.
+  const langStorageKey = `bookingLang:${salonSlug}`;
   useEffect(() => {
     if (langTouched || !branding) return;
-    const def = branding.defaultBookingLanguage as BookingLang | undefined;
-    if (def && enabledLangs.includes(def)) setLangState(def);
+    let saved: string | null = null;
+    try { saved = localStorage.getItem(langStorageKey); } catch { /* приватний режим тощо */ }
+    const browserLangs = (navigator.languages?.length ? navigator.languages : [navigator.language])
+      .map(l => (l || '').toLowerCase().split('-')[0]);
+    const def = branding.defaultBookingLanguage;
+    const pick = [saved, ...browserLangs, def].find((l): l is BookingLang => !!l && (enabledLangs as string[]).includes(l));
+    if (pick) setLangState(pick);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branding]);
 
-  const setLang = (l: string) => { setLangTouched(true); setLangState(l as BookingLang); };
+  const setLang = (l: string) => {
+    setLangTouched(true);
+    setLangState(l as BookingLang);
+    try { localStorage.setItem(langStorageKey, l); } catch { /* не критично */ }
+  };
 
   // totalPrice — завжди база (мін.); totalPriceMax — лише для показу
   // діапазону, коли послуга має priceMax (сервер не віддає ці поля взагалі,
@@ -395,6 +409,8 @@ const BookingPage = () => {
         clientName,
         clientPhone,
         clientEmail,
+        // Мова інтерфейсу сторінки — нею прийде лист-підтвердження й нагадування.
+        lang,
       });
       setDone(true);
       trackEvent(api, 'submit_success', { appointmentId: res.data?.appointment?.id });
