@@ -7,7 +7,8 @@ import type {
   CreateStaffLoginDto, CreateStaffLoginResponse,
   UpdateStaffLoginDto, UpdateStaffLoginResponse,
   ImportResult, ClientPageParams, ClientPageResult, EmployeeStats,
-  TelegramLinkCodeResponse, TelegramStatusResponse, ShopSettings
+  TelegramLinkCodeResponse, TelegramStatusResponse, ShopSettings,
+  EmployeeBreak, BreakInterval
 } from './types';
 import { getSalonSlug, clearSalonSlug } from '../utils/tenant';
 
@@ -122,6 +123,14 @@ export const appointmentApi = {
   import: (file: File): Promise<ImportResult> => importFile('/appointments/import', file),
   addNote: async (id: string, text: string): Promise<Appointment> =>
     (await api.post(`/appointments/${id}/notes`, { text })).data,
+};
+
+export const breakApi = {
+  list: async (from: string, to: string, employeeId?: string): Promise<EmployeeBreak[]> =>
+    (await api.get('/breaks', { params: { from, to, employeeId } })).data,
+  // Повністю замінює перерви майстра на день (порожній список — прибрати всі).
+  saveDay: async (employeeId: string, date: string, intervals: BreakInterval[]): Promise<EmployeeBreak[]> =>
+    (await api.put(`/breaks/${employeeId}/${date}`, { intervals })).data,
 };
 
 export const serviceApi = {

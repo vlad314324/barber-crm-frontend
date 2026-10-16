@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
+import { useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
-import { Calendar, ChevronLeft, ChevronRight, Plus, UserPlus, ChevronDown, Download, Upload, MessageSquare, MoreVertical } from 'lucide-react';
-import { appointmentApi, clientApi, employeeApi, serviceApi } from '../api';
+import { Calendar, ChevronLeft, ChevronRight, Plus, UserPlus, ChevronDown, Download, Upload, MessageSquare, MoreVertical, Coffee, CalendarDays } from 'lucide-react';
+import { appointmentApi, clientApi, employeeApi, serviceApi, breakApi } from '../api';
 import api from '../api';
-import { Appointment, Client, Employee, Service, ShopSettings, ImportResult } from '../api/types';
+import { Appointment, Client, Employee, Service, ShopSettings, ImportResult, EmployeeBreak } from '../api/types';
 import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../i18n/LocaleContext';
@@ -14,6 +14,9 @@ import { formatPrice, formatPriceRange } from '../utils/money';
 import { formatDurationRangeForUnit } from '../utils/duration';
 import { getCurrencySymbol } from '../constants/currencies';
 import DurationInput from '../components/DurationInput';
+import ScheduleGrid, { ScheduleColumn, HeaderMenuItem } from '../components/schedule/ScheduleGrid';
+import { BREAK_PATTERN, toMin } from '../components/schedule/scheduleTime';
+import BreaksModal from '../components/schedule/BreaksModal';
 
 const COUNTRIES = [
   { code: '+380', flag: '🇺🇦', name: 'Україна' },
@@ -106,20 +109,6 @@ const STATUS_COLORS: Record<string, string> = {
   'No-show':  'bg-ink-muted border-ink-muted',
 };
 
-const SLOT_MIN    = 30;
-const START_HOUR  = 8;
-const END_HOUR    = 20;
-const PX_PER_SLOT = 32;
-
-const SLOTS = Array.from(
-  { length: ((END_HOUR - START_HOUR) * 60) / SLOT_MIN },
-  (_, i) => {
-    const t = START_HOUR * 60 + i * SLOT_MIN;
-    return `${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`;
-  }
-);
-const TOTAL_H = SLOTS.length * PX_PER_SLOT;
-
 const DAY_KEYS = ['sun','mon','tue','wed','thu','fri','sat'];
 
 const parseDateLocal = (s: string): Date => {
@@ -130,9 +119,24 @@ const parseDateLocal = (s: string): Date => {
 const isSameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
-const durToH = (min: number) => Math.max(min / SLOT_MIN * PX_PER_SLOT, PX_PER_SLOT);
 const dateStr = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+// Понеділок тижня, що містить d (локальний час).
+const weekStart = (d: Date) => {
+  const n = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  n.setDate(n.getDate() - ((n.getDay() + 6) % 7));
+  return n;
+};
+const addDays = (d: Date, k: number) => { const n = new Date(d); n.setDate(n.getDate() + k); return n; };
+// "12 – 18 жовтня 2026 р." / "28 вересня – 4 жовтня 2026 р."
+const formatWeekRange = (start: Date, lang: 'uk' | 'en') => {
+  const end = addDays(start, 6);
+  const loc = lang === 'uk' ? 'uk-UA' : 'en-US';
+  const sameMonth = start.getMonth() === end.getMonth();
+  const a = start.toLocaleDateString(loc, sameMonth ? { day: 'numeric' } : { day: 'numeric', month: 'long' });
+  const b = end.toLocaleDateString(loc, { day: 'numeric', month: 'long', year: 'numeric' });
+  return `${a} – ${b}`;
+};
 const formatDateLong = (d: Date, lang: 'uk' | 'en') =>
   d.toLocaleDateString(lang === 'uk' ? 'uk-UA' : 'en-US', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
 
@@ -225,6 +229,12 @@ const Appointments = () => {
   const [loadError,    setLoadError]    = useState('');
   const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null);
 
+  // Режим календаря: день (колонки — майстри) або тиждень одного майстра.
+  const [view, setView] = useState<'day' | 'week'>('day');
+  const [weekEmployeeId, setWeekEmployeeId] = useState('');
+  const [breaks, setBreaks] = useState<EmployeeBreak[]>([]);
+  const [breakTarget, setBreakTarget] = useState<{ employee: Employee; date: Date } | null>(null);
+
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [addForm,   setAddForm]   = useState(defaultAdd);
   const [saving,    setSaving]    = useState(false);
@@ -276,6 +286,16 @@ const Appointments = () => {
     finally { setLoading(false); }
   }, []);
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Перерви — лише для видимого діапазону (день або Пн–Нд).
+  const rangeFrom = view === 'week' ? weekStart(currentDate) : currentDate;
+  const rangeTo = view === 'week' ? addDays(rangeFrom, 6) : currentDate;
+  const rangeKey = `${dateStr(rangeFrom)}_${dateStr(rangeTo)}`;
+  const fetchBreaks = useCallback(async () => {
+    const [from, to] = rangeKey.split('_');
+    try { setBreaks(await breakApi.list(from, to)); } catch { setBreaks([]); }
+  }, [rangeKey]);
+  useEffect(() => { fetchBreaks(); }, [fetchBreaks]);
 
   const handleExport = async () => {
     try {
@@ -345,18 +365,24 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
       return typeof r === 'object' ? r.name : services.find(s => s._id === r)?.name || '?';
     }).join(', ');
   };
-  const dayAppts = appointments.filter(a => {
-    const d = typeof a.date === 'string' ? parseDateLocal(a.date.slice(0,10)) : new Date(a.date);
-    return isSameDay(d, currentDate);
-  });
+  const apptDate = (a: Appointment) =>
+    typeof a.date === 'string' ? parseDateLocal(a.date.slice(0,10)) : new Date(a.date);
 
-  const apptsByBarber = (id: string) => dayAppts.filter(a => {
+  const apptsFor = (id: string, date: Date) => appointments.filter(a => {
     // a.employee може бути null, якщо майстра видалили (а не деактивували)
     // після створення запису — typeof null === 'object', тож без явної
     // перевірки на null тут би впало з винятком.
     const eid = a.employee && typeof a.employee === 'object' ? a.employee._id : a.employee;
-    return eid === id;
+    return eid === id && isSameDay(apptDate(a), date);
   });
+  const apptsByBarber = (id: string) => apptsFor(id, currentDate);
+
+  const breaksFor = (id: string, date: Date) =>
+    breaks.filter(b => b.employee === id && b.date.slice(0, 10) === dateStr(date));
+
+  // Майстер, прив'язаний до поточного логіна (для barber — "моя колонка").
+  const myEmployee = employees.find(e => e.userId && e.userId === user?.id);
+  const canEditBreaks = (emp: Employee) => isAdmin || emp._id === myEmployee?._id;
 
   // Деактивований майстер зникає з колонок календаря на майбутні дати (щоб
   // на нього не можна було записати клієнта надалі), але лишається видимим
@@ -371,25 +397,87 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
     ? barbers.filter(e => e.isActive !== false || apptsByBarber(e._id).some(a => a.status !== 'Cancelled'))
     : barbers;
 
-  const isSlotBusy = (empId: string, slotTime: string, excludeId?: string): boolean => {
-    const [sh, sm] = slotTime.split(':').map(Number);
-    const slotStart = sh * 60 + sm;
-    return apptsByBarber(empId).some(a => {
+  // Інтервал [start, start+duration) перетинає інший запис або перерву майстра?
+  const isSlotBusy = (empId: string, slotTime: string, date: Date, duration = 1, excludeId?: string): boolean => {
+    const s = toMin(slotTime);
+    const e = s + Math.max(duration, 1);
+    return apptsFor(empId, date).some(a => {
       if (excludeId && a._id === excludeId) return false;
       if (a.status === 'Cancelled' || a.status === 'No-show') return false;
-      const [ah, am] = a.startTime.split(':').map(Number);
-      const aStart = ah * 60 + am;
-      const aEnd   = aStart + a.totalDuration;
-      return slotStart >= aStart && slotStart < aEnd;
-    });
+      const aStart = toMin(a.startTime);
+      return s < aStart + a.totalDuration && aStart < e;
+    }) || breaksFor(empId, date).some(b => s < toMin(b.endTime) && toMin(b.startTime) < e);
   };
 
-  const handleSlotClick = (empId: string, time: string) => {
-    if (isSlotBusy(empId, time)) return;
-    setAddForm({ ...defaultAdd, date: dateStr(currentDate), startTime: time, employeeId: empId });
+  const handleSlotClick = (empId: string, time: string, date: Date = currentDate) => {
+    if (isSlotBusy(empId, time, date)) return;
+    setAddForm({ ...defaultAdd, date: dateStr(date), startTime: time, employeeId: empId });
     setAddingNC(false); setNewClient(defaultNC); setPhoneMatch(null);
     setIsAddOpen(true);
   };
+
+  // ── колонки календаря ─────────────────────────────────────────────────────
+  const locale = lang === 'uk' ? 'uk-UA' : 'en-US';
+  const today = new Date();
+  const openBreaks = (employee: Employee, date: Date) => setBreakTarget({ employee, date });
+  const breakMenuItem = (emp: Employee, date: Date) => canEditBreaks(emp)
+    ? [{ label: t('appointments.addBreak'), icon: <Coffee size={15}/>, onClick: () => openBreaks(emp, date) }]
+    : [];
+
+  // Тиждень: активні майстри + обраний (навіть якщо його деактивували).
+  const weekBarbers = barbers.filter(e => e.isActive !== false || e._id === weekEmployeeId);
+  const weekEmployee = weekBarbers.find(b => b._id === weekEmployeeId)
+    || (myEmployee && weekBarbers.find(b => b._id === myEmployee._id))
+    || weekBarbers[0];
+
+  const columnFor = (emp: Employee, date: Date, header: ReactNode, extraMenu: HeaderMenuItem[], key: string, highlight = false): ScheduleColumn => ({
+    key,
+    header,
+    menuItems: [...breakMenuItem(emp, date), ...extraMenu],
+    dayOff: isDayOff(emp, date),
+    dayOffLabel: t('appointments.dayOff'),
+    highlight,
+    appointments: apptsFor(emp._id, date),
+    breaks: breaksFor(emp._id, date),
+    onSlotClick: time => handleSlotClick(emp._id, time, date),
+    onBreakClick: canEditBreaks(emp) ? () => openBreaks(emp, date) : undefined,
+  });
+
+  const gridColumns: ScheduleColumn[] = view === 'day'
+    ? calendarBarbers.map(emp => {
+      const off = isDayOff(emp, currentDate);
+      return columnFor(emp, currentDate, (
+        <>
+          <img
+            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=random&size=40`}
+            alt={emp.name}
+            className={`w-8 h-8 rounded-full mx-auto mb-1 ${off ? 'opacity-40 grayscale' : ''}`}/>
+          <p className={`text-xs font-semibold truncate ${off ? 'text-ink-muted' : 'text-ink'}`}>{emp.name}</p>
+          <p className="text-xs text-ink-muted truncate">{off ? `😴 ${t('appointments.dayOff')}` : (emp.customRoleLabel?.trim() || t(`roles.${emp.role}`))}</p>
+        </>
+      ), [{
+        label: t('appointments.weekSchedule'),
+        icon: <CalendarDays size={15}/>,
+        onClick: () => { setWeekEmployeeId(emp._id); setView('week'); },
+      }], emp._id);
+    })
+    : weekEmployee
+      ? Array.from({ length: 7 }, (_, i) => addDays(weekStart(currentDate), i)).map(date => {
+        const isToday = isSameDay(date, today);
+        const off = isDayOff(weekEmployee, date);
+        return columnFor(weekEmployee, date, (
+          <>
+            <p className={`text-xs capitalize ${isToday ? 'text-brand-dark font-semibold' : 'text-ink-muted'}`}>
+              {date.toLocaleDateString(locale, { weekday: 'short' })}
+            </p>
+            <p className={`text-sm font-semibold ${isToday ? 'text-brand-dark' : off ? 'text-ink-muted' : 'text-ink'}`}>
+              {date.toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
+            </p>
+            {off && <p className="text-xs text-ink-muted truncate">😴 {t('appointments.dayOff')}</p>}
+          </>
+        ), [], dateStr(date), isToday);
+      })
+      : [];
 
   const handlePhoneChange = (phone: string) => {
     setNewClient(p => ({ ...p, phone }));
@@ -467,7 +555,8 @@ if (selectedBarber) {
 
   const handleEditSave = async () => {
     if (!editAppt) return;
-    if (isSlotBusy(editForm.employeeId, editForm.startTime, editAppt._id)) {
+    if (editForm.status !== 'Cancelled'
+      && isSlotBusy(editForm.employeeId, editForm.startTime, parseDateLocal(editForm.date), editForm.totalDuration, editAppt._id)) {
       alert(t('appointments.slotBusy')); return;
     }
     setEditSaving(true);
@@ -603,126 +692,80 @@ if (selectedBarber) {
               <div className="w-3 h-3 rounded-sm flex-shrink-0 bg-canvas-soft"/>
               <span className="text-xs text-ink-muted">{t('appointments.dayOff')}</span>
             </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-sm flex-shrink-0 border border-line" style={{ background: BREAK_PATTERN }}/>
+              <span className="text-xs text-ink-muted">{t('appointments.breakLabel')}</span>
+            </div>
           </div>
         </div>
 
         {/* Calendar */}
         <div className="flex-1 ds-card overflow-hidden min-w-0">
-          <div className="px-4 py-3 border-b border-line flex items-center gap-2">
-            <button onClick={() => setCurrentDate(d => { const n=new Date(d); n.setDate(n.getDate()-1); return n; })}
+          <div className="px-4 py-3 border-b border-line flex flex-wrap items-center gap-2">
+            <button onClick={() => setCurrentDate(d => addDays(d, view === 'week' ? -7 : -1))}
+              aria-label={t('appointments.prev')}
               className="p-1.5 rounded-xs hover:bg-canvas-soft"><ChevronLeft size={18}/></button>
             <span className="text-base font-semibold text-ink capitalize min-w-0 truncate">
-              {formatDateLong(currentDate, lang)}
+              {view === 'week' ? formatWeekRange(weekStart(currentDate), lang) : formatDateLong(currentDate, lang)}
             </span>
-            <button onClick={() => setCurrentDate(d => { const n=new Date(d); n.setDate(n.getDate()+1); return n; })}
+            <button onClick={() => setCurrentDate(d => addDays(d, view === 'week' ? 7 : 1))}
+              aria-label={t('appointments.next')}
               className="p-1.5 rounded-xs hover:bg-canvas-soft"><ChevronRight size={18}/></button>
             <button onClick={() => setCurrentDate(new Date())}
               className="ml-1 px-3 py-1 text-xs border border-line rounded-xs hover:bg-canvas-soft">
               {t('appointments.todayBtn')}
             </button>
-          </div>
 
-          <div className="overflow-x-auto">
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: calendarBarbers.length > 0 ? `4rem repeat(${calendarBarbers.length}, minmax(100px, 1fr))` : '4rem 1fr',
-            }}>
-              {/* ── шапка ── */}
-              <div className="border-r border-r-line border-b border-b-line bg-canvas-soft"/>
-              {calendarBarbers.length === 0
-                ? <div className="py-4 text-sm text-ink-muted font-normal text-center border-b border-b-line bg-canvas-soft">{t('appointments.noBarbers')}</div>
-                : calendarBarbers.map(emp => {
-                  const off = isDayOff(emp, currentDate);
-                  return (
-                    <div key={emp._id} className="border-l border-l-line border-b border-b-line py-2 px-2 text-center bg-canvas-soft">
-                      <img
-                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=random&size=40`}
-                        alt={emp.name}
-                        className={`w-8 h-8 rounded-full mx-auto mb-1 ${off ? 'opacity-40 grayscale' : ''}`}/>
-                      <p className={`text-xs font-semibold truncate ${off ? 'text-ink-muted' : 'text-ink'}`}>{emp.name}</p>
-                      <p className="text-xs text-ink-muted truncate">{off ? `😴 ${t('appointments.dayOff')}` : (emp.customRoleLabel?.trim() || t(`roles.${emp.role}`))}</p>
-                    </div>
-                  );
-                })}
-
-              {/* ── слоти ── */}
-              {SLOTS.map((slot) => {
-                const topColor = slot.endsWith(':00') ? 'border-t-line' : 'border-t-line/50';
-                return (
-                  <Fragment key={slot}>
-                    <div className={`w-16 border-r border-r-line border-t ${topColor} pr-2 pt-0.5 text-right`}
-                      style={{ height: PX_PER_SLOT }}>
-                      {slot.endsWith(':00') && (
-                        <span className="text-xs text-ink-muted leading-none">{slot}</span>
-                      )}
-                    </div>
-                    {calendarBarbers.map(emp => {
-                      const off = isDayOff(emp, currentDate);
-
-                      // ── вихідний день ──────────────────────────────────────
-                      if (off) {
-                        const isFirstSlot = slot === SLOTS[0];
-                        return (
-                          <div key={emp._id}
-                            style={{ height: PX_PER_SLOT, position:'relative' }}
-                            className={`border-l border-l-line/50 border-t ${topColor} bg-canvas-soft cursor-not-allowed select-none`}>
-                            {isFirstSlot && (
-                              <div style={{ position:'absolute', top:0, left:0, right:0, height:`${TOTAL_H}px`, zIndex:4 }}
-                                className="flex items-center justify-center bg-canvas-soft bg-opacity-70">
-                                <span className="text-sm text-ink-muted font-medium">{t('appointments.dayOff')}</span>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      }
-
-                      // ── робочий день ───────────────────────────────────────
-                      const busy     = isSlotBusy(emp._id, slot);
-                      const apptHere = apptsByBarber(emp._id).find(a => a.startTime === slot);
-                      const [sh2, sm2] = slot.split(':').map(Number);
-                      const slotMin  = sh2 * 60 + sm2;
-                      const covered  = !apptHere && apptsByBarber(emp._id).some(a => {
-                        const [ah, am] = a.startTime.split(':').map(Number);
-                        const aStart = ah*60+am;
-                        const aEnd   = aStart + a.totalDuration;
-                        return slotMin > aStart && slotMin < aEnd &&
-                          a.status !== 'Cancelled' && a.status !== 'No-show';
-                      });
-
-                      return (
-                        <div key={emp._id}
-                          style={{ height: PX_PER_SLOT, position:'relative' }}
-                          className={`border-l border-l-line/50 border-t ${topColor}
-                            ${!busy && !covered ? 'cursor-pointer hover:bg-brand-extra-soft transition-colors' : ''}
-                            ${busy && !apptHere && !covered ? 'bg-canvas-soft' : ''}`}
-                          onClick={() => !busy && !covered && handleSlotClick(emp._id, slot)}>
-                          {apptHere && (() => {
-                            const height = durToH(apptHere.totalDuration);
-                            const color  = STATUS_COLORS[apptHere.status] || 'bg-brand border-brand-dark';
-                            return (
-                              <div
-                                onClick={e => { e.stopPropagation(); openEdit(apptHere); }}
-                                style={{ height:`${height}px`, position:'absolute', top:0, left:4, right:4, zIndex:5 }}
-                                className={`rounded border-l-4 px-1.5 py-0.5 text-white text-xs cursor-pointer hover:opacity-90 shadow-sm overflow-hidden ${color}`}>
-                                <p className="font-semibold truncate leading-tight flex items-center gap-1">
-                                  {clientName(apptHere.client)}
-                                  {(apptHere.notes?.length ?? 0) > 0 && <MessageSquare size={11} className="shrink-0 opacity-90"/>}
-                                </p>
-                                <p className="truncate opacity-90 leading-tight">{svcNames(apptHere.services)}</p>
-                                {height > 40 && <p className="opacity-75 leading-tight">{apptHere.startTime} · {formatPrice(apptHere.totalPrice, currency)}</p>}
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      );
-                    })}
-                  </Fragment>
-                );
-              })}
+            <div className="flex items-center gap-2 ml-auto">
+              {view === 'week' && (
+                <select value={weekEmployee?._id || ''} onChange={e => setWeekEmployeeId(e.target.value)}
+                  aria-label={t('appointments.master')}
+                  className="field-input py-1 text-sm w-auto max-w-[200px]">
+                  {weekBarbers.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
+                </select>
+              )}
+              <div className="flex gap-1 bg-canvas-soft p-1 rounded-sm" role="group">
+                {(['day', 'week'] as const).map(v => (
+                  <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v}
+                    className={`px-3 py-1 rounded-xs text-xs font-medium whitespace-nowrap transition-colors ${
+                      view === v ? 'bg-surface text-brand-dark shadow-sm' : 'text-ink-secondary hover:text-ink'}`}>
+                    {t(v === 'day' ? 'appointments.viewDay' : 'appointments.viewWeek')}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
+
+          <ScheduleGrid
+            columns={gridColumns}
+            emptyText={t('appointments.noBarbers')}
+            breakLabel={t('appointments.breakLabel')}
+            onAppointmentClick={openEdit}
+            renderAppointment={(a, height) => {
+              const color = STATUS_COLORS[a.status] || 'bg-brand border-brand-dark';
+              return (
+                <div className={`h-full rounded border-l-4 px-1.5 py-px text-white text-xs leading-[14px] cursor-pointer hover:opacity-90 shadow-sm overflow-hidden ${color}`}>
+                  <p className="font-semibold truncate flex items-center gap-1">
+                    {clientName(a.client)}
+                    {(a.notes?.length ?? 0) > 0 && <MessageSquare size={11} className="shrink-0 opacity-90"/>}
+                  </p>
+                  {height >= 28 && <p className="truncate opacity-90">{svcNames(a.services)}</p>}
+                  {height >= 44 && <p className="opacity-75">{a.startTime} · {formatPrice(a.totalPrice, currency)}</p>}
+                </div>
+              );
+            }}
+          />
         </div>
       </div>
+
+      <BreaksModal
+        employee={breakTarget?.employee ?? null}
+        date={breakTarget?.date ?? null}
+        dateKey={breakTarget ? dateStr(breakTarget.date) : ''}
+        breaks={breakTarget ? breaksFor(breakTarget.employee._id, breakTarget.date) : []}
+        onClose={() => setBreakTarget(null)}
+        onSaved={fetchBreaks}
+      />
 
       {/* ── ADD MODAL ── */}
       <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title={t('appointments.newModalTitle')} size="xl">

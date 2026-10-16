@@ -80,6 +80,22 @@ export interface Service {
   imageUrl?: string;
 }
 
+// Перерва майстра на конкретну дату (обід тощо) — закриває час для запису.
+export interface EmployeeBreak {
+  _id: string;
+  employee: string;
+  date: string; // ISO, північ UTC календарного дня
+  startTime: string; // "HH:MM"
+  endTime: string;   // "HH:MM"
+  comment: string;
+}
+
+export interface BreakInterval {
+  startTime: string;
+  endTime: string;
+  comment: string;
+}
+
 export interface Category {
   _id: string;
   name: string;
