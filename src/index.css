@@ -15,6 +15,19 @@
   --color-brand-extra-soft: 241 250 245;
   --color-line: 222 222 216;
   --color-line-medium: 201 203 196;
+  /* Діаграми. Категорійні кольори — фіксований порядок, перевірений на
+     розрізненність (у т.ч. для дальтоніків) окремо для світлої й темної
+     теми; статусні — лише для статусів записів. */
+  --chart-1: #2f8f6b;
+  --chart-2: #2a78d6;
+  --chart-3: #eb6834;
+  --chart-4: #6250d6;
+  --chart-5: #eda100;
+  --chart-6: #e87ba4;
+  --status-completed: #2f8f6b;
+  --status-scheduled: #2a78d6;
+  --status-cancelled: #eda100;
+  --status-noshow: #e34948;
 }
 
 .dark {
@@ -30,6 +43,16 @@
   --color-brand-extra-soft: 16 34 27;
   --color-line: 42 46 51;
   --color-line-medium: 58 63 69;
+  --chart-1: #2fa077;
+  --chart-2: #3987e5;
+  --chart-3: #d95926;
+  --chart-4: #9085e9;
+  --chart-5: #c98500;
+  --chart-6: #d55181;
+  --status-completed: #2fa077;
+  --status-scheduled: #3987e5;
+  --status-cancelled: #c98500;
+  --status-noshow: #e66767;
 }
 
 html, body {

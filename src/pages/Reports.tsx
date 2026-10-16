@@ -1,6 +1,15 @@
-import { useState, useEffect } from 'react';
-import { BarChart2, TrendingUp, Scissors, User, RefreshCw, Users } from 'lucide-react';
+import { useState, useEffect, useCallback, ReactNode } from 'react';
+import { BarChart2, TrendingUp, Scissors, User, RefreshCw, Users, CalendarDays, ListChecks } from 'lucide-react';
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
+} from 'recharts';
 import api from '../api';
+import type { PlatformSalonFunnelAnalytics } from '../api/platformApi';
+import DonutChart, { DonutSlice } from '../components/charts/DonutChart';
+import BookingFunnelSection from '../components/charts/BookingFunnelSection';
+import {
+  axisTick, tooltipProps, BRAND, GRID_STROKE, CATEGORICAL_COLORS, MAX_CATEGORIES, OTHER_COLOR, compactNumber,
+} from '../components/charts/chartTheme';
 import { useLocale } from '../i18n/LocaleContext';
 import { useShopCurrency } from '../context/SettingsContext';
 import { formatPrice } from '../utils/money';
@@ -9,6 +18,7 @@ import { getCurrencySymbol } from '../constants/currencies';
 interface RevenueByMonth { month: string; amount: number; }
 interface ServicePerformance { name: string; count: number; revenue: number; }
 interface EmpPerformance { name: string; appointments: number; revenue: number; rating: number; }
+type AppointmentStatus = 'Scheduled' | 'Completed' | 'Cancelled' | 'No-show';
 interface DashboardData {
   totalRevenue: number;
   monthRevenue: number;
@@ -19,6 +29,8 @@ interface DashboardData {
   revenueByMonth: RevenueByMonth[];
   servicePerformance: ServicePerformance[];
   empPerformance: EmpPerformance[];
+  appointmentsByWeekday?: number[];
+  appointmentsByStatus?: Record<AppointmentStatus, number>;
 }
 
 interface ForecastSeriesPoint { date: string; count: number; }
@@ -60,11 +72,35 @@ const SEGMENT_KEY: Record<string, string> = {
   Promising: 'Promising',
 };
 
-const BAR_HEIGHT = 128; // px — висота зони графіку
+const BAR_HEIGHT = 128; // px — висота зони графіку (вкладка прогнозу)
+
+const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+const STATUS_ORDER: AppointmentStatus[] = ['Completed', 'Scheduled', 'Cancelled', 'No-show'];
+const STATUS_COLORS: Record<AppointmentStatus, string> = {
+  Completed: 'var(--status-completed)',
+  Scheduled: 'var(--status-scheduled)',
+  Cancelled: 'var(--status-cancelled)',
+  'No-show': 'var(--status-noshow)',
+};
+
+const ChartCard = ({ icon, title, sub, children }: { icon: ReactNode; title: string; sub?: string; children: ReactNode }) => (
+  <div className="ds-card p-6">
+    <div className="mb-4">
+      <h3 className="text-base font-semibold text-ink flex items-center gap-2">{icon} {title}</h3>
+      {sub && <p className="text-xs text-ink-muted mt-0.5">{sub}</p>}
+    </div>
+    {children}
+  </div>
+);
 
 const Reports = () => {
-  const { t } = useLocale();
+  const { t, lang } = useLocale();
   const currency = useShopCurrency();
+  const locale = lang === 'en' ? 'en-US' : 'uk-UA';
+  const loadFunnel = useCallback(
+    async (days: number) => (await api.get<PlatformSalonFunnelAnalytics>('/analytics/funnel', { params: { days } })).data,
+    [],
+  );
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [forecast,  setForecast]  = useState<ForecastData | null>(null);
   const [rfm,       setRfm]       = useState<RfmData | null>(null);
@@ -94,7 +130,29 @@ const Reports = () => {
 
   if (loading) return <div className="text-center py-16 text-ink-muted">{t('common.loading')}</div>;
 
-  const maxRev      = dashboard ? Math.max(...dashboard.revenueByMonth.map((d) => d.amount), 1) : 1;
+  const weekdayData = WEEKDAY_KEYS.map((key, i) => ({
+    day: t(`reports.weekday_${key}`),
+    count: dashboard?.appointmentsByWeekday?.[i] || 0,
+  }));
+  const busiestCount = Math.max(...weekdayData.map(d => d.count));
+
+  const statusCounts = dashboard?.appointmentsByStatus;
+  const statusSlices: DonutSlice[] = STATUS_ORDER.map(st => ({
+    name: t(`statuses.${st}`), value: statusCounts?.[st] || 0, color: STATUS_COLORS[st],
+  }));
+  const statusTotal = statusSlices.reduce((sum, d) => sum + d.value, 0);
+
+  // Частка виручки по майстрах: перші 5 — власним кольором, решта — "Інші".
+  const masterSlices = (emps: EmpPerformance[]): DonutSlice[] => {
+    const sorted = [...emps].sort((a, b) => b.revenue - a.revenue);
+    const head = sorted.length > MAX_CATEGORIES ? sorted.slice(0, MAX_CATEGORIES - 1) : sorted;
+    const rest = sorted.slice(head.length).reduce((sum, e) => sum + e.revenue, 0);
+    return [
+      ...head.map((e, i) => ({ name: e.name, value: e.revenue, color: CATEGORICAL_COLORS[i] })),
+      ...(rest > 0 ? [{ name: t('reports.other'), value: rest, color: OTHER_COLOR }] : []),
+    ];
+  };
+
   const maxForecast = forecast  ? Math.max(...(forecast.forecast || []).map((d) => d.predicted), 1) : 1;
   const maxSeries   = forecast  ? Math.max(...(forecast.series   || []).map((d) => d.count),    1) : 1;
 
@@ -133,7 +191,7 @@ const Reports = () => {
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { title: t('reports.totalRevenue'),  value: formatPrice(dashboard.totalRevenue, currency), sub: t('reports.totalRevenueSub', { value: dashboard.monthRevenue }) },
+              { title: t('reports.totalRevenue'),  value: formatPrice(dashboard.totalRevenue, currency), sub: t('reports.totalRevenueSub', { value: formatPrice(dashboard.monthRevenue, currency) }) },
               { title: t('reports.totalAppointments'),    value: dashboard.totalAppointments,                  sub: t('reports.totalAppointmentsSub', { value: dashboard.monthAppointments }) },
               { title: t('reports.totalClients'),          value: dashboard.totalClients,                       sub: t('reports.totalClientsSub') },
               { title: t('reports.avgCheck'),      value: formatPrice(dashboard.avgServiceValue, currency),              sub: t('reports.avgCheckSub') },
@@ -146,29 +204,24 @@ const Reports = () => {
             ))}
           </div>
 
-          {/* Revenue bar chart */}
-          <div className="ds-card p-6">
-            <h3 className="text-base font-semibold text-ink flex items-center gap-2 mb-6">
-              <TrendingUp size={18} className="text-brand"/> {t('reports.revenueChartTitle')}
-            </h3>
-            <div className="flex items-end gap-1" style={{ height: `${BAR_HEIGHT + 40}px` }}>
-              {dashboard.revenueByMonth.map((d, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
-                  <span className="text-xs text-ink-muted opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    {formatPrice(d.amount, currency)}
-                  </span>
-                  <div
-                    className="w-full bg-brand hover:bg-brand-dark rounded-t transition-colors"
-                    style={{ height: `${barPx(d.amount, maxRev)}px` }}
-                  />
-                  <span className="text-xs text-ink-muted">{d.month}</span>
-                </div>
-              ))}
+          {/* Виручка по місяцях */}
+          <ChartCard icon={<TrendingUp size={18} className="text-brand"/>} title={t('reports.revenueChartTitle')}>
+            <div style={{ width: '100%', height: 220 }}>
+              <ResponsiveContainer>
+                <BarChart data={dashboard.revenueByMonth} margin={{ left: -8, right: 4, top: 8, bottom: 0 }}>
+                  <CartesianGrid vertical={false} stroke={GRID_STROKE} />
+                  <XAxis dataKey="month" tick={axisTick} tickLine={false} axisLine={{ stroke: GRID_STROKE }} />
+                  <YAxis tick={axisTick} axisLine={false} tickLine={false} width={56}
+                    tickFormatter={(v: number) => compactNumber(v, locale)} />
+                  <Tooltip {...tooltipProps} formatter={(v) => [formatPrice(Number(v), currency), t('reports.tableRevenue')]} />
+                  <Bar dataKey="amount" fill={BRAND} radius={[4, 4, 0, 0]} maxBarSize={48} isAnimationActive={false} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-          </div>
+          </ChartCard>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Service performance */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            {/* Послуги: виручка по послугах + таблиця */}
             <div className="ds-card overflow-hidden">
               <div className="ds-card-header">
                 <div className="flex items-center gap-2">
@@ -179,7 +232,23 @@ const Reports = () => {
               {dashboard.servicePerformance.length === 0 ? (
                 <p className="px-5 py-8 text-sm text-center text-ink-muted">{t('common.noData')}</p>
               ) : (
-                <div className="overflow-x-auto">
+                <>
+                <div className="px-5 pt-4">
+                  <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-2">{t('reports.revenueByServiceTitle')}</p>
+                  <div style={{ width: '100%', height: dashboard.servicePerformance.length * 30 + 8 }}>
+                    <ResponsiveContainer>
+                      <BarChart data={[...dashboard.servicePerformance].sort((a, b) => b.revenue - a.revenue)}
+                        layout="vertical" margin={{ left: 0, right: 8, top: 0, bottom: 0 }} barCategoryGap={5}>
+                        <XAxis type="number" hide />
+                        <YAxis type="category" dataKey="name" tick={{ ...axisTick, width: 400 }} width={176} axisLine={false} tickLine={false}
+                          tickFormatter={(v: string) => (v.length > 26 ? `${v.slice(0, 25)}…` : v)} />
+                        <Tooltip {...tooltipProps} formatter={(v) => [formatPrice(Number(v), currency), t('reports.tableRevenue')]} />
+                        <Bar dataKey="revenue" fill={BRAND} radius={[0, 4, 4, 0]} isAnimationActive={false} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+                <div className="overflow-x-auto mt-3">
                 <table className="w-full">
                   <thead className="table-head">
                     <tr>
@@ -199,10 +268,14 @@ const Reports = () => {
                   </tbody>
                 </table>
                 </div>
+                </>
               )}
             </div>
 
-            {/* Employee performance */}
+            {/* Права колонка: майстри, дні тижня, статуси — щоб не лишати
+                порожнього місця поруч із довгою карткою послуг */}
+            <div className="space-y-6">
+            {/* Майстри: частка виручки + таблиця */}
             <div className="ds-card overflow-hidden">
               <div className="ds-card-header">
                 <div className="flex items-center gap-2">
@@ -213,7 +286,17 @@ const Reports = () => {
               {dashboard.empPerformance.length === 0 ? (
                 <p className="px-5 py-8 text-sm text-center text-ink-muted">{t('common.noData')}</p>
               ) : (
-                <div className="overflow-x-auto">
+                <>
+                <div className="px-5 pt-4">
+                  <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-3">{t('reports.revenueShareTitle')}</p>
+                  <DonutChart
+                    data={masterSlices(dashboard.empPerformance)}
+                    formatValue={v => formatPrice(v, currency)}
+                    centerValue={formatPrice(dashboard.empPerformance.reduce((sum, e) => sum + e.revenue, 0), currency)}
+                    centerLabel={t('reports.tableRevenue')}
+                  />
+                </div>
+                <div className="overflow-x-auto mt-4">
                 <table className="w-full">
                   <thead className="table-head">
                     <tr>
@@ -237,8 +320,49 @@ const Reports = () => {
                   </tbody>
                 </table>
                 </div>
+                </>
               )}
             </div>
+
+            {/* Завантаженість по днях тижня */}
+            <ChartCard icon={<CalendarDays size={18} className="text-brand"/>} title={t('reports.weekdayTitle')} sub={t('reports.weekdaySub')}>
+              {busiestCount === 0 ? (
+                <p className="py-8 text-sm text-center text-ink-muted">{t('common.noData')}</p>
+              ) : (
+                <div style={{ width: '100%', height: 200 }}>
+                  <ResponsiveContainer>
+                    <BarChart data={weekdayData} margin={{ left: -24, right: 4, top: 8, bottom: 0 }}>
+                      <CartesianGrid vertical={false} stroke={GRID_STROKE} />
+                      <XAxis dataKey="day" tick={axisTick} tickLine={false} axisLine={{ stroke: GRID_STROKE }} />
+                      <YAxis tick={axisTick} allowDecimals={false} axisLine={false} tickLine={false} />
+                      <Tooltip {...tooltipProps} formatter={(v) => [Number(v), t('reports.tableAppointments')]} />
+                      <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={40} isAnimationActive={false}>
+                        {/* Найзавантаженіший день — темнішим відтінком того ж кольору */}
+                        {weekdayData.map(d => (
+                          <Cell key={d.day} fill={d.count === busiestCount ? 'rgb(var(--color-brand-dark))' : BRAND} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </ChartCard>
+
+            {/* Статуси записів */}
+            <ChartCard icon={<ListChecks size={18} className="text-brand"/>} title={t('reports.statusTitle')} sub={t('reports.statusSub')}>
+              {statusTotal === 0 ? (
+                <p className="py-8 text-sm text-center text-ink-muted">{t('common.noData')}</p>
+              ) : (
+                <DonutChart data={statusSlices} centerValue={String(statusTotal)} centerLabel={t('reports.statusCenterLabel')} />
+              )}
+            </ChartCard>
+            </div>
+          </div>
+
+          {/* Воронка публічної сторінки бронювання */}
+          <div className="ds-card p-6">
+            <BookingFunnelSection load={loadFunnel} />
+            <p className="text-xs text-ink-muted mt-4">{t('reports.funnelHint')}</p>
           </div>
         </div>
       )}
