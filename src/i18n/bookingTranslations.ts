@@ -66,6 +66,9 @@ interface BookingDict {
     durationLabel: string;
     sumLabel: string;
     bookAgain: string;
+    telegramCta: string;
+    telegramHint: string;
+    telegramLinked: string;
     invalidEmail: string;
     fillAll: string;
     bookingError: string;
@@ -125,6 +128,9 @@ const uk: BookingDict = {
     durationLabel: 'Тривалість',
     sumLabel: 'Сума',
     bookAgain: 'Записатись ще раз',
+    telegramCta: 'Отримувати сповіщення в Telegram',
+    telegramHint: 'Підтвердження, нагадування за 24 год і за 2 год, зміни запису',
+    telegramLinked: 'Нагадування надійдуть у Telegram',
     invalidEmail: 'Введіть коректний email (наприклад: ivan@gmail.com)',
     fillAll: 'Заповніть всі поля',
     bookingError: 'Помилка при бронюванні',
@@ -184,6 +190,9 @@ const en: BookingDict = {
     durationLabel: 'Duration',
     sumLabel: 'Total',
     bookAgain: 'Book again',
+    telegramCta: 'Get notifications in Telegram',
+    telegramHint: 'Confirmation, reminders 24 h and 2 h before, booking changes',
+    telegramLinked: 'Reminders will arrive in Telegram',
     invalidEmail: 'Enter a valid email (e.g. john@gmail.com)',
     fillAll: 'Please fill in all fields',
     bookingError: 'Error while booking',
@@ -243,6 +252,9 @@ const cs: BookingDict = {
     durationLabel: 'Doba trvání',
     sumLabel: 'Celkem',
     bookAgain: 'Rezervovat znovu',
+    telegramCta: 'Dostávat oznámení v Telegramu',
+    telegramHint: 'Potvrzení, připomínky 24 h a 2 h předem, změny rezervace',
+    telegramLinked: 'Připomínky přijdou do Telegramu',
     invalidEmail: 'Zadejte platný email (např. jan@gmail.com)',
     fillAll: 'Vyplňte prosím všechna pole',
     bookingError: 'Chyba při rezervaci',
@@ -302,6 +314,9 @@ const pl: BookingDict = {
     durationLabel: 'Czas trwania',
     sumLabel: 'Razem',
     bookAgain: 'Zarezerwuj ponownie',
+    telegramCta: 'Otrzymuj powiadomienia w Telegramie',
+    telegramHint: 'Potwierdzenie, przypomnienia 24 h i 2 h przed wizytą, zmiany rezerwacji',
+    telegramLinked: 'Przypomnienia przyjdą na Telegram',
     invalidEmail: 'Podaj poprawny email (np. jan@gmail.com)',
     fillAll: 'Wypełnij wszystkie pola',
     bookingError: 'Błąd podczas rezerwacji',

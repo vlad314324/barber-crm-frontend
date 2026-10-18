@@ -320,6 +320,8 @@ const uk = {
     pageInfo: 'Сторінка {{page}} з {{totalPages}}',
   },
   clientDetails: {
+    telegramLinked: 'Telegram',
+    telegramLinkedHint: 'Клієнт отримує підтвердження й нагадування в Telegram',
     back: 'Назад до клієнтів',
     clientSince: 'Клієнт з {{date}}',
     clientLabel: 'Клієнт',
@@ -1200,6 +1202,8 @@ const en: typeof uk = {
     pageInfo: 'Page {{page}} of {{totalPages}}',
   },
   clientDetails: {
+    telegramLinked: 'Telegram',
+    telegramLinkedHint: 'Client gets confirmations and reminders in Telegram',
     back: 'Back to Clients',
     clientSince: 'Client since {{date}}',
     clientLabel: 'Client',

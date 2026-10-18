@@ -107,6 +107,14 @@ const MenuRow = ({ icon, title, subtitle, disabled, disabledHint, onClick }: {
   </button>
 );
 
+
+// Логотип Telegram (паперовий літачок) — у lucide-react його немає.
+const TelegramIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+    <path d="M21.94 4.34 18.7 19.6c-.24 1.08-.88 1.34-1.78.84l-4.93-3.63-2.38 2.29c-.26.26-.48.48-.99.48l.35-5.02 9.14-8.26c.4-.35-.09-.55-.62-.2L6.2 13.2l-4.86-1.52c-1.06-.33-1.08-1.06.22-1.57L20.55 2.8c.88-.32 1.65.21 1.39 1.54Z"/>
+  </svg>
+);
+
 const BookingPage = () => {
   const { salonSlug } = useParams<{ salonSlug?: string }>();
   const { theme } = useTheme();
@@ -152,6 +160,9 @@ const BookingPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
   const [done, setDone]       = useState(false);
+  // Telegram-сповіщення клієнту: deep link на підписку або позначка, що
+  // клієнт уже підписаний у цьому салоні (з минулого бронювання).
+  const [telegram, setTelegram] = useState<{ url: string | null; linked: boolean }>({ url: null, linked: false });
   const [emailError, setEmailError] = useState('');
   const [addressCopied, setAddressCopied] = useState(false);
 
@@ -412,6 +423,7 @@ const BookingPage = () => {
         // Мова інтерфейсу сторінки — нею прийде лист-підтвердження й нагадування.
         lang,
       });
+      setTelegram({ url: res.data?.telegramUrl || null, linked: !!res.data?.telegramLinked });
       setDone(true);
       trackEvent(api, 'submit_success', { appointmentId: res.data?.appointment?.id });
     } catch (err) {
@@ -465,9 +477,23 @@ const BookingPage = () => {
         <p className="text-ink-secondary mb-1">{t('booking.masterLabel')}: <strong className="text-ink">{selectedEmployee?.name}</strong></p>
         <p className="text-ink-secondary mb-1">{t('booking.dateLabel')}: <strong className="text-ink">{selectedDate}</strong> {t('booking.at')} <strong className="text-ink">{selectedTime}</strong></p>
         <p className="text-ink-secondary mb-6">{t('booking.sumLabel')}: <strong className="text-ink">{formatPriceRange(totalPrice, totalPriceMax, branding?.currency)}</strong></p>
+        {telegram.linked ? (
+          <p className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-[#1f8fd1]">
+            <TelegramIcon className="w-4 h-4" /> {t('booking.telegramLinked')}
+          </p>
+        ) : telegram.url && (
+          <div className="mb-6">
+            <a href={telegram.url} target="_blank" rel="noreferrer"
+              onClick={() => trackEvent(api, 'telegram_optin_click')}
+              className="inline-flex items-center justify-center gap-2.5 w-full sm:w-auto px-5 py-3 rounded-md bg-[#229ED9] hover:bg-[#1c8cc2] text-white font-semibold shadow-sm transition-colors">
+              <TelegramIcon className="w-5 h-5" /> {t('booking.telegramCta')}
+            </a>
+            <p className="text-xs text-ink-muted mt-2">{t('booking.telegramHint')}</p>
+          </div>
+        )}
         <button
           onClick={() => {
-            setDone(false); setScreen('menu');
+            setDone(false); setScreen('menu'); setTelegram({ url: null, linked: false });
             setSelectedServices([]); setSelectedEmployee(null);
             setSelectedDate(''); setSelectedTime('');
             setClientName(''); setClientPhone(''); setClientEmail('');

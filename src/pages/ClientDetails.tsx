@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router';
 import {
   User, Calendar, Phone, Mail, Clock,
-  ArrowLeft, Edit, Trash2, MessageSquare
-} from 'lucide-react';
+  ArrowLeft, Edit, Trash2, MessageSquare, Send } from 'lucide-react';
 import { clientApi } from '../api';
 import api from '../api';
 import { Client, Appointment, ClientNote } from '../api/types';
@@ -154,6 +153,12 @@ const ClientDetails = () => {
                 <Phone size={14} className="mr-1" /> {t('clientDetails.phone')}
               </dt>
               <dd className="mt-1 text-sm text-ink">{client.phone}</dd>
+              {client.telegramLinked && (
+                <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-[#229ED9]/10 px-2 py-0.5 text-xs font-medium text-[#1a7fb0]"
+                  title={t('clientDetails.telegramLinkedHint')}>
+                  <Send size={11} /> {t('clientDetails.telegramLinked')}
+                </span>
+              )}
             </div>
             <div>
               <dt className="text-sm font-medium text-ink-muted flex items-center">

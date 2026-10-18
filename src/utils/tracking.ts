@@ -7,6 +7,7 @@ import { AxiosInstance } from 'axios';
 
 export type BookingFunnelEvent =
   | 'page_view'
+  | 'telegram_optin_click'
   | 'master_selected'
   | 'service_selected'
   | 'slot_selected'

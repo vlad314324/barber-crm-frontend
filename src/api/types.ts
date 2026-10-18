@@ -3,6 +3,8 @@ import type { BookingLang } from '../i18n/bookingTranslations';
 
 // Client types
 export interface Client {
+  // Клієнт підписаний на Telegram-сповіщення в цьому салоні (лише GET /clients/:id).
+  telegramLinked?: boolean;
   _id: string;
   name: string;
   phone: string;
