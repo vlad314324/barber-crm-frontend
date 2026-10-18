@@ -122,6 +122,9 @@ export const appointmentApi = {
   update: async (id: string, data: Partial<CreateAppointmentDto>): Promise<Appointment> => (await api.put(`/appointments/${id}`, data)).data,
   delete: async (id: string): Promise<void> => { await api.delete(`/appointments/${id}`); },
   export: async (): Promise<Blob> => (await api.get('/appointments/export', { responseType: 'blob' })).data,
+  // Вільні віконця майстра для сторіс (Записи → Сторіс).
+  freeWindows: async (params: { employeeId: string; from: string; to: string; step: number }): Promise<{ days: { date: string; slots: string[] }[] }> =>
+    (await api.get('/appointments/free-windows', { params })).data,
   import: (file: File): Promise<ImportResult> => importFile('/appointments/import', file),
   addNote: async (id: string, text: string): Promise<Appointment> =>
     (await api.post(`/appointments/${id}/notes`, { text })).data,

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
-import { Calendar, ChevronLeft, ChevronRight, Plus, UserPlus, ChevronDown, Download, Upload, MessageSquare, MoreVertical, Coffee, CalendarDays } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Plus, UserPlus, ChevronDown, Download, Upload, MessageSquare, MoreVertical, Coffee, CalendarDays, Sparkles } from 'lucide-react';
 import { appointmentApi, clientApi, employeeApi, serviceApi, breakApi } from '../api';
 import api from '../api';
 import { Appointment, Client, Employee, Service, ShopSettings, ImportResult, EmployeeBreak } from '../api/types';
@@ -17,6 +17,7 @@ import DurationInput from '../components/DurationInput';
 import ScheduleGrid, { ScheduleColumn, HeaderMenuItem } from '../components/schedule/ScheduleGrid';
 import { BREAK_PATTERN, toMin } from '../components/schedule/scheduleTime';
 import BreaksModal from '../components/schedule/BreaksModal';
+import StoryModal from '../components/story/StoryModal';
 
 const COUNTRIES = [
   { code: '+380', flag: '🇺🇦', name: 'Україна' },
@@ -236,6 +237,7 @@ const Appointments = () => {
   const [breakTarget, setBreakTarget] = useState<{ employee: Employee; date: Date } | null>(null);
 
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isStoryOpen, setIsStoryOpen] = useState(false);
   const [addForm,   setAddForm]   = useState(defaultAdd);
   const [saving,    setSaving]    = useState(false);
   const [addingNC,  setAddingNC]  = useState(false);
@@ -671,6 +673,11 @@ if (selectedBarber) {
           <input ref={importFileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFileChange}/>
           )}
           {(isAdmin || myEmployee) && (
+          <button onClick={() => setIsStoryOpen(true)} className="btn btn-secondary" title={t('story.modalTitle')}>
+            <Sparkles size={16}/> <span className="hidden sm:inline">{t('story.button')}</span>
+          </button>
+          )}
+          {(isAdmin || myEmployee) && (
           <button
             onClick={() => { setAddForm({...defaultAdd, date:dateStr(currentDate), employeeId: isAdmin ? '' : (myEmployee?._id || '')}); setAddingNC(false); setIsAddOpen(true); }}
             className="btn btn-primary">
@@ -771,6 +778,13 @@ if (selectedBarber) {
       />
 
       {/* ── ADD MODAL ── */}
+      {isStoryOpen && (
+        <StoryModal isOpen onClose={() => setIsStoryOpen(false)}
+          employees={isAdmin ? barbers : (myEmployee ? [myEmployee] : [])}
+          fixedEmployeeId={isAdmin ? undefined : myEmployee?._id}
+          shopName={shopSettings?.shopName}/>
+      )}
+
       <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title={t('appointments.newModalTitle')} size="xl">
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
