@@ -37,6 +37,7 @@ const Settings = () => {
     serviceRangesEnabled: false,
     durationDisplayUnit: 'minutes',
     bookingGroupByCategory: false,
+    bookingOpenUntil: '',
   });
 
   const [passwords, setPasswords] = useState({
@@ -71,6 +72,7 @@ const Settings = () => {
         serviceRangesEnabled: !!data.serviceRangesEnabled,
         durationDisplayUnit: data.durationDisplayUnit === 'hours' ? 'hours' : 'minutes',
         bookingGroupByCategory: !!data.bookingGroupByCategory,
+        bookingOpenUntil: data.bookingOpenUntil || '',
       });
     }).catch(err => {
       setLoadError(getErrorMessage(err) || t('settings.loadError'));
@@ -385,6 +387,25 @@ const Settings = () => {
                   <label htmlFor="bookingGroupByCategory" className="field-label !mb-0">{t('settings.fieldGroupByCategory')}</label>
                 </div>
                 <p className="text-xs text-ink-muted mt-1.5">{t('settings.fieldGroupByCategoryHint')}</p>
+              </div>
+              <div>
+                <label className="field-label" htmlFor="bookingOpenUntil">{t('settings.fieldBookingOpenUntil')}</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    id="bookingOpenUntil"
+                    value={settings.bookingOpenUntil || ''}
+                    onChange={e => setSettings(prev => ({ ...prev, bookingOpenUntil: e.target.value }))}
+                    className="field-input"
+                  />
+                  {settings.bookingOpenUntil && (
+                    <button type="button" onClick={() => setSettings(prev => ({ ...prev, bookingOpenUntil: '' }))}
+                      className="btn btn-secondary whitespace-nowrap">
+                      {t('settings.bookingOpenUntilClear')}
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-ink-muted mt-1.5">{t('settings.fieldBookingOpenUntilHint')}</p>
               </div>
               <div>
                 <label className="field-label">{t('settings.fieldDurationUnit')}</label>

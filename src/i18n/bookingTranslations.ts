@@ -50,6 +50,8 @@ interface BookingDict {
     dateLabel: string;
     availableTimeLabel: string;
     closedMessage: string;
+    notOpenYetMessage: string;
+    openUntilHint: string;
     noSlots: string;
     nameLabel: string;
     namePlaceholder: string;
@@ -112,6 +114,8 @@ const uk: BookingDict = {
     dateLabel: 'Дата',
     availableTimeLabel: 'Вільний час',
     closedMessage: '🚫 Заклад не працює в цей день',
+    notOpenYetMessage: '🗓 Запис на цю дату ще не відкрито. Онлайн-запис доступний до {{date}}',
+    openUntilHint: 'Онлайн-запис відкрито до {{date}}',
     noSlots: 'Немає вільних слотів на цю дату',
     nameLabel: "Ім'я *",
     namePlaceholder: 'Іван Петренко',
@@ -174,6 +178,8 @@ const en: BookingDict = {
     dateLabel: 'Date',
     availableTimeLabel: 'Available time',
     closedMessage: '🚫 The shop is closed this day',
+    notOpenYetMessage: '🗓 Booking for this date is not open yet. Online booking is available until {{date}}',
+    openUntilHint: 'Online booking is open until {{date}}',
     noSlots: 'No available slots for this date',
     nameLabel: 'Name *',
     namePlaceholder: 'John Smith',
@@ -236,6 +242,8 @@ const cs: BookingDict = {
     dateLabel: 'Datum',
     availableTimeLabel: 'Volný čas',
     closedMessage: '🚫 Salon je tento den zavřený',
+    notOpenYetMessage: '🗓 Rezervace na toto datum zatím není otevřená. Online rezervace je možná do {{date}}',
+    openUntilHint: 'Online rezervace je otevřená do {{date}}',
     noSlots: 'Na tento den nejsou volné termíny',
     nameLabel: 'Jméno *',
     namePlaceholder: 'Jan Novák',
@@ -298,6 +306,8 @@ const pl: BookingDict = {
     dateLabel: 'Data',
     availableTimeLabel: 'Wolne godziny',
     closedMessage: '🚫 Salon jest zamknięty tego dnia',
+    notOpenYetMessage: '🗓 Zapisy na ten dzień nie są jeszcze otwarte. Rezerwacja online jest dostępna do {{date}}',
+    openUntilHint: 'Rezerwacja online jest otwarta do {{date}}',
     noSlots: 'Brak wolnych terminów na ten dzień',
     nameLabel: 'Imię i nazwisko *',
     namePlaceholder: 'Jan Kowalski',

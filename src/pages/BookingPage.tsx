@@ -71,6 +71,9 @@ const accentVars = (hex: string, dark: boolean): Record<string, string> => {
   };
 };
 // Довші описи послуг згортаються до 2 рядків з кнопкою "Читати далі".
+// "YYYY-MM-DD" -> "DD.MM.YYYY" без Date (уникаємо зсуву дня через таймзону).
+const formatCalendarDate = (iso: string) => iso.split('-').reverse().join('.');
+
 const DESCRIPTION_CLAMP_CHARS = 110;
 
 type Screen = 'menu' | 'about' | 'services' | 'master' | 'datetime' | 'contacts' | 'confirm';
@@ -136,6 +139,7 @@ const BookingPage = () => {
   const [branding, setBranding]   = useState<PublicBookingSettings | null>(null);
   const [slots, setSlots]         = useState<string[]>([]);
   const [isClosed, setIsClosed]   = useState(false);
+  const [notOpenYet, setNotOpenYet] = useState(false);
 
   // Каталог (послуги/майстри) — без нього сторінка непридатна для
   // бронювання взагалі, тож збій тут показуємо як явну помилку з
@@ -275,6 +279,7 @@ const BookingPage = () => {
     api.get(`/booking/available-slots?employeeId=${selectedEmployee._id}&date=${selectedDate}${durationParam}`, { signal: controller.signal })
       .then(r => {
         setIsClosed(r.data.closed || false);
+        setNotOpenYet(!!r.data.notOpenYet);
         let available = r.data.availableSlots;
 
         const todayStr = new Date().toISOString().split('T')[0];
@@ -395,6 +400,9 @@ const BookingPage = () => {
   };
 
   const todayStr = new Date().toISOString().split('T')[0];
+
+  // Останній день онлайн-запису (Settings.bookingOpenUntil), '' — без обмеження.
+  const bookingOpenUntil = branding?.bookingOpenUntil || '';
 
   const handleCopyAddress = async () => {
     if (!branding?.address) return;
@@ -694,9 +702,12 @@ const BookingPage = () => {
           <ScreenHeader title={t('booking.chooseDateTime')} onBack={() => setScreen('menu')} />
           <div className="mb-4">
             <label className="field-label">{t('booking.dateLabel')}</label>
-            <input type="date" min={todayStr} value={selectedDate}
-              onChange={e => { setSelectedDate(e.target.value); setSelectedTime(''); setIsClosed(false); }}
+            <input type="date" min={todayStr} max={bookingOpenUntil || undefined} value={selectedDate}
+              onChange={e => { setSelectedDate(e.target.value); setSelectedTime(''); setIsClosed(false); setNotOpenYet(false); }}
               className="field-input py-3"/>
+            {bookingOpenUntil && (
+              <p className="text-xs text-ink-muted mt-1.5">{t('booking.openUntilHint', { date: formatCalendarDate(bookingOpenUntil) })}</p>
+            )}
           </div>
           {selectedDate && (
             <div>
@@ -710,7 +721,11 @@ const BookingPage = () => {
                 </div>
               ) : isClosed ? (
                 <div className="bg-amber-50 border border-amber-200 rounded-sm px-4 py-3">
-                  <p className="text-sm text-amber-700">{t('booking.closedMessage')}</p>
+                  <p className="text-sm text-amber-700">
+                    {notOpenYet && bookingOpenUntil
+                      ? t('booking.notOpenYetMessage', { date: formatCalendarDate(bookingOpenUntil) })
+                      : t('booking.closedMessage')}
+                  </p>
                 </div>
               ) : slots.length === 0 ? (
                 <p className="text-ink-muted text-sm">{t('booking.noSlots')}</p>

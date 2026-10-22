@@ -354,6 +354,8 @@ export interface ShopSettings {
   durationDisplayUnit?: 'minutes' | 'hours';
   // Групувати послуги за категоріями (розкривні секції) на сторінці бронювання
   bookingGroupByCategory?: boolean;
+  // Останній день онлайн-запису "YYYY-MM-DD" ('' — без обмеження)
+  bookingOpenUntil?: string;
 }
 
 // Публічний підмножина ShopSettings, яку віддає /booking/settings
@@ -377,4 +379,6 @@ export interface PublicBookingSettings {
   serviceCategories?: string[];
   // { [назва категорії]: { [мова]: переклад } }
   serviceCategoryTranslations?: Record<string, Partial<Record<string, string>>>;
+  // Останній день онлайн-запису "YYYY-MM-DD" ('' — без обмеження)
+  bookingOpenUntil?: string;
 }
