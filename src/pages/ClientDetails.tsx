@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router';
 import {
   User, Calendar, Phone, Mail, Clock,
-  ArrowLeft, Edit, Trash2, MessageSquare, Send } from 'lucide-react';
+  ArrowLeft, Edit, Trash2, MessageSquare, Send, Instagram, Cake } from 'lucide-react';
 import { clientApi } from '../api';
 import api from '../api';
 import { Client, Appointment, ClientNote } from '../api/types';
@@ -12,6 +12,7 @@ import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
 import { useShopCurrency } from '../context/SettingsContext';
 import { formatPrice } from '../utils/money';
+import { instagramUrl, formatBirthday } from '../utils/clientProfile';
 
 const ClientDetails = () => {
   const { t, lang } = useLocale();
@@ -28,7 +29,7 @@ const ClientDetails = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [formData, setFormData] = useState({ name: '', phone: '', email: '' });
+  const [formData, setFormData] = useState({ name: '', phone: '', email: '', instagram: '', birthday: '' });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -41,7 +42,10 @@ const ClientDetails = () => {
         ]);
         setClient(clientData);
         setNotes(clientData.notes || []);
-        setFormData({ name: clientData.name, phone: clientData.phone, email: clientData.email });
+        setFormData({
+          name: clientData.name, phone: clientData.phone, email: clientData.email,
+          instagram: clientData.instagram || '', birthday: clientData.birthday || '',
+        });
         setAppointments(clientAppointments);
       } catch (err) {
         console.error('Error fetching client:', err);
@@ -165,6 +169,25 @@ const ClientDetails = () => {
                 <Mail size={14} className="mr-1" /> {t('clientDetails.email')}
               </dt>
               <dd className="mt-1 text-sm text-ink">{client.email}</dd>
+            </div>
+            <div>
+              <dt className="text-sm font-medium text-ink-muted flex items-center">
+                <Instagram size={14} className="mr-1" /> {t('clientDetails.instagram')}
+              </dt>
+              <dd className="mt-1 text-sm text-ink">
+                {client.instagram ? (
+                  <a href={instagramUrl(client.instagram)} target="_blank" rel="noopener noreferrer"
+                    className="text-brand hover:text-brand-dark">@{client.instagram}</a>
+                ) : t('common.na')}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm font-medium text-ink-muted flex items-center">
+                <Cake size={14} className="mr-1" /> {t('clientDetails.birthday')}
+              </dt>
+              <dd className="mt-1 text-sm text-ink">
+                {client.birthday ? formatBirthday(client.birthday) : t('common.na')}
+              </dd>
             </div>
             <div>
               <dt className="text-sm font-medium text-ink-muted flex items-center">
@@ -302,13 +325,20 @@ const ClientDetails = () => {
             { label: t('common.name'), key: 'name' as const, type: 'text' },
             { label: t('common.phone'), key: 'phone' as const, type: 'tel' },
             { label: t('common.email'), key: 'email' as const, type: 'email' },
-          ].map(({ label, key, type }) => (
+            { label: t('clients.instagram'), key: 'instagram' as const, type: 'text', optional: true, placeholder: t('clients.instagramPlaceholder') },
+            { label: t('clients.birthday'), key: 'birthday' as const, type: 'date', optional: true },
+          ].map(({ label, key, type, optional, placeholder }) => (
             <div key={key}>
-              <label className="field-label">{label}</label>
+              <label className="field-label">
+                {label}
+                {optional && <span className="ml-1 font-normal text-ink-muted">({t('clients.optional')})</span>}
+              </label>
               <input
                 type={type}
                 className="field-input"
                 value={formData[key]}
+                placeholder={placeholder}
+                max={type === 'date' ? new Date().toISOString().slice(0, 10) : undefined}
                 onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
               />
             </div>

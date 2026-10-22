@@ -35,7 +35,7 @@ const Clients = () => {
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
-  const [formData, setFormData] = useState({ name: '', phone: '', email: '' });
+  const [formData, setFormData] = useState({ name: '', phone: '', email: '', instagram: '', birthday: '' });
   const [fieldErrors, setFieldErrors] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
 
@@ -101,14 +101,17 @@ const Clients = () => {
 
   const openAddModal = () => {
     setEditingClient(null);
-    setFormData({ name: '', phone: '', email: '' });
+    setFormData({ name: '', phone: '', email: '', instagram: '', birthday: '' });
     setFieldErrors(new Set());
     setIsModalOpen(true);
   };
 
   const openEditModal = (client: Client) => {
     setEditingClient(client);
-    setFormData({ name: client.name, phone: client.phone, email: client.email });
+    setFormData({
+      name: client.name, phone: client.phone, email: client.email,
+      instagram: client.instagram || '', birthday: client.birthday || '',
+    });
     setFieldErrors(new Set());
     setIsModalOpen(true);
   };
@@ -264,6 +267,7 @@ const Clients = () => {
                       <div className="ml-4">
                         <div className="text-sm font-medium text-ink">{client.name}</div>
                         <div className="text-sm text-ink-muted">{client.email}</div>
+                        {client.instagram && <div className="text-xs text-ink-muted">@{client.instagram}</div>}
                       </div>
                     </div>
                   </td>
@@ -355,6 +359,30 @@ const Clients = () => {
               placeholder={t('clients.emailPlaceholder')}
             />
             {fieldErrors.has('email') && <p className="text-xs text-red-500 mt-1">{t('common.fieldRequired')}</p>}
+          </div>
+          <div>
+            <label className="field-label">
+              {t('clients.instagram')} <span className="font-normal text-ink-muted">({t('clients.optional')})</span>
+            </label>
+            <input
+              type="text"
+              className="field-input"
+              value={formData.instagram}
+              onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
+              placeholder={t('clients.instagramPlaceholder')}
+            />
+          </div>
+          <div>
+            <label className="field-label">
+              {t('clients.birthday')} <span className="font-normal text-ink-muted">({t('clients.optional')})</span>
+            </label>
+            <input
+              type="date"
+              className="field-input"
+              value={formData.birthday}
+              max={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
+            />
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button onClick={() => setIsModalOpen(false)} className="btn btn-secondary">

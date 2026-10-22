@@ -9,6 +9,9 @@ export interface Client {
   name: string;
   phone: string;
   email: string;
+  // Необовʼязкові: нік Instagram без "@" і дата народження "YYYY-MM-DD".
+  instagram?: string;
+  birthday?: string;
   // Додаємо нові поля, які використовуються на фронтенді:
   image?: string; // Зробимо необов'язковим, якщо зображення не завжди є
   visits?: number; // Зробимо необов'язковим, якщо це розрахункове поле або ще не реалізовано на бекенді
@@ -201,6 +204,8 @@ export interface CreateClientDto {
   name: string;
   phone: string;
   email: string;
+  instagram?: string;
+  birthday?: string;
 }
 
 export interface CreateEmployeeDto {
