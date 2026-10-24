@@ -17,9 +17,10 @@ import { useShopCurrency } from '../context/SettingsContext';
 import { formatPrice } from '../utils/money';
 import { getCurrencySymbol } from '../constants/currencies';
 
-interface RevenueByMonth { month: string; amount: number; }
-interface ServicePerformance { name: string; count: number; revenue: number; }
-interface EmpPerformance { name: string; appointments: number; revenue: number; rating: number; }
+// cost/profit — лише в адмінській відповіді (собівартість майстрам не віддається).
+interface RevenueByMonth { month: string; amount: number; cost?: number; profit?: number; }
+interface ServicePerformance { name: string; count: number; revenue: number; cost?: number; profit?: number; }
+interface EmpPerformance { name: string; appointments: number; revenue: number; profit?: number; rating: number; }
 type AppointmentStatus = 'Scheduled' | 'Completed' | 'Cancelled' | 'No-show';
 interface DashboardData {
   totalRevenue: number;
@@ -33,6 +34,12 @@ interface DashboardData {
   empPerformance: EmpPerformance[];
   appointmentsByWeekday?: number[];
   appointmentsByStatus?: Record<AppointmentStatus, number>;
+  totalCost?: number;
+  totalProfit?: number;
+  marginPercent?: number;
+  monthCost?: number;
+  monthProfit?: number;
+  profitChange?: number;
 }
 
 interface ForecastSeriesPoint { date: string; count: number; }
@@ -136,6 +143,9 @@ const Reports = () => {
 
   if (loading) return <div className="text-center py-16 text-ink-muted">{t('common.loading')}</div>;
 
+  // Прибуток приходить лише адміну (сервер не віддає собівартість майстрам).
+  const hasProfit = isAdmin && typeof dashboard?.totalProfit === 'number';
+
   const weekdayData = WEEKDAY_KEYS.map((key, i) => ({
     day: t(`reports.weekday_${key}`),
     count: dashboard?.appointmentsByWeekday?.[i] || 0,
@@ -200,9 +210,14 @@ const Reports = () => {
       {/* ── OVERVIEW ── */}
       {activeTab === 'overview' && dashboard && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${hasProfit ? 'lg:grid-cols-3 xl:grid-cols-5' : 'lg:grid-cols-4'}`}>
             {[
               { title: t('reports.totalRevenue'),  value: formatPrice(dashboard.totalRevenue, currency), sub: t('reports.totalRevenueSub', { value: formatPrice(dashboard.monthRevenue, currency) }) },
+              ...(hasProfit ? [{
+                title: t('reports.totalProfit'),
+                value: formatPrice(dashboard.totalProfit ?? 0, currency),
+                sub: t('reports.totalProfitSub', { value: formatPrice(dashboard.monthProfit ?? 0, currency), margin: dashboard.marginPercent ?? 0 }),
+              }] : []),
               { title: t('reports.totalAppointments'),    value: dashboard.totalAppointments,                  sub: t('reports.totalAppointmentsSub', { value: dashboard.monthAppointments }) },
               { title: t('reports.totalClients'),          value: dashboard.totalClients,                       sub: isAdmin ? t('reports.totalClientsSub') : t('reports.totalClientsSubBarber') },
               { title: t('reports.avgCheck'),      value: formatPrice(dashboard.avgServiceValue, currency),              sub: t('reports.avgCheckSub') },
@@ -216,17 +231,49 @@ const Reports = () => {
           </div>
 
           {/* Виручка по місяцях */}
-          <ChartCard icon={<TrendingUp size={18} className="text-brand"/>} title={t('reports.revenueChartTitle')}>
+          <ChartCard icon={<TrendingUp size={18} className="text-brand"/>}
+            title={hasProfit ? t('reports.revenueProfitChartTitle') : t('reports.revenueChartTitle')}
+            sub={hasProfit ? t('reports.revenueProfitChartSub') : undefined}>
+            {hasProfit && (
+              <div className="flex items-center gap-4 mb-2 text-xs text-ink-secondary">
+                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: BRAND }} />{t('reports.tableProfit')}</span>
+                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: OTHER_COLOR }} />{t('reports.tableCost')}</span>
+              </div>
+            )}
             <div style={{ width: '100%', height: 220 }}>
               <ResponsiveContainer>
-                <BarChart data={dashboard.revenueByMonth} margin={{ left: -8, right: 4, top: 8, bottom: 0 }}>
-                  <CartesianGrid vertical={false} stroke={GRID_STROKE} />
-                  <XAxis dataKey="month" tick={axisTick} tickLine={false} axisLine={{ stroke: GRID_STROKE }} />
-                  <YAxis tick={axisTick} axisLine={false} tickLine={false} width={56}
-                    tickFormatter={(v: number) => compactNumber(v, locale)} />
-                  <Tooltip {...tooltipProps} formatter={(v) => [formatPrice(Number(v), currency), t('reports.tableRevenue')]} />
-                  <Bar dataKey="amount" fill={BRAND} radius={[4, 4, 0, 0]} maxBarSize={48} isAnimationActive={false} />
-                </BarChart>
+                {hasProfit ? (
+                  <BarChart data={dashboard.revenueByMonth.map(m => ({ ...m, profitBar: Math.max(0, m.profit ?? 0), costBar: Math.min(m.cost ?? 0, m.amount) }))}
+                    margin={{ left: -8, right: 4, top: 8, bottom: 0 }}>
+                    <CartesianGrid vertical={false} stroke={GRID_STROKE} />
+                    <XAxis dataKey="month" tick={axisTick} tickLine={false} axisLine={{ stroke: GRID_STROKE }} />
+                    <YAxis tick={axisTick} axisLine={false} tickLine={false} width={56}
+                      tickFormatter={(v: number) => compactNumber(v, locale)} />
+                    <Tooltip {...tooltipProps} content={({ active, payload, label }) => {
+                      const row = payload?.[0]?.payload as RevenueByMonth | undefined;
+                      if (!active || !row) return null;
+                      return (
+                        <div className="rounded-sm border border-line bg-surface px-3 py-2 text-xs shadow-md">
+                          <p className="font-semibold text-ink mb-1">{label}</p>
+                          <p className="text-ink-secondary">{t('reports.tableRevenue')}: <span className="font-semibold text-ink">{formatPrice(row.amount, currency)}</span></p>
+                          <p className="text-ink-secondary">{t('reports.tableCost')}: <span className="font-semibold text-ink">{formatPrice(row.cost ?? 0, currency)}</span></p>
+                          <p className="text-ink-secondary">{t('reports.tableProfit')}: <span className="font-semibold text-brand-dark">{formatPrice(row.profit ?? 0, currency)}</span></p>
+                        </div>
+                      );
+                    }} />
+                    <Bar dataKey="costBar" stackId="r" fill={OTHER_COLOR} maxBarSize={48} isAnimationActive={false} />
+                    <Bar dataKey="profitBar" stackId="r" fill={BRAND} radius={[4, 4, 0, 0]} maxBarSize={48} isAnimationActive={false} />
+                  </BarChart>
+                ) : (
+                  <BarChart data={dashboard.revenueByMonth} margin={{ left: -8, right: 4, top: 8, bottom: 0 }}>
+                    <CartesianGrid vertical={false} stroke={GRID_STROKE} />
+                    <XAxis dataKey="month" tick={axisTick} tickLine={false} axisLine={{ stroke: GRID_STROKE }} />
+                    <YAxis tick={axisTick} axisLine={false} tickLine={false} width={56}
+                      tickFormatter={(v: number) => compactNumber(v, locale)} />
+                    <Tooltip {...tooltipProps} formatter={(v) => [formatPrice(Number(v), currency), t('reports.tableRevenue')]} />
+                    <Bar dataKey="amount" fill={BRAND} radius={[4, 4, 0, 0]} maxBarSize={48} isAnimationActive={false} />
+                  </BarChart>
+                )}
               </ResponsiveContainer>
             </div>
           </ChartCard>
@@ -266,6 +313,8 @@ const Reports = () => {
                       <th className="px-5 py-2 text-left font-medium">{t('reports.tableService')}</th>
                       <th className="px-5 py-2 text-right font-medium">{t('reports.tableAppointments')}</th>
                       <th className="px-5 py-2 text-right font-medium">{t('reports.tableRevenue')}</th>
+                      {hasProfit && <th className="px-5 py-2 text-right font-medium">{t('reports.tableProfit')}</th>}
+                      {hasProfit && <th className="px-5 py-2 text-right font-medium">{t('reports.tableMargin')}</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
@@ -273,7 +322,13 @@ const Reports = () => {
                       <tr key={i} className="hover:bg-canvas-soft transition-colors">
                         <td className="px-5 py-3 text-sm text-ink">{s.name}</td>
                         <td className="px-5 py-3 text-sm text-ink-secondary text-right">{s.count}</td>
-                        <td className="px-5 py-3 text-sm font-medium text-brand-dark text-right">{formatPrice(s.revenue, currency)}</td>
+                        <td className="px-5 py-3 text-sm font-medium text-brand-dark text-right whitespace-nowrap">{formatPrice(s.revenue, currency)}</td>
+                        {hasProfit && (
+                          <td className={`px-5 py-3 text-sm font-medium text-right whitespace-nowrap ${(s.profit ?? 0) < 0 ? 'text-red-600' : 'text-ink'}`}>{formatPrice(s.profit ?? 0, currency)}</td>
+                        )}
+                        {hasProfit && (
+                          <td className="px-5 py-3 text-sm text-ink-secondary text-right">{s.revenue > 0 ? `${Math.round(((s.profit ?? 0) / s.revenue) * 100)}%` : '—'}</td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -315,6 +370,7 @@ const Reports = () => {
                       <th className="px-5 py-2 text-left font-medium">{t('reports.tableMaster')}</th>
                       <th className="px-5 py-2 text-right font-medium">{t('reports.tableAppointments')}</th>
                       <th className="px-5 py-2 text-right font-medium">{t('reports.tableRevenue')}</th>
+                      {hasProfit && <th className="px-5 py-2 text-right font-medium">{t('reports.tableProfit')}</th>}
                       <th className="px-5 py-2 text-right font-medium">{t('reports.tableRating')}</th>
                     </tr>
                   </thead>
@@ -323,7 +379,8 @@ const Reports = () => {
                       <tr key={i} className="hover:bg-canvas-soft transition-colors">
                         <td className="px-5 py-3 text-sm font-medium text-ink">{e.name}</td>
                         <td className="px-5 py-3 text-sm text-ink-secondary text-right">{e.appointments}</td>
-                        <td className="px-5 py-3 text-sm font-medium text-brand-dark text-right">{formatPrice(e.revenue, currency)}</td>
+                        <td className="px-5 py-3 text-sm font-medium text-brand-dark text-right whitespace-nowrap">{formatPrice(e.revenue, currency)}</td>
+                        {hasProfit && <td className="px-5 py-3 text-sm font-medium text-ink text-right whitespace-nowrap">{formatPrice(e.profit ?? 0, currency)}</td>}
                         <td className="px-5 py-3 text-sm text-amber-500 text-right">
                           {e.rating > 0 ? `⭐ ${e.rating}` : '—'}
                         </td>

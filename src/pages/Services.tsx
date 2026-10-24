@@ -28,7 +28,14 @@ const defaultForm = {
   category: '',
   isAvailable: true,
   translations: {} as ServiceTranslations,
+  cost: 0,
 };
+
+// Прибуток і маржа послуги від базової ціни.
+const marginOf = (price: number, cost: number) => ({
+  profit: price - cost,
+  percent: price > 0 ? Math.round(((price - cost) / price) * 100) : 0,
+});
 
 const DEFAULT_ICON = 'Sparkles';
 
@@ -149,6 +156,7 @@ const Services = () => {
       category: service.category,
       isAvailable: service.isAvailable,
       translations: service.translations || {},
+      cost: service.cost ?? 0,
     });
     setImageChange(null);
     setFieldErrors(new Set());
@@ -372,6 +380,14 @@ const Services = () => {
                     {formatDurationRangeForUnit(service.duration, rangesEnabled ? service.durationMax : undefined, durationUnit, durationLabels)}
                   </div>
                 </div>
+                {isAdmin && (service.cost ?? 0) > 0 && (() => {
+                  const m = marginOf(service.price, service.cost ?? 0);
+                  return (
+                    <p className={`text-xs mt-2 ${m.profit < 0 ? 'text-red-600' : 'text-ink-muted'}`}>
+                      {t('services.costLine', { cost: formatPrice(service.cost ?? 0, currency), profit: formatPrice(m.profit, currency), percent: m.percent })}
+                    </p>
+                  );
+                })()}
               </div>
 
               {isAdmin && (
@@ -483,6 +499,30 @@ const Services = () => {
               />
               {fieldErrors.has('duration') && <p className="text-xs text-red-500 mt-1">{t('services.durationMustBePositive')}</p>}
             </div>
+          </div>
+          <div>
+            <label className="field-label">{t('services.fieldCost')} ({getCurrencySymbol(currency)})</label>
+            <input
+              type="number"
+              className="field-input"
+              value={formData.cost || ''}
+              placeholder="0"
+              min="0"
+              onChange={(e) => setFormData({ ...formData, cost: e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)) })}
+              onFocus={(e) => e.target.select()}
+            />
+            {formData.cost > 0 && formData.price > 0 ? (() => {
+              const m = marginOf(formData.price, formData.cost);
+              return (
+                <p className={`text-xs mt-1 font-medium ${m.profit < 0 ? 'text-red-600' : 'text-brand-dark'}`}>
+                  {m.profit < 0
+                    ? t('services.costAbovePrice')
+                    : t('services.profitHint', { profit: formatPrice(m.profit, currency), percent: m.percent })}
+                </p>
+              );
+            })() : (
+              <p className="text-xs text-ink-muted mt-1">{t('services.costHint')}</p>
+            )}
           </div>
           {rangesEnabled && (
             <div className="grid grid-cols-2 gap-3">

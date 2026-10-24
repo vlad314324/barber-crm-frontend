@@ -93,6 +93,8 @@ export interface Service {
   // Публічний URL фото послуги (R2). Змінюється лише через
   // serviceApi.uploadImage/deleteImage, не через create/update.
   imageUrl?: string;
+  // Собівартість — сервер віддає лише адміну.
+  cost?: number;
 }
 
 // Перерва майстра на конкретну дату (обід тощо) — закриває час для запису.
@@ -281,6 +283,7 @@ export interface CreateServiceDto {
   category: string;
   isAvailable: boolean;
   translations?: Partial<Record<BookingLang, { name: string; description: string }>>;
+  cost?: number;
 }
 
 export interface CreateAppointmentDto {
