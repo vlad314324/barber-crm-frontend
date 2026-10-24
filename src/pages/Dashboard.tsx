@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Users, Clock, Banknote, TrendingUp, Scissors } from 'lucide-react';
+import { Calendar, Users, Clock, Banknote, TrendingUp, Scissors, Cake } from 'lucide-react';
 import { Link } from 'react-router';
 import MetricCard from '../components/dashboard/MetricCard';
+import UpcomingBirthdays from '../components/clients/UpcomingBirthdays';
 import { appointmentApi, clientApi } from '../api';
 import { Appointment, Client } from '../api/types';
 import { useLocale } from '../i18n/LocaleContext';
@@ -164,6 +165,19 @@ const Dashboard = () => {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      <div className="ds-card overflow-hidden">
+        <div className="ds-card-header">
+          <div className="flex items-center">
+            <Cake size={18} className="mr-2 text-brand" />
+            <h3 className="text-base font-semibold text-ink">{t('birthdays.title')}</h3>
+          </div>
+          <Link to="/clients?birthdays=1" className="text-sm font-medium text-brand hover:text-brand-dark">{t('birthdays.showAll')}</Link>
+        </div>
+        <div className="px-5 py-1">
+          <UpcomingBirthdays initialDays={30} limit={5} />
         </div>
       </div>
 

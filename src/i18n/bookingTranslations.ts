@@ -22,6 +22,14 @@ interface BookingDict {
     monday: string; tuesday: string; wednesday: string; thursday: string;
     friday: string; saturday: string; sunday: string;
   };
+  gift: {
+    banner: string;
+    bannerNoName: string;
+    used: string;
+    outOfRange: string;
+    withoutDiscount: string;
+    errors: { PROMO_NOT_FOUND: string; PROMO_DATE_OUT_OF_RANGE: string; PROMO_PHONE_MISMATCH: string; PROMO_ALREADY_USED: string };
+  };
   booking: {
     copyAddress: string;
     at: string;
@@ -86,6 +94,19 @@ interface BookingDict {
 const uk: BookingDict = {
   roles: { Barber: 'Майстер', Receptionist: 'Рецепціоніст', Manager: 'Менеджер' },
   days: { monday: 'Пн', tuesday: 'Вт', wednesday: 'Ср', thursday: 'Чт', friday: 'Пт', saturday: 'Сб', sunday: 'Нд' },
+  gift: {
+    banner: '{{name}}, ваш подарунок до дня народження: −{{pct}}% на візит до {{date}}',
+    bannerNoName: 'Ваш подарунок до дня народження: −{{pct}}% на візит до {{date}}',
+    used: 'Знижку за цим посиланням уже використано — ціни показано звичайні.',
+    outOfRange: 'Знижка −{{pct}}% діє на візити до {{date}}. Оберіть ранішу дату, щоб її отримати.',
+    withoutDiscount: 'Записатися без знижки',
+    errors: {
+      PROMO_NOT_FOUND: 'Знижку за цим посиланням не знайдено.',
+      PROMO_DATE_OUT_OF_RANGE: 'Знижка діє лише на візити в межах свого терміну.',
+      PROMO_PHONE_MISMATCH: 'Знижка діє лише для номера телефону, на який її надіслано.',
+      PROMO_ALREADY_USED: 'Цю знижку вже використано.',
+    },
+  },
   booking: {
     copyAddress: 'Скопіювати',
     at: 'о',
@@ -150,6 +171,19 @@ const uk: BookingDict = {
 const en: BookingDict = {
   roles: { Barber: 'Barber', Receptionist: 'Receptionist', Manager: 'Manager' },
   days: { monday: 'Mo', tuesday: 'Tu', wednesday: 'We', thursday: 'Th', friday: 'Fr', saturday: 'Sa', sunday: 'Su' },
+  gift: {
+    banner: '{{name}}, your birthday gift: −{{pct}}% on a visit until {{date}}',
+    bannerNoName: 'Your birthday gift: −{{pct}}% on a visit until {{date}}',
+    used: 'The discount from this link has already been used — regular prices are shown.',
+    outOfRange: 'The −{{pct}}% discount applies to visits until {{date}}. Pick an earlier date to get it.',
+    withoutDiscount: 'Book without the discount',
+    errors: {
+      PROMO_NOT_FOUND: 'The discount from this link was not found.',
+      PROMO_DATE_OUT_OF_RANGE: 'The discount only applies to visits within its term.',
+      PROMO_PHONE_MISMATCH: 'The discount only applies to the phone number it was sent to.',
+      PROMO_ALREADY_USED: 'This discount has already been used.',
+    },
+  },
   booking: {
     copyAddress: 'Copy',
     at: 'at',
@@ -214,6 +248,19 @@ const en: BookingDict = {
 const cs: BookingDict = {
   roles: { Barber: 'Holič', Receptionist: 'Recepční', Manager: 'Manažer' },
   days: { monday: 'Po', tuesday: 'Út', wednesday: 'St', thursday: 'Čt', friday: 'Pá', saturday: 'So', sunday: 'Ne' },
+  gift: {
+    banner: '{{name}}, váš narozeninový dárek: −{{pct}} % na návštěvu do {{date}}',
+    bannerNoName: 'Váš narozeninový dárek: −{{pct}} % na návštěvu do {{date}}',
+    used: 'Sleva z tohoto odkazu už byla využita — zobrazují se běžné ceny.',
+    outOfRange: 'Sleva −{{pct}} % platí na návštěvy do {{date}}. Vyberte dřívější datum.',
+    withoutDiscount: 'Rezervovat bez slevy',
+    errors: {
+      PROMO_NOT_FOUND: 'Sleva z tohoto odkazu nebyla nalezena.',
+      PROMO_DATE_OUT_OF_RANGE: 'Sleva platí jen na návštěvy v době její platnosti.',
+      PROMO_PHONE_MISMATCH: 'Sleva platí jen pro telefonní číslo, na které byla zaslána.',
+      PROMO_ALREADY_USED: 'Tato sleva už byla využita.',
+    },
+  },
   booking: {
     copyAddress: 'Kopírovat',
     at: 'v',
@@ -278,6 +325,19 @@ const cs: BookingDict = {
 const pl: BookingDict = {
   roles: { Barber: 'Fryzjer', Receptionist: 'Recepcjonistka', Manager: 'Kierownik' },
   days: { monday: 'Pn', tuesday: 'Wt', wednesday: 'Śr', thursday: 'Cz', friday: 'Pt', saturday: 'So', sunday: 'Nd' },
+  gift: {
+    banner: '{{name}}, Twój prezent urodzinowy: −{{pct}}% na wizytę do {{date}}',
+    bannerNoName: 'Twój prezent urodzinowy: −{{pct}}% na wizytę do {{date}}',
+    used: 'Zniżka z tego linku została już wykorzystana — pokazujemy zwykłe ceny.',
+    outOfRange: 'Zniżka −{{pct}}% obowiązuje na wizyty do {{date}}. Wybierz wcześniejszą datę.',
+    withoutDiscount: 'Zarezerwuj bez zniżki',
+    errors: {
+      PROMO_NOT_FOUND: 'Nie znaleziono zniżki z tego linku.',
+      PROMO_DATE_OUT_OF_RANGE: 'Zniżka obowiązuje tylko na wizyty w okresie jej ważności.',
+      PROMO_PHONE_MISMATCH: 'Zniżka obowiązuje tylko dla numeru telefonu, na który ją wysłano.',
+      PROMO_ALREADY_USED: 'Ta zniżka została już wykorzystana.',
+    },
+  },
   booking: {
     copyAddress: 'Kopiuj',
     at: 'o',

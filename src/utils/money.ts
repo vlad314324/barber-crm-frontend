@@ -17,3 +17,11 @@ export function formatPriceRange(min: number, max?: number, currency?: string): 
   const range = `${fmt(min)}–${fmt(max)}`;
   return meta.position === 'before' ? `${meta.symbol}${range}` : `${range} ${meta.symbol}`;
 }
+
+// Ціна зі знижкою (знижка до дня народження) — те саме округлення, що й на
+// сервері (utils/birthdayPromo.js → applyDiscount).
+export function discounted(price: number, pct: number | null | undefined): number;
+export function discounted(price: number | undefined, pct: number | null | undefined): number | undefined;
+export function discounted(price: number | undefined, pct: number | null | undefined) {
+  return price === undefined || !pct ? price : Math.round((price * (100 - pct)) / 100);
+}

@@ -129,6 +129,44 @@ export interface Notification {
   employeeName?: string;
   date?: string;
   startTime?: string;
+  // type: 'birthday'
+  clientId?: string;
+  daysUntil?: number;
+}
+
+// GET /clients/birthdays — найближчі дні народження клієнтів.
+export interface UpcomingBirthday {
+  _id: string;
+  name: string;
+  phone: string;
+  instagram?: string;
+  birthday: string;
+  date: string; // найближче святкування, YYYY-MM-DD
+  daysUntil: number;
+  age: number;
+  hasEmail: boolean;
+  telegramLinked: boolean;
+  // Привітання зі знижкою на цей ДН (без скасованих), якщо адмін його створив.
+  greeting: BirthdayGreetingInfo | null;
+}
+
+export interface BirthdayGreetingInfo {
+  status: 'scheduled' | 'sending' | 'sent' | 'failed' | 'expired';
+  sendAt: string;
+  sendTime: string;
+  discountPercent: number;
+  validDays: number;
+  message: string;
+  channels?: { email: boolean; telegram: boolean };
+  // Знижкою за посиланням уже скористались (є запис).
+  promoUsed?: boolean;
+}
+
+export interface BirthdayGreetingInput {
+  discountPercent: number;
+  validDays: number;
+  sendTime: string;
+  message: string;
 }
 
 
@@ -152,6 +190,9 @@ export interface Appointment {
   totalPrice: number;
   status: 'Scheduled' | 'Completed' | 'Cancelled' | 'No-show';
   notes?: AppointmentNote[];
+  // Знижка до дня народження (бронювання за посиланням з привітання).
+  discountPercent?: number;
+  priceBeforeDiscount?: number;
 }
 
 export interface EmployeeMonthlyEarning {

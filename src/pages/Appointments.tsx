@@ -10,7 +10,7 @@ import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
 import { downloadBlob } from '../utils/download';
 import { useShopCurrency, useShopServiceRangesEnabled, useShopDurationUnit } from '../context/SettingsContext';
-import { formatPrice, formatPriceRange } from '../utils/money';
+import { formatPrice, formatPriceRange, discounted } from '../utils/money';
 import { formatDurationRangeForUnit } from '../utils/duration';
 import { getCurrencySymbol } from '../constants/currencies';
 import DurationInput from '../components/DurationInput';
@@ -941,7 +941,8 @@ if (selectedBarber) {
                       checked={(editForm.serviceIds||[]).includes(s._id)}
                       onChange={e => {
                         const {ids,totalPrice,totalDuration} = toggleService(editForm.serviceIds||[], s._id, e.target.checked);
-                        setEditForm({...editForm, serviceIds:ids, totalPrice, totalDuration});
+                        // Запис зі знижкою до ДН — нова сума теж зі знижкою.
+                        setEditForm({...editForm, serviceIds:ids, totalPrice: discounted(totalPrice, editAppt?.discountPercent), totalDuration});
                       }}/>
                     <span>{s.name}</span>
                     <span className="ml-auto text-ink-muted text-xs">
@@ -974,6 +975,14 @@ if (selectedBarber) {
                   value={editForm.totalPrice} onChange={e => setEditForm({...editForm, totalPrice:Number(e.target.value)})}/>
               </div>
             </div>
+            {editAppt?.discountPercent ? (
+              <p className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 text-rose-700 px-3 py-1 text-xs font-medium">
+                🎁 {t('appointments.birthdayDiscount', { pct: editAppt.discountPercent })}
+                {editAppt.priceBeforeDiscount !== undefined && (
+                  <span className="text-rose-500">· {t('appointments.withoutDiscount', { price: formatPrice(editAppt.priceBeforeDiscount, currency) })}</span>
+                )}
+              </p>
+            ) : null}
             <div>
               <label className="field-label mb-2">{t('appointments.status')}</label>
               <div className="flex gap-2 flex-wrap">

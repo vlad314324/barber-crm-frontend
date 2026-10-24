@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Users, Plus, Search, Pencil, Trash2, Download, Upload, MoreVertical, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, Plus, Search, Pencil, Trash2, Download, Upload, MoreVertical, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Cake } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
 import { clientApi } from '../api';
 import { Client, ImportResult } from '../api/types';
 import Modal from '../components/Modal';
+import UpcomingBirthdays from '../components/clients/UpcomingBirthdays';
 import { useLocale } from '../i18n/LocaleContext';
 import { useAuth } from '../context/AuthContext';
 import { getErrorMessage } from '../utils/errors';
@@ -20,6 +21,8 @@ const Clients = () => {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const [searchParams] = useSearchParams();
+  // ?birthdays=1 — перехід з картки "Найближчі дні народження" на дашборді.
+  const [birthdaysOpen, setBirthdaysOpen] = useState(() => searchParams.get('birthdays') === '1');
   const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') || '');
   const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
   const [page, setPage] = useState(1);
@@ -178,9 +181,13 @@ const Clients = () => {
           <Users size={24} className="mr-2 text-brand flex-shrink-0" />
           <span className="truncate">{t('clients.title')}</span>
         </h1>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button onClick={() => setBirthdaysOpen(true)} className="btn btn-secondary" title={t('birthdays.title')}>
+            <Cake size={16} /> <span className="hidden sm:inline">{t('birthdays.button')}</span>
+          </button>
         {/* Майстер лише переглядає своїх клієнтів — дії над базою тільки в адміна */}
         {isAdmin && (
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <>
           <div className="hidden sm:flex items-center gap-2">
             <button onClick={handleExport} className="btn btn-secondary">
               <Download size={16} /> {t('common.export')}
@@ -213,9 +220,15 @@ const Clients = () => {
             <Plus size={18} />
             <span className="hidden sm:inline">{t('clients.addNew')}</span>
           </button>
-        </div>
+        </>
         )}
+        </div>
       </div>
+
+      <Modal isOpen={birthdaysOpen} onClose={() => setBirthdaysOpen(false)} title={t('birthdays.title')} size="lg">
+        <p className="text-sm text-ink-secondary mb-4">{t('birthdays.hint')}</p>
+        <UpcomingBirthdays initialDays={30} showPeriodSwitch inlineGreeting />
+      </Modal>
 
       <div className="ds-card overflow-hidden">
         <div className="px-5 py-4">

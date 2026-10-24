@@ -8,7 +8,7 @@ import type {
   UpdateStaffLoginDto, UpdateStaffLoginResponse,
   ImportResult, ClientPageParams, ClientPageResult, EmployeeStats,
   TelegramLinkCodeResponse, TelegramStatusResponse, ShopSettings,
-  EmployeeBreak, BreakInterval, ClientNote
+  EmployeeBreak, BreakInterval, ClientNote, UpcomingBirthday, BirthdayGreetingInput
 } from './types';
 import { getSalonSlug, clearSalonSlug } from '../utils/tenant';
 
@@ -97,6 +97,15 @@ export const clientApi = {
   delete: async (id: string): Promise<void> => { await api.delete(`/clients/${id}`); },
   export: async (): Promise<Blob> => (await api.get('/clients/export', { responseType: 'blob' })).data,
   import: (file: File): Promise<ImportResult> => importFile('/clients/import', file),
+  birthdays: async (days: number): Promise<UpcomingBirthday[]> =>
+    (await api.get('/clients/birthdays', { params: { days } })).data,
+  // Привітання з ДН зі знижкою — надсилається в день народження о sendTime.
+  scheduleBirthdayGreeting: async (clientId: string, data: BirthdayGreetingInput) =>
+    (await api.post(`/clients/${clientId}/birthday-greeting`, data)).data,
+  cancelBirthdayGreeting: async (clientId: string) =>
+    (await api.delete(`/clients/${clientId}/birthday-greeting`)).data,
+  birthdayGreetingDefaults: async (): Promise<BirthdayGreetingInput> =>
+    (await api.get('/clients/birthday-greeting/defaults')).data,
   addNote: async (id: string, text: string): Promise<ClientNote[]> =>
     (await api.post(`/clients/${id}/notes`, { text })).data,
 };

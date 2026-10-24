@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, ReactNode, CSSProperties } from 'react';
-import { useParams } from 'react-router';
+import { useParams, useSearchParams } from 'react-router';
 import axios from 'axios';
 import {
   CheckCircle, ChevronDown, ChevronLeft, ChevronRight,
@@ -13,7 +13,10 @@ import LanguageToggle from '../components/LanguageToggle';
 import LocationMap from '../components/LocationMap';
 import { getErrorMessage, getErrorCode } from '../utils/errors';
 import { PublicBookingSettings } from '../api/types';
-import { formatPriceRange } from '../utils/money';
+import { formatPriceRange, discounted } from '../utils/money';
+import PriceTag from '../components/booking/PriceTag';
+
+const BOOKING_LOCALES: Record<string, string> = { uk: 'uk-UA', en: 'en-US', cs: 'cs-CZ', pl: 'pl-PL' };
 import { formatDurationRange } from '../utils/duration';
 import { trackEvent } from '../utils/tracking';
 import { useTheme } from '../context/ThemeContext';
@@ -120,6 +123,9 @@ const TelegramIcon = ({ className }: { className?: string }) => (
 
 const BookingPage = () => {
   const { salonSlug } = useParams<{ salonSlug?: string }>();
+  // ?gift=<token> — персональне посилання з привітання з днем народження.
+  const [searchParams] = useSearchParams();
+  const giftToken = searchParams.get('gift');
   const { theme } = useTheme();
   const [lang, setLangState] = useState<BookingLang>('uk');
   const [langTouched, setLangTouched] = useState(false);
@@ -163,6 +169,12 @@ const BookingPage = () => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
+  // Знижка до дня народження: дані з GET /booking/gift/:token; promoError —
+  // сервер відхилив знижку (телефон, термін, використана) — тоді пропонуємо
+  // записатися без неї.
+  const [gift, setGift] = useState<{ token: string; discountPercent: number; validFrom: string; validUntil: string; firstName: string; used: boolean } | null>(null);
+  const [promoError, setPromoError] = useState('');
+  const [bookedDiscount, setBookedDiscount] = useState<number | null>(null);
   const [done, setDone]       = useState(false);
   // Telegram-сповіщення клієнту: deep link на підписку або позначка, що
   // клієнт уже підписаний у цьому салоні (з минулого бронювання).
@@ -207,6 +219,13 @@ const BookingPage = () => {
   // Фіксуємо факт відкриття сторінки для воронки бронювання (видно лише в
   // platform-admin) — раз на реальне завантаження, ref рятує від подвійного
   // виклику через React 18 StrictMode у дев-режимі.
+  useEffect(() => {
+    if (!salonSlug || !giftToken) return;
+    api.get(`/booking/gift/${encodeURIComponent(giftToken)}`)
+      .then((r) => setGift({ token: giftToken, ...r.data }))
+      .catch(() => setGift(null));
+  }, [api, salonSlug, giftToken]);
+
   const loggedVisit = useRef(false);
   useEffect(() => {
     if (!salonSlug || loggedVisit.current) return;
@@ -252,6 +271,12 @@ const BookingPage = () => {
   // згорне показ до одного числа).
   const totalPrice       = selectedServices.reduce((sum, s) => sum + s.price, 0);
   const totalPriceMax    = selectedServices.reduce((sum, s) => sum + (s.priceMax ?? s.price), 0);
+  // Знижка показується, поки дата не вибрана або вибрана в межах терміну.
+  const giftInRange = !!gift && !gift.used && (!selectedDate || (selectedDate >= gift.validFrom && selectedDate <= gift.validUntil));
+  const activePct = giftInRange ? gift!.discountPercent : null;
+  const giftDateLabel = gift
+    ? new Date(`${gift.validUntil}T00:00:00Z`).toLocaleDateString(BOOKING_LOCALES[lang] || 'uk-UA', { day: 'numeric', month: 'long', timeZone: 'UTC' })
+    : '';
   // totalDuration — сума МАКС тривалостей (саме це бронюється й шлеться як
   // durationMinutes для фільтрації слотів); totalDurationMin — лише для
   // показу діапазону.
@@ -393,7 +418,7 @@ const BookingPage = () => {
             )}
             <p className="text-sm text-ink-muted">{formatDurationRange(s.duration, s.durationMax, bookingDurationLabels)}</p>
           </div>
-          <p className="font-semibold text-brand-dark whitespace-nowrap">{formatPriceRange(s.price, s.priceMax, branding?.currency)}</p>
+          <PriceTag price={s.price} priceMax={s.priceMax} currency={branding?.currency} pct={activePct} className="font-semibold text-brand-dark whitespace-nowrap text-right" />
         </div>
       </div>
     );
@@ -415,10 +440,12 @@ const BookingPage = () => {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (withoutGift = false) => {
     if (!clientName || !clientPhone || !clientEmail) { setError(t('booking.fillAll')); return; }
     if (!validateEmail(clientEmail)) return;
-    setLoading(true); setError('');
+    const useGift = !withoutGift && giftInRange && gift ? gift.token : undefined;
+    if (withoutGift) setGift(null);
+    setLoading(true); setError(''); setPromoError('');
     try {
       const res = await api.post('/booking', {
         employeeId: selectedEmployee!._id,
@@ -430,12 +457,19 @@ const BookingPage = () => {
         clientEmail,
         // Мова інтерфейсу сторінки — нею прийде лист-підтвердження й нагадування.
         lang,
+        giftToken: useGift,
       });
+      setBookedDiscount(res.data?.appointment?.discountPercent ?? null);
       setTelegram({ url: res.data?.telegramUrl || null, linked: !!res.data?.telegramLinked });
       setDone(true);
       trackEvent(api, 'submit_success', { appointmentId: res.data?.appointment?.id });
     } catch (err) {
-      setError(getErrorMessage(err) || t('booking.bookingError'));
+      const code = getErrorCode(err);
+      if (code && code.startsWith('PROMO_')) {
+        setPromoError(t(`gift.errors.${code}`));
+      } else {
+        setError(getErrorMessage(err) || t('booking.bookingError'));
+      }
       trackEvent(api, 'submit_failed', { failureReason: getErrorCode(err) });
     } finally {
       setLoading(false);
@@ -484,7 +518,7 @@ const BookingPage = () => {
         <h2 className="text-2xl font-extrabold text-ink tracking-tight mb-2">{t('booking.confirmed')}</h2>
         <p className="text-ink-secondary mb-1">{t('booking.masterLabel')}: <strong className="text-ink">{selectedEmployee?.name}</strong></p>
         <p className="text-ink-secondary mb-1">{t('booking.dateLabel')}: <strong className="text-ink">{selectedDate}</strong> {t('booking.at')} <strong className="text-ink">{selectedTime}</strong></p>
-        <p className="text-ink-secondary mb-6">{t('booking.sumLabel')}: <strong className="text-ink">{formatPriceRange(totalPrice, totalPriceMax, branding?.currency)}</strong></p>
+        <p className="text-ink-secondary mb-6 flex items-center justify-center gap-1.5 flex-wrap">{t('booking.sumLabel')}: <PriceTag price={totalPrice} priceMax={totalPriceMax} currency={branding?.currency} pct={bookedDiscount} className="font-bold text-ink" /></p>
         {telegram.linked ? (
           <p className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-[#1f8fd1]">
             <TelegramIcon className="w-4 h-4" /> {t('booking.telegramLinked')}
@@ -501,7 +535,7 @@ const BookingPage = () => {
         )}
         <button
           onClick={() => {
-            setDone(false); setScreen('menu'); setTelegram({ url: null, linked: false });
+            setDone(false); setScreen('menu'); setTelegram({ url: null, linked: false }); setBookedDiscount(null);
             setSelectedServices([]); setSelectedEmployee(null);
             setSelectedDate(''); setSelectedTime('');
             setClientName(''); setClientPhone(''); setClientEmail('');
@@ -541,6 +575,25 @@ const BookingPage = () => {
         </div>
       )}
 
+      {gift && (
+        <div className="max-w-2xl mx-auto px-4 pt-4">
+          <div className={`rounded-md px-4 py-3 text-sm font-medium flex items-start gap-2 ${gift.used || !giftInRange
+            ? 'bg-canvas-soft text-ink-secondary border border-line'
+            : 'bg-gradient-to-r from-rose-50 to-amber-50 text-rose-800 border border-rose-200'}`}>
+            <span aria-hidden>🎁</span>
+            <span>
+              {gift.used
+                ? t('gift.used')
+                : !giftInRange
+                  ? t('gift.outOfRange', { pct: gift.discountPercent, date: giftDateLabel })
+                  : gift.firstName
+                    ? t('gift.banner', { name: gift.firstName, pct: gift.discountPercent, date: giftDateLabel })
+                    : t('gift.bannerNoName', { pct: gift.discountPercent, date: giftDateLabel })}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Хаб — головне меню */}
       {screen === 'menu' && (
         <div className="max-w-2xl mx-auto px-4 py-6 space-y-3">
@@ -562,7 +615,7 @@ const BookingPage = () => {
             <MenuRow
               icon={<ListChecks size={18}/>}
               title={t('booking.menuServices')}
-              subtitle={selectedServices.length > 0 ? `${selectedServices.length} · ${formatPriceRange(totalPrice, totalPriceMax, branding?.currency)}` : undefined}
+              subtitle={selectedServices.length > 0 ? `${selectedServices.length} · ${formatPriceRange(discounted(totalPrice, activePct), discounted(totalPriceMax, activePct), branding?.currency)}${activePct ? ` (−${activePct}%)` : ''}` : undefined}
               onClick={() => setScreen('services')}
             />
             <MenuRow
@@ -795,7 +848,7 @@ const BookingPage = () => {
           {selectedServices.length > 0 && (
             <div className="mt-4 p-3 bg-brand-extra-soft rounded-sm flex justify-between items-center">
               <span className="text-sm text-ink-secondary">{t('booking.selectedCount', { count: selectedServices.length, duration: formatDurationRange(totalDurationMin, totalDuration, bookingDurationLabels) })}</span>
-              <span className="font-semibold text-brand-dark">{formatPriceRange(totalPrice, totalPriceMax, branding?.currency)}</span>
+              <PriceTag price={totalPrice} priceMax={totalPriceMax} currency={branding?.currency} pct={activePct} className="font-semibold text-brand-dark" />
             </div>
           )}
           <button
@@ -883,7 +936,7 @@ const BookingPage = () => {
             </div>
             <div className="border-t border-line pt-3 flex justify-between">
               <span className="font-semibold text-ink">{t('booking.sumLabel')}</span>
-              <span className="font-bold text-brand-dark text-lg">{formatPriceRange(totalPrice, totalPriceMax, branding?.currency)}</span>
+              <PriceTag price={totalPrice} priceMax={totalPriceMax} currency={branding?.currency} pct={activePct} className="font-bold text-brand-dark text-lg" />
             </div>
             <div className="border-t border-line pt-3 text-sm text-ink-muted">
               <p>{clientName} • {clientPhone}</p>
@@ -895,7 +948,15 @@ const BookingPage = () => {
               <p className="text-sm text-red-600">{error}</p>
             </div>
           )}
-          <button onClick={handleSubmit} disabled={loading} className="btn btn-primary w-full py-3">
+          {promoError && (
+            <div className="bg-amber-50 border border-amber-200 rounded-sm px-4 py-3 mb-4">
+              <p className="text-sm text-amber-800 mb-2">{promoError}</p>
+              <button type="button" onClick={() => handleSubmit(true)} disabled={loading} className="btn btn-secondary w-full">
+                {t('gift.withoutDiscount')}
+              </button>
+            </div>
+          )}
+          <button onClick={() => handleSubmit()} disabled={loading} className="btn btn-primary w-full py-3">
             {loading ? t('booking.booking') : t('booking.confirmBtn')}
           </button>
         </div>

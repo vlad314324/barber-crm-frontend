@@ -5,6 +5,7 @@ import { notificationApi } from '../api';
 import type { Notification } from '../api/types';
 import OnboardingGuideCard from './OnboardingGuideCard';
 import BookingNotificationRow from './BookingNotificationRow';
+import BirthdayNotificationRow from './BirthdayNotificationRow';
 
 const POLL_INTERVAL_MS = 60000;
 
@@ -65,6 +66,9 @@ const NotificationsMenu = () => {
                 }
                 if (n.type === 'new_booking') {
                   return <BookingNotificationRow key={n._id} notification={n} onRead={markRead} onNavigate={() => setOpen(false)} />;
+                }
+                if (n.type === 'birthday') {
+                  return <BirthdayNotificationRow key={n._id} notification={n} onRead={markRead} onNavigate={() => setOpen(false)} />;
                 }
                 return null;
               })}
