@@ -110,6 +110,16 @@ const Employees = () => {
   useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
   useEffect(() => { clientApi.getAll().then(setClients).catch(() => setClients([])); }, []);
   useEffect(() => { serviceApi.getAll().then(setServices).catch(() => setServices([])); }, []);
+  // Основні послуги, під кожною — її додаткові (один раз, під першою основною).
+  const orderedServices = (() => {
+    const used = new Set<string>();
+    const out = services.filter(s => !s.isAddon).flatMap(m => {
+      const own = services.filter(a => a.isAddon && !used.has(a._id) && a.addonFor?.includes(m._id));
+      own.forEach(a => used.add(a._id));
+      return [m, ...own];
+    });
+    return out.concat(services.filter(s => s.isAddon && !used.has(s._id)));
+  })();
 
   // ── open add/edit ──────────────────────────────────────────────────────────
   const openAdd = () => {
@@ -551,7 +561,7 @@ const Employees = () => {
                 <p className="text-xs text-ink-muted mb-1">{t('employees.fieldServicesHint')}</p>
                 <p className="text-xs text-ink-muted mb-1">{t('employees.ownPriceHint')}</p>
                 <div className="border border-line rounded-sm divide-y divide-line max-h-80 overflow-y-auto">
-                  {services.map(s => {
+                  {orderedServices.map(s => {
                     const active = formData.serviceIds.length === 0 || formData.serviceIds.includes(s._id);
                     const ov = formData.overrides[s._id] || {};
                     const changed = OVERRIDE_FIELDS.some(f => (ov[f] ?? '').trim() !== '');
@@ -569,7 +579,7 @@ const Employees = () => {
                       </label>
                     );
                     return (
-                      <div key={s._id} className="p-2">
+                      <div key={s._id} className={`p-2 ${s.isAddon ? 'pl-8' : ''}`}>
                         <div className="flex items-center gap-2 text-sm">
                           <input type="checkbox" className="rounded border-line text-brand focus:ring-brand cursor-pointer"
                             id={`svc-${s._id}`}
@@ -578,7 +588,10 @@ const Employees = () => {
                               ...p,
                               serviceIds: e.target.checked ? [...p.serviceIds, s._id] : p.serviceIds.filter(id => id !== s._id),
                             }))}/>
-                          <label htmlFor={`svc-${s._id}`} className="flex-1 min-w-0 truncate cursor-pointer">{s.name}</label>
+                          <label htmlFor={`svc-${s._id}`} className="flex-1 min-w-0 truncate cursor-pointer">
+                            {s.isAddon && <span className="text-ink-muted">+ </span>}{s.name}
+                            {s.isAddon && <span className="ml-1.5 badge bg-brand-extra-soft text-brand-dark !text-[10px]">{t('services.addonBadge')}</span>}
+                          </label>
                           <span className="text-xs text-ink-muted whitespace-nowrap">
                             {t('employees.basePrice', { price: formatPrice(s.price, currency), duration: s.duration })}
                           </span>

@@ -26,6 +26,8 @@ interface Service {
   _id: string; name: string; description?: string; price: number; priceMax?: number; duration: number; durationMax?: number; category: string;
   translations?: Partial<Record<BookingLang, { name: string; description: string }>>;
   imageUrl?: string;
+  // Додаткова послуга — лише разом з однією з addonFor.
+  isAddon?: boolean; addonFor?: string[];
 }
 interface Employee {
   _id: string; name: string; role: string; customRoleLabel?: string; services?: string[]; specialties?: string[]; bio?: string;
@@ -342,16 +344,35 @@ const BookingPage = () => {
   }, [selectedEmployee, selectedDate, totalDuration, selectedServiceIdsKey, api]);
 
   const toggleService = (s: Service) => {
-    setSelectedServices(prev =>
-      prev.find(x => x._id === s._id) ? prev.filter(x => x._id !== s._id) : [...prev, s]
-    );
+    setSelectedServices(prev => {
+      if (!prev.find(x => x._id === s._id)) return [...prev, s];
+      const next = prev.filter(x => x._id !== s._id);
+      // Знята основна забирає свої додаткові (якщо їх не тримає інша обрана основна).
+      const mainIds = new Set(next.filter(x => !x.isAddon).map(x => x._id));
+      return next.filter(x => !x.isAddon || (x.addonFor || []).some(id => mainIds.has(id)));
+    });
   };
+
+  // Для показу: кожна основна, одразу за нею — її додаткові ("Стрижка + Укладання").
+  const selectedLabel = (() => {
+    const mains = selectedServices.filter(s => !s.isAddon);
+    const addons = selectedServices.filter(s => s.isAddon);
+    const used = new Set<string>();
+    return mains.map(m => {
+      const own = addons.filter(a => !used.has(a._id) && a.addonFor?.includes(m._id));
+      own.forEach(a => used.add(a._id));
+      return [m, ...own].map(x => serviceName(x, lang)).join(' + ');
+    }).join(', ');
+  })();
 
   // Порожній/невизначений selectedEmployee.services означає "без обмежень".
   // Ціни в списку — обраного майстра.
-  const availableServices = effectiveServices(!selectedEmployee || !selectedEmployee.services || selectedEmployee.services.length === 0
+  const employeeServices = effectiveServices(!selectedEmployee || !selectedEmployee.services || selectedEmployee.services.length === 0
     ? services
     : services.filter(s => selectedEmployee.services!.includes(s._id)), selectedEmployee);
+  // Додаткові в списку окремо не показуються — лише під обраною основною.
+  const availableServices = employeeServices.filter(s => !s.isAddon);
+  const addonsFor = (mainId: string) => employeeServices.filter(s => s.isAddon && s.addonFor?.includes(mainId));
 
   // Групування за категоріями (Settings.bookingGroupByCategory): секції в
   // порядку serviceCategories з сервера; категорії, яких там немає, — у кінці
@@ -428,6 +449,33 @@ const BookingPage = () => {
           </div>
           <PriceTag price={s.price} priceMax={s.priceMax} currency={branding?.currency} pct={activePct} className="font-semibold text-brand-dark whitespace-nowrap text-right" />
         </div>
+        {selected && addonsFor(s._id).length > 0 && (
+          <div className="mt-3 pt-3 border-t border-brand/20" onClick={e => e.stopPropagation()}>
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted mb-1.5">{t('booking.addToService')}</p>
+            <div className="space-y-1.5">
+              {addonsFor(s._id).map(a => {
+                const on = selectedServices.some(x => x._id === a._id);
+                return (
+                  <button key={a._id} type="button" role="checkbox" aria-checked={on}
+                    onClick={() => toggleService(a)}
+                    className={`w-full flex items-center gap-3 rounded-sm border px-3 py-2 text-left transition-colors
+                      ${on ? 'border-brand bg-surface' : 'border-line bg-surface/70 hover:border-line-medium'}`}>
+                    <span className={`w-5 h-5 rounded-xs border-2 flex items-center justify-center shrink-0 ${on ? 'bg-brand border-brand text-white' : 'border-line-medium'}`}>
+                      {on && <Check size={13} strokeWidth={3} />}
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-medium text-ink">{serviceName(a, lang)}</span>
+                      <span className="block text-xs text-ink-muted">+{formatDurationRange(a.duration, a.durationMax, bookingDurationLabels)}</span>
+                    </span>
+                    <span className="text-sm font-semibold text-brand-dark whitespace-nowrap flex items-center">
+                      +<PriceTag price={a.price} priceMax={a.priceMax} currency={branding?.currency} pct={activePct} className="inline-flex" />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -733,7 +781,12 @@ const BookingPage = () => {
                   aria-pressed={selectedEmployee?._id === e._id}
                   onClick={() => {
                     const allowedIds = !e.services || e.services.length === 0 ? null : new Set(e.services);
-                    setSelectedServices(prev => allowedIds ? prev.filter(s => allowedIds.has(s._id)) : prev);
+                    setSelectedServices(prev => {
+                      const kept = allowedIds ? prev.filter(s => allowedIds.has(s._id)) : prev;
+                      // Додаткова без своєї основної не лишається.
+                      const mainIds = new Set(kept.filter(x => !x.isAddon).map(x => x._id));
+                      return kept.filter(x => !x.isAddon || (x.addonFor || []).some(id => mainIds.has(id)));
+                    });
                     setSelectedEmployee(e);
                     // Послуги ще не обрані — одразу до них (ціни вже цього майстра).
                     setScreen(selectedServices.length === 0 ? 'services' : 'menu');
@@ -936,7 +989,7 @@ const BookingPage = () => {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-ink-muted">{t('booking.servicesLabel')}</span>
-              <span className="font-medium text-ink text-right">{selectedServices.map(s => serviceName(s, lang)).join(', ')}</span>
+              <span className="font-medium text-ink text-right">{selectedLabel}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-ink-muted">{t('booking.dateTimeLabel')}</span>

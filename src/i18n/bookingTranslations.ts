@@ -41,6 +41,7 @@ interface BookingDict {
     menuServices: string;
     menuAbout: string;
     chooseMasterFirst: string;
+    addToService: string;
     bookNow: string;
     confirmSelection: string;
     aboutTitle: string;
@@ -118,6 +119,7 @@ const uk: BookingDict = {
     menuServices: 'Вибір послуг',
     menuAbout: 'Про заклад',
     chooseMasterFirst: 'Спочатку оберіть майстра',
+    addToService: 'Додати до послуги',
     bookNow: 'Записатися',
     confirmSelection: 'Готово',
     aboutTitle: 'Про заклад',
@@ -195,6 +197,7 @@ const en: BookingDict = {
     menuServices: 'Choose services',
     menuAbout: 'About this place',
     chooseMasterFirst: 'Choose a master first',
+    addToService: 'Add to this service',
     bookNow: 'Book now',
     confirmSelection: 'Done',
     aboutTitle: 'About this place',
@@ -272,6 +275,7 @@ const cs: BookingDict = {
     menuServices: 'Výběr služeb',
     menuAbout: 'O salonu',
     chooseMasterFirst: 'Nejprve vyberte mistra',
+    addToService: 'Přidat ke službě',
     bookNow: 'Rezervovat',
     confirmSelection: 'Hotovo',
     aboutTitle: 'O salonu',
@@ -349,6 +353,7 @@ const pl: BookingDict = {
     menuServices: 'Wybór usług',
     menuAbout: 'O salonie',
     chooseMasterFirst: 'Najpierw wybierz mistrza',
+    addToService: 'Dodaj do usługi',
     bookNow: 'Zarezerwuj',
     confirmSelection: 'Gotowe',
     aboutTitle: 'O salonie',

@@ -618,8 +618,20 @@ if (selectedBarber) {
     return { totalPrice, totalDuration: totalDuration || 30, prepTime };
   };
 
+  // Додаткові без своєї основної серед обраних — прибираються.
+  const pruneAddons = (ids: string[]) => {
+    const mainIds = new Set(ids.filter(id => !services.find(s => s._id === id)?.isAddon));
+    return ids.filter(id => {
+      const svc = services.find(s => s._id === id);
+      return !svc?.isAddon || (svc.addonFor || []).some(p => mainIds.has(p));
+    });
+  };
+  // Додаткову можна відмітити лише разом з її основною.
+  const addonLocked = (s: Service, ids: string[]) =>
+    !!s.isAddon && !ids.includes(s._id) && !(s.addonFor || []).some(p => ids.includes(p));
+
   const toggleService = (ids: string[], svcId: string, isAdd: boolean, employeeId: string) => {
-    const next = isAdd ? [...ids, svcId] : ids.filter(id => id !== svcId);
+    const next = pruneAddons(isAdd ? [...ids, svcId] : ids.filter(id => id !== svcId));
     return { ids: next, ...totalsFor(next, employeeId) };
   };
 
@@ -630,7 +642,15 @@ if (selectedBarber) {
     const list = !emp || !emp.services || emp.services.length === 0
       ? services.filter(s => s.isAvailable)
       : services.filter(s => s.isAvailable && emp.services!.includes(s._id));
-    return effectiveServices(list, emp);
+    // Кожна основна, під нею — її додаткові (один раз, під першою основною).
+    const mains = list.filter(s => !s.isAddon);
+    const used = new Set<string>();
+    const ordered = mains.flatMap(m => {
+      const own = list.filter(a => a.isAddon && !used.has(a._id) && a.addonFor?.includes(m._id));
+      own.forEach(a => used.add(a._id));
+      return [m, ...own];
+    });
+    return effectiveServices(ordered, emp);
   };
 
   const statusLabel = (status: string) => t(`statuses.${status}`);
@@ -856,7 +876,7 @@ if (selectedBarber) {
                 value={addForm.employeeId} onChange={e => {
                   const newEmpId = e.target.value;
                   const allowed = allowedServices(newEmpId);
-                  const prunedIds = addForm.serviceIds.filter(id => allowed.some(s => s._id === id));
+                  const prunedIds = pruneAddons(addForm.serviceIds.filter(id => allowed.some(s => s._id === id)));
                   setAddForm({...addForm, employeeId:newEmpId, serviceIds:prunedIds, ...totalsFor(prunedIds, newEmpId)});
                 }}>
                 <option value="">{t('appointments.masterChoosePlaceholder')}</option>
@@ -869,14 +889,15 @@ if (selectedBarber) {
             <label className="field-label">{t('appointments.services')}</label>
             <div className="border border-line rounded-sm p-2 max-h-56 overflow-y-auto space-y-1">
               {allowedServices(addForm.employeeId).map(s => (
-                <label key={s._id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-canvas-soft p-1 rounded-xs">
+                <label key={s._id} className={`flex items-center gap-2 text-sm p-1 rounded-xs ${s.isAddon ? 'ml-6' : ''} ${addonLocked(s, addForm.serviceIds) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-canvas-soft'}`}>
                   <input type="checkbox" className="rounded border-line text-brand focus:ring-brand"
+                    disabled={addonLocked(s, addForm.serviceIds)}
                     checked={addForm.serviceIds.includes(s._id)}
                     onChange={e => {
                       const {ids,totalPrice,totalDuration,prepTime} = toggleService(addForm.serviceIds, s._id, e.target.checked, addForm.employeeId);
                       setAddForm({...addForm, serviceIds:ids, totalPrice, totalDuration, prepTime});
                     }}/>
-                  <span>{s.name}</span>
+                  <span>{s.isAddon ? `+ ${s.name}` : s.name}</span>
                   <span className="ml-auto text-ink-muted text-xs">
                     {rangesEnabled ? formatPriceRange(s.price, s.priceMax, currency) : formatPrice(s.price, currency)} · {formatDurationRangeForUnit(s.duration, rangesEnabled ? s.durationMax : undefined, durationUnit, durationLabels)}
                   </span>
@@ -943,7 +964,7 @@ if (selectedBarber) {
                   value={editForm.employeeId} onChange={e => {
                     const newEmpId = e.target.value;
                     const allowed = allowedServices(newEmpId);
-                    const prunedIds = (editForm.serviceIds||[]).filter(id => allowed.some(s => s._id === id));
+                    const prunedIds = pruneAddons((editForm.serviceIds||[]).filter(id => allowed.some(s => s._id === id)));
                     const totals = totalsFor(prunedIds, newEmpId);
                     setEditForm({...editForm, employeeId:newEmpId, serviceIds:prunedIds, ...totals, totalPrice: discounted(totals.totalPrice, editAppt?.discountPercent)});
                   }}>
@@ -957,15 +978,16 @@ if (selectedBarber) {
               <label className="field-label">{t('appointments.services')}</label>
               <div className="border border-line rounded-sm p-2 max-h-56 overflow-y-auto space-y-1">
                 {allowedServices(editForm.employeeId).map(s => (
-                  <label key={s._id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-canvas-soft p-1 rounded-xs">
+                  <label key={s._id} className={`flex items-center gap-2 text-sm p-1 rounded-xs ${s.isAddon ? 'ml-6' : ''} ${addonLocked(s, editForm.serviceIds||[]) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-canvas-soft'}`}>
                     <input type="checkbox" className="rounded border-line text-brand focus:ring-brand"
+                      disabled={addonLocked(s, editForm.serviceIds||[])}
                       checked={(editForm.serviceIds||[]).includes(s._id)}
                       onChange={e => {
                         const {ids,totalPrice,totalDuration,prepTime} = toggleService(editForm.serviceIds||[], s._id, e.target.checked, editForm.employeeId);
                         // Запис зі знижкою до ДН — нова сума теж зі знижкою.
                         setEditForm({...editForm, serviceIds:ids, totalPrice: discounted(totalPrice, editAppt?.discountPercent), totalDuration, prepTime});
                       }}/>
-                    <span>{s.name}</span>
+                    <span>{s.isAddon ? `+ ${s.name}` : s.name}</span>
                     <span className="ml-auto text-ink-muted text-xs">
                       {rangesEnabled ? formatPriceRange(s.price, s.priceMax, currency) : formatPrice(s.price, currency)} · {formatDurationRangeForUnit(s.duration, rangesEnabled ? s.durationMax : undefined, durationUnit, durationLabels)}
                     </span>

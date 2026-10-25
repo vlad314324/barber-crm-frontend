@@ -30,6 +30,8 @@ const defaultForm = {
   translations: {} as ServiceTranslations,
   cost: 0,
   prepTime: 0,
+  isAddon: false,
+  addonFor: [] as string[],
 };
 
 const MAX_PREP = 240;
@@ -161,6 +163,8 @@ const Services = () => {
       translations: service.translations || {},
       cost: service.cost ?? 0,
       prepTime: service.prepTime ?? 0,
+      isAddon: !!service.isAddon,
+      addonFor: service.addonFor || [],
     });
     setImageChange(null);
     setFieldErrors(new Set());
@@ -184,6 +188,7 @@ const Services = () => {
     if (!(formData.price > 0)) missing.add('price');
     if (!(formData.duration > 0)) missing.add('duration');
     if (formData.prepTime < 0 || formData.prepTime > MAX_PREP) missing.add('actualDuration');
+    if (formData.isAddon && formData.addonFor.length === 0) missing.add('addonFor');
     if (missing.size > 0) {
       setFieldErrors(missing);
       return;
@@ -364,15 +369,30 @@ const Services = () => {
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <h3 className="text-base font-semibold text-ink">{service.name}</h3>
-                    <span className="badge badge-neutral mt-1">
-                      {categoryLabel(service.category)}
-                    </span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      <span className="badge badge-neutral">
+                        {categoryLabel(service.category)}
+                      </span>
+                      {service.isAddon && <span className="badge bg-brand-extra-soft text-brand-dark">{t('services.addonBadge')}</span>}
+                    </div>
                   </div>
                   <span className={`badge ${service.isAvailable ? 'badge-success' : 'badge-muted'}`}>
                     {service.isAvailable ? t('services.active') : t('services.inactive')}
                   </span>
                 </div>
                 <p className="text-sm text-ink-muted mt-2">{service.description}</p>
+                {(() => {
+                  // Додаткова — до яких основних; основна — які додаткові має.
+                  const names = service.isAddon
+                    ? (service.addonFor || []).map(id => services.find(s => s._id === id)?.name).filter(Boolean)
+                    : services.filter(s => s.isAddon && s.addonFor?.includes(service._id)).map(s => s.name);
+                  if (names.length === 0) return null;
+                  return (
+                    <p className="text-xs text-ink-secondary mt-2">
+                      {t(service.isAddon ? 'services.addonForLine' : 'services.addonsLine', { names: names.join(', ') })}
+                    </p>
+                  );
+                })()}
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-4">
                   <div className="flex items-center text-sm text-ink-secondary">
                     <Banknote size={14} className="mr-1 text-brand" />
@@ -608,6 +628,45 @@ const Services = () => {
               {categories.map(c => <option key={c._id} value={c.name}>{categoryLabel(c.name)}</option>)}
             </select>
             {fieldErrors.has('category') && <p className="text-xs text-red-500 mt-1">{t('common.fieldRequired')}</p>}
+          </div>
+          <div className="rounded-sm border border-line p-3 space-y-2">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input type="checkbox" className="rounded border-line text-brand focus:ring-brand mt-0.5"
+                checked={formData.isAddon}
+                onChange={(e) => { setFormData({ ...formData, isAddon: e.target.checked }); setFieldErrors(prev => { const n = new Set(prev); n.delete('addonFor'); return n; }); }} />
+              <span>
+                <span className="text-sm font-medium text-ink">{t('services.isAddon')}</span>
+                <span className="block text-xs text-ink-muted">{t('services.addonHint')}</span>
+              </span>
+            </label>
+            {formData.isAddon && (() => {
+              const mains = services.filter(s => !s.isAddon && s._id !== editingService?._id);
+              return (
+                <div>
+                  <p className="text-xs font-medium text-ink-secondary mb-1">{t('services.addonFor')}</p>
+                  {mains.length === 0 ? (
+                    <p className="text-xs text-ink-muted">{t('services.addonNoMains')}</p>
+                  ) : (
+                    <div className={`border rounded-sm p-2 max-h-40 overflow-y-auto space-y-1 ${fieldErrors.has('addonFor') ? 'border-red-500' : 'border-line'}`}>
+                      {mains.map(s => (
+                        <label key={s._id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-canvas-soft p-1 rounded-xs">
+                          <input type="checkbox" className="rounded border-line text-brand focus:ring-brand"
+                            checked={formData.addonFor.includes(s._id)}
+                            onChange={(e) => {
+                              const next = e.target.checked ? [...formData.addonFor, s._id] : formData.addonFor.filter(id => id !== s._id);
+                              setFormData({ ...formData, addonFor: next });
+                              setFieldErrors(prev => { const n = new Set(prev); n.delete('addonFor'); return n; });
+                            }} />
+                          <span className="flex-1 min-w-0 truncate">{s.name}</span>
+                          <span className="text-xs text-ink-muted">{categoryLabel(s.category)}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  {fieldErrors.has('addonFor') && <p className="text-xs text-red-500 mt-1">{t('services.addonNeedsParent')}</p>}
+                </div>
+              );
+            })()}
           </div>
           <div className="flex items-center gap-2">
             <input

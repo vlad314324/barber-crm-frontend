@@ -103,6 +103,9 @@ export interface Service {
   // Час на підготовку після послуги, хв: клієнт його не бачить,
   // календар резервує duration + prepTime.
   prepTime?: number;
+  // Додаткова послуга: бронюється лише разом з однією з addonFor.
+  isAddon?: boolean;
+  addonFor?: string[];
 }
 
 // Перерва майстра на конкретну дату (обід тощо) — закриває час для запису.
@@ -295,6 +298,8 @@ export interface CreateServiceDto {
   translations?: Partial<Record<BookingLang, { name: string; description: string }>>;
   cost?: number;
   prepTime?: number;
+  isAddon?: boolean;
+  addonFor?: string[];
 }
 
 export interface CreateAppointmentDto {
