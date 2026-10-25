@@ -80,6 +80,19 @@ body {
   animation: modal-backdrop-in 150ms ease-out;
 }
 
+/* Колаж сторінки входу: легке "плавання" карток. Через властивість translate,
+   щоб не перебивати rotate/scale з Tailwind (transform). */
+@keyframes login-float {
+  0%, 100% { translate: 0 0; }
+  50%      { translate: 0 -8px; }
+}
+.login-float      { animation: login-float 6s ease-in-out infinite; }
+.login-float-slow { animation: login-float 7.5s ease-in-out infinite 0.8s; }
+.login-float-fast { animation: login-float 5s ease-in-out infinite 1.6s; }
+@media (prefers-reduced-motion: reduce) {
+  .login-float, .login-float-slow, .login-float-fast { animation: none; }
+}
+
 /* ============================================================
    hirnix component vocabulary — buttons, cards, badges, fields
    ============================================================ */
