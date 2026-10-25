@@ -14,7 +14,7 @@ import { getErrorMessage } from '../utils/errors';
 import { errorFieldClass } from '../utils/formValidation';
 import { useShopCurrency, useShopServiceRangesEnabled, useShopDurationUnit, useShopBookingLanguages, useShopDefaultBookingLanguage } from '../context/SettingsContext';
 import { formatPrice, formatPriceRange } from '../utils/money';
-import { formatDurationRangeForUnit } from '../utils/duration';
+import { formatDurationRangeForUnit, formatDurationForUnit } from '../utils/duration';
 import DurationInput from '../components/DurationInput';
 import ImageCropField, { ImageChange } from '../components/ImageCropField';
 import { getCurrencySymbol } from '../constants/currencies';
@@ -29,7 +29,10 @@ const defaultForm = {
   isAvailable: true,
   translations: {} as ServiceTranslations,
   cost: 0,
+  prepTime: 0,
 };
+
+const MAX_PREP = 240;
 
 // Прибуток і маржа послуги від базової ціни.
 const marginOf = (price: number, cost: number) => ({
@@ -157,6 +160,7 @@ const Services = () => {
       isAvailable: service.isAvailable,
       translations: service.translations || {},
       cost: service.cost ?? 0,
+      prepTime: service.prepTime ?? 0,
     });
     setImageChange(null);
     setFieldErrors(new Set());
@@ -179,6 +183,7 @@ const Services = () => {
     if (!formData.category) missing.add('category');
     if (!(formData.price > 0)) missing.add('price');
     if (!(formData.duration > 0)) missing.add('duration');
+    if (formData.prepTime < 0 || formData.prepTime > MAX_PREP) missing.add('actualDuration');
     if (missing.size > 0) {
       setFieldErrors(missing);
       return;
@@ -368,7 +373,7 @@ const Services = () => {
                   </span>
                 </div>
                 <p className="text-sm text-ink-muted mt-2">{service.description}</p>
-                <div className="flex items-center gap-4 mt-4">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-4">
                   <div className="flex items-center text-sm text-ink-secondary">
                     <Banknote size={14} className="mr-1 text-brand" />
                     <span className="font-semibold">
@@ -379,6 +384,19 @@ const Services = () => {
                     <Clock size={14} className="mr-1" />
                     {formatDurationRangeForUnit(service.duration, rangesEnabled ? service.durationMax : undefined, durationUnit, durationLabels)}
                   </div>
+                  {service.employeePrices && (
+                    <span className="text-xs text-ink-muted" title={t('services.employeePricesTitle', { count: service.employeePrices.count })}>
+                      {t('services.employeePricesLine', {
+                        price: formatPriceRange(service.employeePrices.minPrice, service.employeePrices.maxPrice, currency),
+                        duration: formatDurationRangeForUnit(service.employeePrices.minDuration, service.employeePrices.maxDuration, durationUnit, durationLabels),
+                      })}
+                    </span>
+                  )}
+                  {(service.prepTime ?? 0) > 0 && (
+                    <span className="text-xs text-ink-muted" title={t('services.prepTitle')}>
+                      {t('services.prepLine', { prep: formatDurationForUnit(service.prepTime ?? 0, durationUnit, durationLabels) })}
+                    </span>
+                  )}
                 </div>
                 {isAdmin && (service.cost ?? 0) > 0 && (() => {
                   const m = marginOf(service.price, service.cost ?? 0);
@@ -500,6 +518,36 @@ const Services = () => {
               {fieldErrors.has('duration') && <p className="text-xs text-red-500 mt-1">{t('services.durationMustBePositive')}</p>}
             </div>
           </div>
+          {(() => {
+            // Фактичний час майстра = час для клієнта (макс. з діапазону) + підготовка.
+            const clientDur = rangesEnabled ? (formData.durationMax ?? formData.duration) : formData.duration;
+            const actual = clientDur + formData.prepTime;
+            const fmt = (m: number) => formatDurationForUnit(m, durationUnit, durationLabels);
+            const invalid = fieldErrors.has('actualDuration') || formData.prepTime < 0 || formData.prepTime > MAX_PREP;
+            return (
+              <div>
+                <label className="field-label">{t('services.fieldActualDuration')}{durationUnit === 'min' ? ` (${durationLabels.minute})` : ''}</label>
+                <DurationInput
+                  key={clientDur}
+                  unit={durationUnit}
+                  value={actual}
+                  min={clientDur}
+                  onChange={(v) => { setFormData({ ...formData, prepTime: (v ?? clientDur) - clientDur }); setFieldErrors(prev => { const n = new Set(prev); n.delete('actualDuration'); return n; }); }}
+                />
+                {invalid ? (
+                  <p className="text-xs text-red-600 mt-1 font-medium">
+                    {formData.prepTime < 0 ? t('services.actualTooShort') : t('services.actualTooLong', { max: fmt(MAX_PREP) })}
+                  </p>
+                ) : formData.prepTime > 0 ? (
+                  <p className="text-xs text-brand-dark mt-1 font-medium">
+                    {t('services.actualHint', { client: fmt(clientDur), actual: fmt(actual), prep: fmt(formData.prepTime) })}
+                  </p>
+                ) : (
+                  <p className="text-xs text-ink-muted mt-1">{t('services.actualEmptyHint')}</p>
+                )}
+              </div>
+            );
+          })()}
           <div>
             <label className="field-label">{t('services.fieldCost')} ({getCurrencySymbol(currency)})</label>
             <input

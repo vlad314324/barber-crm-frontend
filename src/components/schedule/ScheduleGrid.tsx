@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import { Appointment, EmployeeBreak } from '../../api/types';
-import { SLOTS, SLOT_MIN, PX_PER_SLOT, TOTAL_H, toMin, place, isActive, BREAK_PATTERN } from './scheduleTime';
+import { SLOTS, SLOT_MIN, PX_PER_SLOT, TOTAL_H, toMin, place, isActive, BREAK_PATTERN, PREP_PATTERN } from './scheduleTime';
 
 
 export interface HeaderMenuItem {
@@ -26,6 +26,7 @@ interface Props {
   columns: ScheduleColumn[];
   emptyText: string;
   breakLabel: string;
+  prepLabel: (minutes: number) => string;
   renderAppointment: (appt: Appointment, heightPx: number) => ReactNode;
   onAppointmentClick: (appt: Appointment) => void;
 }
@@ -33,7 +34,7 @@ interface Props {
 // Сітка календаря: колонки (майстри дня або дні тижня одного майстра) ×
 // 30-хвилинні рядки 08:00–20:00. Записи й перерви позиціонуються абсолютно
 // за хвилинами, тож запис о 10:15 малюється там, де він є.
-const ScheduleGrid = ({ columns, emptyText, breakLabel, renderAppointment, onAppointmentClick }: Props) => {
+const ScheduleGrid = ({ columns, emptyText, breakLabel, prepLabel, renderAppointment, onAppointmentClick }: Props) => {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -47,11 +48,12 @@ const ScheduleGrid = ({ columns, emptyText, breakLabel, renderAppointment, onApp
     return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); };
   }, [openMenu]);
 
-  // Клітинка [slot, slot+30) зайнята, якщо її перетинає активний запис або перерва.
+  // Клітинка [slot, slot+30) зайнята, якщо її перетинає активний запис (разом
+  // із підготовкою після нього) або перерва.
   const slotBlocked = (col: ScheduleColumn, slot: string) => {
     const s = toMin(slot);
     const e = s + SLOT_MIN;
-    return col.appointments.some(a => isActive(a) && s < toMin(a.startTime) + a.totalDuration && toMin(a.startTime) < e)
+    return col.appointments.some(a => isActive(a) && s < toMin(a.startTime) + a.totalDuration + (a.prepTime ?? 0) && toMin(a.startTime) < e)
       || col.breaks.some(b => s < toMin(b.endTime) && toMin(b.startTime) < e);
   };
 
@@ -140,14 +142,31 @@ const ScheduleGrid = ({ columns, emptyText, breakLabel, renderAppointment, onApp
             {/* Скасовані/неявки — під активними, щоб новий запис на тому ж часі був зверху */}
             {[...col.appointments].sort((a, b) => Number(isActive(a)) - Number(isActive(b))).map(a => {
               const start = toMin(a.startTime);
-              const pos = place(start, start + Math.max(a.totalDuration, 15));
-              if (!pos) return null;
+              const end = start + Math.max(a.totalDuration, 15);
+              const pos = place(start, end);
+              // Підготовка місця після клієнта — окремою смугою під записом
+              // (лише в активних: скасований запис час не тримає).
+              const prep = isActive(a) && (a.prepTime ?? 0) > 0 ? place(end, end + (a.prepTime ?? 0)) : null;
+              if (!pos && !prep) return null;
               return (
-                <div key={a._id}
-                  onClick={e => { e.stopPropagation(); onAppointmentClick(a); }}
-                  style={{ top: pos.top + 1, height: pos.height - 2, left: 4, right: 4 }}
-                  className={`absolute ${isActive(a) ? 'z-[6]' : 'z-[5]'}`}>
-                  {renderAppointment(a, pos.height - 2)}
+                <div key={a._id}>
+                  {pos && (
+                    <div
+                      onClick={e => { e.stopPropagation(); onAppointmentClick(a); }}
+                      style={{ top: pos.top + 1, height: pos.height - (prep ? 1 : 2), left: 4, right: 4 }}
+                      className={`absolute ${isActive(a) ? 'z-[6]' : 'z-[5]'}`}>
+                      {renderAppointment(a, pos.height - 2)}
+                    </div>
+                  )}
+                  {prep && (
+                    <div
+                      onClick={e => { e.stopPropagation(); onAppointmentClick(a); }}
+                      title={prepLabel(a.prepTime ?? 0)}
+                      style={{ top: prep.top, height: prep.height - 1, left: 4, right: 4, background: PREP_PATTERN }}
+                      className="absolute z-[6] rounded-b border-l-4 border-brand/40 px-1.5 text-[10px] leading-[14px] text-brand-dark overflow-hidden cursor-pointer hover:opacity-90">
+                      {prep.height >= 14 && <span className="font-medium truncate block">{prepLabel(a.prepTime ?? 0)}</span>}
+                    </div>
+                  )}
                 </div>
               );
             })}

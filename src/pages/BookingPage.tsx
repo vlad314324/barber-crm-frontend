@@ -20,6 +20,7 @@ const BOOKING_LOCALES: Record<string, string> = { uk: 'uk-UA', en: 'en-US', cs: 
 import { formatDurationRange } from '../utils/duration';
 import { trackEvent } from '../utils/tracking';
 import { useTheme } from '../context/ThemeContext';
+import { effectiveServices, ServiceOverride } from '../utils/employeePricing';
 
 interface Service {
   _id: string; name: string; description?: string; price: number; priceMax?: number; duration: number; durationMax?: number; category: string;
@@ -28,6 +29,7 @@ interface Service {
 }
 interface Employee {
   _id: string; name: string; role: string; customRoleLabel?: string; services?: string[]; specialties?: string[]; bio?: string;
+  serviceOverrides?: ServiceOverride[];
   translations?: Partial<Record<BookingLang, { bio: string; specialties: string[]; customRoleLabel?: string }>>;
 }
 
@@ -269,8 +271,11 @@ const BookingPage = () => {
   // діапазону, коли послуга має priceMax (сервер не віддає ці поля взагалі,
   // якщо опція діапазонів вимкнена в салоні — тоді formatPriceRange сама
   // згорне показ до одного числа).
-  const totalPrice       = selectedServices.reduce((sum, s) => sum + s.price, 0);
-  const totalPriceMax    = selectedServices.reduce((sum, s) => sum + (s.priceMax ?? s.price), 0);
+  // Ціни й тривалість — обраного майстра (індивідуальні, якщо задані);
+  // рахуються від базових послуг, тож зміна майстра одразу їх перераховує.
+  const pricedServices   = effectiveServices(selectedServices.map(s => services.find(b => b._id === s._id) ?? s), selectedEmployee);
+  const totalPrice       = pricedServices.reduce((sum, s) => sum + s.price, 0);
+  const totalPriceMax    = pricedServices.reduce((sum, s) => sum + (s.priceMax ?? s.price), 0);
   // Знижка показується, поки дата не вибрана або вибрана в межах терміну.
   const giftInRange = !!gift && !gift.used && (!selectedDate || (selectedDate >= gift.validFrom && selectedDate <= gift.validUntil));
   const activePct = giftInRange ? gift!.discountPercent : null;
@@ -280,8 +285,9 @@ const BookingPage = () => {
   // totalDuration — сума МАКС тривалостей (саме це бронюється й шлеться як
   // durationMinutes для фільтрації слотів); totalDurationMin — лише для
   // показу діапазону.
-  const totalDuration    = selectedServices.reduce((sum, s) => sum + (s.durationMax ?? s.duration), 0);
-  const totalDurationMin = selectedServices.reduce((sum, s) => sum + s.duration, 0);
+  const totalDuration    = pricedServices.reduce((sum, s) => sum + (s.durationMax ?? s.duration), 0);
+  const totalDurationMin = pricedServices.reduce((sum, s) => sum + s.duration, 0);
+  const selectedServiceIdsKey = selectedServices.map(s => s._id).join(',');
   const bookingDurationLabels = { hour: t('booking.hours'), minute: t('booking.minutes') };
 
   // AbortController per запит: новий вибір дати/майстра скасовує ще не
@@ -300,7 +306,8 @@ const BookingPage = () => {
     setSlotsLoading(true);
     setSlotsError('');
 
-    const durationParam = totalDuration > 0 ? `&durationMinutes=${totalDuration}` : '';
+    // serviceIds — щоб сервер врахував час майстра на підготовку після візиту.
+    const durationParam = totalDuration > 0 ? `&durationMinutes=${totalDuration}&serviceIds=${selectedServiceIdsKey}` : '';
     api.get(`/booking/available-slots?employeeId=${selectedEmployee._id}&date=${selectedDate}${durationParam}`, { signal: controller.signal })
       .then(r => {
         setIsClosed(r.data.closed || false);
@@ -332,7 +339,7 @@ const BookingPage = () => {
   useEffect(() => {
     loadSlots();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedEmployee, selectedDate, totalDuration, api]);
+  }, [selectedEmployee, selectedDate, totalDuration, selectedServiceIdsKey, api]);
 
   const toggleService = (s: Service) => {
     setSelectedServices(prev =>
@@ -341,9 +348,10 @@ const BookingPage = () => {
   };
 
   // Порожній/невизначений selectedEmployee.services означає "без обмежень".
-  const availableServices = !selectedEmployee || !selectedEmployee.services || selectedEmployee.services.length === 0
+  // Ціни в списку — обраного майстра.
+  const availableServices = effectiveServices(!selectedEmployee || !selectedEmployee.services || selectedEmployee.services.length === 0
     ? services
-    : services.filter(s => selectedEmployee.services!.includes(s._id));
+    : services.filter(s => selectedEmployee.services!.includes(s._id)), selectedEmployee);
 
   // Групування за категоріями (Settings.bookingGroupByCategory): секції в
   // порядку serviceCategories з сервера; категорії, яких там немає, — у кінці
@@ -616,6 +624,9 @@ const BookingPage = () => {
               icon={<ListChecks size={18}/>}
               title={t('booking.menuServices')}
               subtitle={selectedServices.length > 0 ? `${selectedServices.length} · ${formatPriceRange(discounted(totalPrice, activePct), discounted(totalPriceMax, activePct), branding?.currency)}${activePct ? ` (−${activePct}%)` : ''}` : undefined}
+              // Ціни й тривалість залежать від майстра — спершу майстер.
+              disabled={!selectedEmployee}
+              disabledHint={t('booking.chooseMasterFirst')}
               onClick={() => setScreen('services')}
             />
             <MenuRow
@@ -724,7 +735,8 @@ const BookingPage = () => {
                     const allowedIds = !e.services || e.services.length === 0 ? null : new Set(e.services);
                     setSelectedServices(prev => allowedIds ? prev.filter(s => allowedIds.has(s._id)) : prev);
                     setSelectedEmployee(e);
-                    setScreen('menu');
+                    // Послуги ще не обрані — одразу до них (ціни вже цього майстра).
+                    setScreen(selectedServices.length === 0 ? 'services' : 'menu');
                     trackEvent(api, 'master_selected', { employeeId: e._id });
                   }}
                   className={`w-full p-4 rounded-md border-2 cursor-pointer transition-colors flex items-center gap-4 text-left

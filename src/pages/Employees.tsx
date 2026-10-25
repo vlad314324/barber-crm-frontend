@@ -8,13 +8,19 @@ import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
 import { getPasswordError } from '../utils/passwordValidation';
 import { missingFields, errorFieldClass } from '../utils/formValidation';
-import { useShopCurrency, useShopBookingLanguages, useShopDefaultBookingLanguage } from '../context/SettingsContext';
+import { useShopCurrency, useShopBookingLanguages, useShopDefaultBookingLanguage, useShopServiceRangesEnabled } from '../context/SettingsContext';
+import { formatPrice } from '../utils/money';
 import { getCurrencySymbol } from '../constants/currencies';
 import { BookingLang, BOOKING_LANG_LABELS } from '../i18n/bookingTranslations';
 
 // Локальний стан форми зберігає спеціалізації рядком через кому — так само,
 // як базове поле specialties — і розбивається на масив лише перед відправкою.
 type EmployeeTranslationsForm = Partial<Record<BookingLang, { bio: string; specialtiesText: string; customRoleLabel: string }>>;
+
+// Індивідуальні ціни майстра у формі — рядками (порожнє = базове значення).
+const OVERRIDE_FIELDS = ['price', 'priceMax', 'duration', 'durationMax'] as const;
+type OverrideField = typeof OVERRIDE_FIELDS[number];
+type OverridesForm = Record<string, Partial<Record<OverrideField, string>>>;
 
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 
@@ -46,6 +52,7 @@ const defaultForm = {
   hourlyRate: 0, isAvailable: true,
   specialties: '', bio: '',
   serviceIds: [] as string[],
+  overrides: {} as OverridesForm,
   schedule: { ...defaultSchedule },
   translations: {} as EmployeeTranslationsForm,
 };
@@ -62,6 +69,7 @@ const Stars = ({ rating, size = 14 }: { rating: number; size?: number }) => (
 const Employees = () => {
   const { t, lang } = useLocale();
   const currency = useShopCurrency();
+  const rangesEnabled = useShopServiceRangesEnabled();
   const bookingLanguages = useShopBookingLanguages();
   const defaultBookingLanguage = useShopDefaultBookingLanguage();
   const translationLangs = bookingLanguages.filter(l => l !== defaultBookingLanguage);
@@ -121,6 +129,9 @@ const Employees = () => {
       specialties: emp.specialties?.join(', ') || '',
       bio: emp.bio || '',
       serviceIds: emp.services || [],
+      overrides: Object.fromEntries((emp.serviceOverrides || []).map(o => [o.service, Object.fromEntries(
+        OVERRIDE_FIELDS.filter(f => o[f] !== undefined && o[f] !== null).map(f => [f, String(o[f])])
+      )])),
       schedule: emp.schedule
         ? { ...defaultSchedule, ...emp.schedule }
         : { ...defaultSchedule },
@@ -174,9 +185,18 @@ const Employees = () => {
     }
     setSaving(true);
     try {
-      const { serviceIds, translations, ...rest } = formData;
+      const { serviceIds, translations, overrides, ...rest } = formData;
+      // Лише для послуг, які майстер виконує (порожній список — усі).
+      const serviceOverrides = Object.entries(overrides)
+        .filter(([id]) => serviceIds.length === 0 || serviceIds.includes(id))
+        .filter(([id]) => services.some(s => s._id === id))
+        .map(([service, v]) => ({ service, ...Object.fromEntries(
+          OVERRIDE_FIELDS.filter(f => (rangesEnabled || !f.endsWith('Max')) && (v[f] ?? '').trim() !== '').map(f => [f, Number(v[f])])
+        ) }))
+        .filter(o => Object.keys(o).length > 1);
       const payload = {
         ...rest,
+        serviceOverrides,
         specialties: formData.specialties.split(',').map(s => s.trim()).filter(Boolean),
         services: serviceIds,
         translations: Object.fromEntries(
@@ -397,7 +417,12 @@ const Employees = () => {
                 <div className="px-5 pb-3 flex flex-wrap gap-1">
                   {emp.services!.slice(0, 3).map(id => {
                     const svc = services.find(s => s._id === id);
-                    return svc ? <span key={id} className="badge badge-neutral">{svc.name}</span> : null;
+                    const own = emp.serviceOverrides?.some(o => o.service === id);
+                    return svc ? (
+                      <span key={id} className="badge badge-neutral inline-flex items-center gap-1" title={own ? t('employees.ownPriceTitle') : undefined}>
+                        {svc.name}{own && <span className="w-1.5 h-1.5 rounded-full bg-brand" />}
+                      </span>
+                    ) : null;
                   })}
                   {emp.services!.length > 3 && (
                     <span className="badge badge-neutral">+{emp.services!.length - 3}</span>
@@ -524,18 +549,57 @@ const Employees = () => {
               <div>
                 <label className="field-label">{t('employees.fieldServices')}</label>
                 <p className="text-xs text-ink-muted mb-1">{t('employees.fieldServicesHint')}</p>
-                <div className="border border-line rounded-sm p-2 max-h-40 overflow-y-auto space-y-1">
-                  {services.map(s => (
-                    <label key={s._id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-canvas-soft p-1 rounded-xs">
-                      <input type="checkbox" className="rounded border-line text-brand focus:ring-brand"
-                        checked={formData.serviceIds.includes(s._id)}
-                        onChange={e => setFormData(p => ({
-                          ...p,
-                          serviceIds: e.target.checked ? [...p.serviceIds, s._id] : p.serviceIds.filter(id => id !== s._id),
-                        }))}/>
-                      <span>{s.name}</span>
-                    </label>
-                  ))}
+                <p className="text-xs text-ink-muted mb-1">{t('employees.ownPriceHint')}</p>
+                <div className="border border-line rounded-sm divide-y divide-line max-h-80 overflow-y-auto">
+                  {services.map(s => {
+                    const active = formData.serviceIds.length === 0 || formData.serviceIds.includes(s._id);
+                    const ov = formData.overrides[s._id] || {};
+                    const changed = OVERRIDE_FIELDS.some(f => (ov[f] ?? '').trim() !== '');
+                    const setOv = (f: OverrideField, v: string) => setFormData(p => ({
+                      ...p, overrides: { ...p.overrides, [s._id]: { ...p.overrides[s._id], [f]: v } },
+                    }));
+                    const base: Record<OverrideField, number | undefined> = { price: s.price, priceMax: s.priceMax, duration: s.duration, durationMax: s.durationMax };
+                    const input = (f: OverrideField, label: string) => (
+                      <label className="flex flex-col gap-0.5 min-w-0">
+                        <span className="text-[11px] text-ink-muted">{label}</span>
+                        <input type="number" min={f.startsWith('price') ? 0 : 1} step={f.startsWith('price') ? 'any' : 5}
+                          className={`field-input !py-1.5 !text-sm ${(ov[f] ?? '').trim() !== '' ? 'border-brand bg-brand-extra-soft' : ''}`}
+                          placeholder={base[f] !== undefined ? String(base[f]) : '—'}
+                          value={ov[f] ?? ''} onChange={e => setOv(f, e.target.value)} />
+                      </label>
+                    );
+                    return (
+                      <div key={s._id} className="p-2">
+                        <div className="flex items-center gap-2 text-sm">
+                          <input type="checkbox" className="rounded border-line text-brand focus:ring-brand cursor-pointer"
+                            id={`svc-${s._id}`}
+                            checked={formData.serviceIds.includes(s._id)}
+                            onChange={e => setFormData(p => ({
+                              ...p,
+                              serviceIds: e.target.checked ? [...p.serviceIds, s._id] : p.serviceIds.filter(id => id !== s._id),
+                            }))}/>
+                          <label htmlFor={`svc-${s._id}`} className="flex-1 min-w-0 truncate cursor-pointer">{s.name}</label>
+                          <span className="text-xs text-ink-muted whitespace-nowrap">
+                            {t('employees.basePrice', { price: formatPrice(s.price, currency), duration: s.duration })}
+                          </span>
+                          {changed && (
+                            <button type="button" className="text-xs text-brand hover:text-brand-dark whitespace-nowrap"
+                              onClick={() => setFormData(p => { const next = { ...p.overrides }; delete next[s._id]; return { ...p, overrides: next }; })}>
+                              {t('employees.resetPrice')}
+                            </button>
+                          )}
+                        </div>
+                        {active && (
+                          <div className={`grid gap-2 mt-1.5 pl-6 ${rangesEnabled ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'}`}>
+                            {input('price', `${t('employees.ownPrice')} (${getCurrencySymbol(currency)})`)}
+                            {rangesEnabled && input('priceMax', t('employees.ownPriceMax'))}
+                            {input('duration', t('employees.ownDuration'))}
+                            {rangesEnabled && input('durationMax', t('employees.ownDurationMax'))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 

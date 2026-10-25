@@ -1,3 +1,4 @@
+import type { ServiceOverride } from '../utils/employeePricing';
 // types.ts
 import type { BookingLang } from '../i18n/bookingTranslations';
 
@@ -66,6 +67,8 @@ export interface Employee {
   };
   specialties: string[];
   services?: string[];
+  // Індивідуальні ціна/тривалість послуг цього майстра (порожнє — база).
+  serviceOverrides?: ServiceOverride[];
   rating?: number;
   reviewCount?: number;
   joinDate?: string;
@@ -95,6 +98,11 @@ export interface Service {
   imageUrl?: string;
   // Собівартість — сервер віддає лише адміну.
   cost?: number;
+  // Діапазон індивідуальних цін майстрів (є лише коли хтось має свою ціну).
+  employeePrices?: { count: number; minPrice: number; maxPrice: number; minDuration: number; maxDuration: number };
+  // Час на підготовку після послуги, хв: клієнт його не бачить,
+  // календар резервує duration + prepTime.
+  prepTime?: number;
 }
 
 // Перерва майстра на конкретну дату (обід тощо) — закриває час для запису.
@@ -189,6 +197,8 @@ export interface Appointment {
   date: string;
   startTime: string;
   totalDuration: number;
+  // Підготовка місця після візиту, хв — лише в календарі (клієнт не бачить).
+  prepTime?: number;
   totalPrice: number;
   status: 'Scheduled' | 'Completed' | 'Cancelled' | 'No-show';
   notes?: AppointmentNote[];
@@ -284,6 +294,7 @@ export interface CreateServiceDto {
   isAvailable: boolean;
   translations?: Partial<Record<BookingLang, { name: string; description: string }>>;
   cost?: number;
+  prepTime?: number;
 }
 
 export interface CreateAppointmentDto {
@@ -293,6 +304,7 @@ export interface CreateAppointmentDto {
   date: string;
   startTime: string;
   totalDuration: number;
+  prepTime?: number;
   totalPrice: number;
   status?: 'Scheduled' | 'Completed' | 'Cancelled' | 'No-show';
 }

@@ -14,6 +14,7 @@ import { formatPrice, formatPriceRange, discounted } from '../utils/money';
 import { formatDurationRangeForUnit } from '../utils/duration';
 import { getCurrencySymbol } from '../constants/currencies';
 import DurationInput from '../components/DurationInput';
+import { effectiveService, effectiveServices } from '../utils/employeePricing';
 import ScheduleGrid, { ScheduleColumn, HeaderMenuItem } from '../components/schedule/ScheduleGrid';
 import { BREAK_PATTERN, toMin } from '../components/schedule/scheduleTime';
 import BreaksModal from '../components/schedule/BreaksModal';
@@ -192,7 +193,7 @@ const MiniCalendar = ({ selected, onChange }: { selected: Date; onChange: (d: Da
 
 const defaultAdd = {
   clientId:'', employeeId:'', serviceIds:[] as string[],
-  date: dateStr(new Date()), startTime:'09:00', totalDuration:30, totalPrice:0,
+  date: dateStr(new Date()), startTime:'09:00', totalDuration:30, prepTime:0, totalPrice:0,
 };
 const defaultNC = { name:'', phone:'', email:'' };
 
@@ -203,12 +204,13 @@ interface EditApptForm {
   date: string;
   startTime: string;
   totalDuration: number;
+  prepTime: number;
   totalPrice: number;
   status: Appointment['status'];
 }
 const defaultEdit: EditApptForm = {
   clientId:'', employeeId:'', serviceIds:[],
-  date: dateStr(new Date()), startTime:'09:00', totalDuration:30, totalPrice:0,
+  date: dateStr(new Date()), startTime:'09:00', totalDuration:30, prepTime:0, totalPrice:0,
   status: 'Scheduled',
 };
 
@@ -401,14 +403,16 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
     : barbers;
 
   // Інтервал [start, start+duration) перетинає інший запис або перерву майстра?
-  const isSlotBusy = (empId: string, slotTime: string, date: Date, duration = 1, excludeId?: string): boolean => {
+  // Записи займають ще й час на підготовку після себе; prep нового запису
+  // не має налазити на інші записи (на перерву — можна).
+  const isSlotBusy = (empId: string, slotTime: string, date: Date, duration = 1, excludeId?: string, prep = 0): boolean => {
     const s = toMin(slotTime);
     const e = s + Math.max(duration, 1);
     return apptsFor(empId, date).some(a => {
       if (excludeId && a._id === excludeId) return false;
       if (a.status === 'Cancelled' || a.status === 'No-show') return false;
       const aStart = toMin(a.startTime);
-      return s < aStart + a.totalDuration && aStart < e;
+      return s < aStart + a.totalDuration + (a.prepTime ?? 0) && aStart < e + prep;
     }) || breaksFor(empId, date).some(b => s < toMin(b.endTime) && toMin(b.startTime) < e);
   };
 
@@ -521,7 +525,7 @@ if (selectedBarber) {
         client: clientId, employee: addForm.employeeId,
         services: addForm.serviceIds, date: addForm.date,
         startTime: addForm.startTime, totalDuration: addForm.totalDuration,
-        totalPrice: addForm.totalPrice,
+        prepTime: addForm.prepTime, totalPrice: addForm.totalPrice,
       });
       setIsAddOpen(false);
       fetchAll();
@@ -536,7 +540,7 @@ if (selectedBarber) {
     setEditForm({
       clientId:cliId, employeeId:empId, serviceIds:svcIds,
       date: dateStr(parseDateLocal(typeof appt.date==='string' ? appt.date.slice(0,10) : new Date(appt.date).toISOString().slice(0,10))),
-      startTime:appt.startTime, totalDuration:appt.totalDuration,
+      startTime:appt.startTime, totalDuration:appt.totalDuration, prepTime:appt.prepTime ?? 0,
       totalPrice:appt.totalPrice, status:appt.status,
     });
     setEditAppt(appt);
@@ -559,7 +563,7 @@ if (selectedBarber) {
   const handleEditSave = async () => {
     if (!editAppt) return;
     if (editForm.status !== 'Cancelled'
-      && isSlotBusy(editForm.employeeId, editForm.startTime, parseDateLocal(editForm.date), editForm.totalDuration, editAppt._id)) {
+      && isSlotBusy(editForm.employeeId, editForm.startTime, parseDateLocal(editForm.date), editForm.totalDuration, editAppt._id, editForm.prepTime)) {
       alert(t('appointments.slotBusy')); return;
     }
     setEditSaving(true);
@@ -567,7 +571,7 @@ if (selectedBarber) {
       await appointmentApi.update(editAppt._id, {
         client:editForm.clientId, employee:editForm.employeeId,
         services:editForm.serviceIds, date:editForm.date,
-        startTime:editForm.startTime, totalDuration:editForm.totalDuration,
+        startTime:editForm.startTime, totalDuration:editForm.totalDuration, prepTime:editForm.prepTime,
         totalPrice:editForm.totalPrice, status:editForm.status,
       });
       setEditAppt(null);
@@ -596,27 +600,37 @@ if (selectedBarber) {
     finally { setAddingNote(false); }
   };
 
-  const totalsFor = (ids: string[]) => {
-    const totalPrice = ids.reduce((s,id) => s + (services.find(sv=>sv._id===id)?.price||0), 0);
-    const totalDuration = ids.reduce((s,id) => {
+  // Ціна й тривалість — обраного майстра (індивідуальні, якщо задані).
+  const totalsFor = (ids: string[], employeeId: string) => {
+    const emp = employees.find(e => e._id === employeeId);
+    const priced = (id: string) => {
       const svc = services.find(sv => sv._id === id);
+      return svc ? effectiveService(svc, emp) : undefined;
+    };
+    const totalPrice = ids.reduce((s,id) => s + (priced(id)?.price||0), 0);
+    const totalDuration = ids.reduce((s,id) => {
+      const svc = priced(id);
       if (!svc) return s;
       return s + (rangesEnabled ? (svc.durationMax ?? svc.duration) : svc.duration);
     }, 0);
-    return { totalPrice, totalDuration: totalDuration || 30 };
+    // Кілька послуг — одна підготовка після візиту, найбільша з них.
+    const prepTime = ids.reduce((m,id) => Math.max(m, services.find(sv => sv._id === id)?.prepTime ?? 0), 0);
+    return { totalPrice, totalDuration: totalDuration || 30, prepTime };
   };
 
-  const toggleService = (ids: string[], svcId: string, isAdd: boolean) => {
+  const toggleService = (ids: string[], svcId: string, isAdd: boolean, employeeId: string) => {
     const next = isAdd ? [...ids, svcId] : ids.filter(id => id !== svcId);
-    return { ids: next, ...totalsFor(next) };
+    return { ids: next, ...totalsFor(next, employeeId) };
   };
 
   // Порожній/невизначений emp.services означає "без обмежень" — майстер
   // може виконувати всі послуги, доки адмін явно щось не призначить.
   const allowedServices = (employeeId: string): Service[] => {
     const emp = employees.find(e => e._id === employeeId);
-    if (!emp || !emp.services || emp.services.length === 0) return services.filter(s => s.isAvailable);
-    return services.filter(s => s.isAvailable && emp.services!.includes(s._id));
+    const list = !emp || !emp.services || emp.services.length === 0
+      ? services.filter(s => s.isAvailable)
+      : services.filter(s => s.isAvailable && emp.services!.includes(s._id));
+    return effectiveServices(list, emp);
   };
 
   const statusLabel = (status: string) => t(`statuses.${status}`);
@@ -750,6 +764,7 @@ if (selectedBarber) {
             columns={gridColumns}
             emptyText={isAdmin ? t('appointments.noBarbers') : t('appointments.notLinked')}
             breakLabel={t('appointments.breakLabel')}
+            prepLabel={min => t('appointments.prepLabel', { min })}
             onAppointmentClick={openEdit}
             renderAppointment={(a, height) => {
               const color = STATUS_COLORS[a.status] || 'bg-brand border-brand-dark';
@@ -842,7 +857,7 @@ if (selectedBarber) {
                   const newEmpId = e.target.value;
                   const allowed = allowedServices(newEmpId);
                   const prunedIds = addForm.serviceIds.filter(id => allowed.some(s => s._id === id));
-                  setAddForm({...addForm, employeeId:newEmpId, serviceIds:prunedIds, ...totalsFor(prunedIds)});
+                  setAddForm({...addForm, employeeId:newEmpId, serviceIds:prunedIds, ...totalsFor(prunedIds, newEmpId)});
                 }}>
                 <option value="">{t('appointments.masterChoosePlaceholder')}</option>
                 {assignableBarbers.map(e => <option key={e._id} value={e._id}>{e.name}</option>)}
@@ -858,8 +873,8 @@ if (selectedBarber) {
                   <input type="checkbox" className="rounded border-line text-brand focus:ring-brand"
                     checked={addForm.serviceIds.includes(s._id)}
                     onChange={e => {
-                      const {ids,totalPrice,totalDuration} = toggleService(addForm.serviceIds, s._id, e.target.checked);
-                      setAddForm({...addForm, serviceIds:ids, totalPrice, totalDuration});
+                      const {ids,totalPrice,totalDuration,prepTime} = toggleService(addForm.serviceIds, s._id, e.target.checked, addForm.employeeId);
+                      setAddForm({...addForm, serviceIds:ids, totalPrice, totalDuration, prepTime});
                     }}/>
                   <span>{s.name}</span>
                   <span className="ml-auto text-ink-muted text-xs">
@@ -882,10 +897,15 @@ if (selectedBarber) {
                 value={addForm.startTime} onChange={e => setAddForm({...addForm, startTime:e.target.value})}/>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="field-label">{t('appointments.duration')}{durationUnit === 'min' ? ` (${durationLabels.minute})` : ''}</label>
               <DurationInput unit={durationUnit} value={addForm.totalDuration} min={5} onChange={min => setAddForm({...addForm, totalDuration: min ?? 0})}/>
+            </div>
+            <div>
+              <label className="field-label">{t('appointments.prepTime')}</label>
+              <input type="number" className="field-input" min={0} max={240} step={5}
+                value={addForm.prepTime} onChange={e => setAddForm({...addForm, prepTime: Math.min(240, Math.max(0, Math.round(Number(e.target.value) || 0)))})}/>
             </div>
             <div>
               <label className="field-label">{t('appointments.price')} ({getCurrencySymbol(currency)})</label>
@@ -924,7 +944,8 @@ if (selectedBarber) {
                     const newEmpId = e.target.value;
                     const allowed = allowedServices(newEmpId);
                     const prunedIds = (editForm.serviceIds||[]).filter(id => allowed.some(s => s._id === id));
-                    setEditForm({...editForm, employeeId:newEmpId, serviceIds:prunedIds, ...totalsFor(prunedIds)});
+                    const totals = totalsFor(prunedIds, newEmpId);
+                    setEditForm({...editForm, employeeId:newEmpId, serviceIds:prunedIds, ...totals, totalPrice: discounted(totals.totalPrice, editAppt?.discountPercent)});
                   }}>
                   {editBarbers.map(e => (
                     <option key={e._id} value={e._id}>{e.name}{e.isActive === false ? ` (${t('employees.deactivated')})` : ''}</option>
@@ -940,9 +961,9 @@ if (selectedBarber) {
                     <input type="checkbox" className="rounded border-line text-brand focus:ring-brand"
                       checked={(editForm.serviceIds||[]).includes(s._id)}
                       onChange={e => {
-                        const {ids,totalPrice,totalDuration} = toggleService(editForm.serviceIds||[], s._id, e.target.checked);
+                        const {ids,totalPrice,totalDuration,prepTime} = toggleService(editForm.serviceIds||[], s._id, e.target.checked, editForm.employeeId);
                         // Запис зі знижкою до ДН — нова сума теж зі знижкою.
-                        setEditForm({...editForm, serviceIds:ids, totalPrice: discounted(totalPrice, editAppt?.discountPercent), totalDuration});
+                        setEditForm({...editForm, serviceIds:ids, totalPrice: discounted(totalPrice, editAppt?.discountPercent), totalDuration, prepTime});
                       }}/>
                     <span>{s.name}</span>
                     <span className="ml-auto text-ink-muted text-xs">
@@ -964,10 +985,15 @@ if (selectedBarber) {
                   value={editForm.startTime} onChange={e => setEditForm({...editForm, startTime:e.target.value})}/>
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="field-label">{t('appointments.duration')}{durationUnit === 'min' ? ` (${durationLabels.minute})` : ''}</label>
                 <DurationInput unit={durationUnit} value={editForm.totalDuration} min={5} onChange={min => setEditForm({...editForm, totalDuration: min ?? 0})}/>
+              </div>
+              <div>
+                <label className="field-label">{t('appointments.prepTime')}</label>
+                <input type="number" className="field-input" min={0} max={240} step={5}
+                  value={editForm.prepTime} onChange={e => setEditForm({...editForm, prepTime: Math.min(240, Math.max(0, Math.round(Number(e.target.value) || 0)))})}/>
               </div>
               <div>
                 <label className="field-label">{t('appointments.price')} ({getCurrencySymbol(currency)})</label>

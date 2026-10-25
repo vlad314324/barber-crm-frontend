@@ -37,3 +37,7 @@ export const place = (start: number, end: number) => {
 export const BREAK_PATTERN =
   'repeating-linear-gradient(135deg, rgb(var(--color-canvas-soft)) 0 6px, rgb(var(--color-line)) 6px 8px)';
 
+// Час на підготовку після запису — та сама штриховка, але в тонах бренду.
+export const PREP_PATTERN =
+  'repeating-linear-gradient(135deg, rgb(var(--color-brand) / 0.08) 0 6px, rgb(var(--color-brand) / 0.22) 6px 8px)';
+
