@@ -63,22 +63,28 @@ const Login = () => {
   );
 
   return (
-    <div className="min-h-screen bg-canvas flex flex-col">
-      <header className="w-full max-w-7xl mx-auto px-4 sm:px-6 pt-5 flex items-center justify-between">
+    // Як у Facebook: зліва — що таке hirnix (для тих, хто тут уперше), справа —
+    // окрема панель на всю висоту з формою входу по центру. На телефоні —
+    // спершу форма (салони заходять щодня), під нею пояснення.
+    <div className="min-h-screen bg-canvas flex flex-col lg:flex-row">
+      {/* Шапка для телефона */}
+      <header className="lg:hidden px-4 sm:px-6 pt-5 flex items-center justify-between">
         {logo}
         <LanguageToggle />
       </header>
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-8 lg:py-12 grid gap-10 items-center
-        lg:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[minmax(0,1fr)_420px_380px] xl:gap-8">
+      <div className="order-2 lg:order-1 flex-1 min-w-0 flex flex-col">
+        <header className="hidden lg:flex px-10 xl:px-16 pt-8">{logo}</header>
+        <main className="flex-1 flex items-center px-4 sm:px-6 lg:px-10 xl:px-16 py-10 lg:py-12">
+          <div className="w-full flex items-center justify-center gap-12 2xl:gap-16">
 
-        {/* Що таке hirnix — для тих, хто потрапив сюди вперше */}
-        <section className="order-2 lg:order-1 max-w-xl">
+            {/* Що таке hirnix — для тих, хто потрапив сюди вперше */}
+        <section className="max-w-xl">
           <h2 className="lg:hidden text-sm font-semibold text-ink-muted mb-3">{t('login.whatIs')}</h2>
           <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-ink-muted">
             <span className="w-1.5 h-1.5 rounded-full bg-brand" />{t('login.heroEyebrow')}
           </p>
-          <h1 className="mt-4 text-3xl sm:text-4xl lg:text-5xl xl:text-[2.75rem] font-extrabold text-ink leading-[1.08]" style={{ letterSpacing: '-0.03em' }}>
+          <h1 className="mt-4 text-3xl sm:text-4xl xl:text-5xl font-extrabold text-ink leading-[1.08]" style={{ letterSpacing: '-0.03em' }}>
             {t('login.heroTitle')}
           </h1>
           <p className="mt-5 text-base sm:text-lg text-ink-secondary leading-relaxed">{t('login.heroSub')}</p>
@@ -98,15 +104,21 @@ const Login = () => {
           </div>
         </section>
 
-        <div className="hidden xl:block order-2">
+        <div className="hidden 2xl:block shrink-0">
           <LoginShowcase />
         </div>
+          </div>
+        </main>
+      </div>
 
-        {/* Вхід */}
-        <div className="order-1 lg:order-2 xl:order-3 w-full max-w-md mx-auto lg:max-w-none">
-          <div className="bg-surface border border-line rounded-lg shadow-lg p-6 sm:p-8">
+      {/* Вхід — окрема панель праворуч */}
+      <aside className="order-1 lg:order-2 lg:w-[460px] xl:w-[520px] shrink-0 lg:min-h-screen lg:bg-surface lg:border-l lg:border-line flex flex-col">
+        <div className="hidden lg:flex justify-end px-10 pt-8"><LanguageToggle /></div>
+        <div className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:px-12 xl:px-16 py-6 lg:py-12">
+        <div className="w-full max-w-md mx-auto lg:max-w-sm">
+          <div className="bg-surface border border-line rounded-lg shadow-lg p-6 sm:p-8 lg:border-0 lg:shadow-none lg:p-0 lg:rounded-none">
             <div className="mb-6">
-              <h2 className="text-xl font-bold text-ink">{t('login.cardTitle')}</h2>
+              <h2 className="text-xl lg:text-2xl font-bold text-ink">{t('login.cardTitle')}</h2>
               <p className="text-sm text-ink-muted mt-1">{t('login.subtitle')}</p>
             </div>
               {notice && (
@@ -211,11 +223,12 @@ const Login = () => {
               )}
           </div>
           <a href={MARKETING_URL} target="_blank" rel="noopener"
-            className="mt-4 hidden lg:flex items-center justify-center gap-1 text-sm text-ink-muted hover:text-brand-dark">
+            className="mt-8 pt-6 border-t border-line hidden lg:flex items-center justify-center gap-1 text-sm text-ink-muted hover:text-brand-dark">
             {t('login.notWithUs')} <ArrowUpRight size={14}/>
           </a>
         </div>
-      </main>
+        </div>
+      </aside>
     </div>
   );
 };
