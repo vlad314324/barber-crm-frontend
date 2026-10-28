@@ -115,7 +115,7 @@ export interface PlatformSalonUsageAnalytics {
   hourHistogram: number[];
   totalBookings: number;
   bookingsBySource: { public: number; admin: number };
-  bookingsByStatus: { Scheduled: number; Completed: number; Cancelled: number; 'No-show': number };
+  bookingsByStatus: { Scheduled: number; Completed: number; Cancelled: number; 'No-show': number; Rescheduled?: number };
 }
 
 export interface PlatformSalonHealthSummary {

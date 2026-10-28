@@ -23,7 +23,7 @@ export const toMin = (hhmm: string) => {
   return h * 60 + m;
 };
 
-export const isActive = (a: Appointment) => a.status !== 'Cancelled' && a.status !== 'No-show';
+export const isActive = (a: Appointment) => a.status !== 'Cancelled' && a.status !== 'No-show' && a.status !== 'Rescheduled';
 
 // Хвилини -> px від верху сітки; блок, що виходить за 08:00–20:00, обрізається.
 export const place = (start: number, end: number) => {

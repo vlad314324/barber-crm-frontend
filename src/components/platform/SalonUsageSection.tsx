@@ -10,6 +10,7 @@ const STATUS_COLORS: Record<string, string> = {
   Completed: 'rgb(var(--color-brand-dark))',
   Cancelled: 'rgb(var(--color-line))',
   'No-show': 'rgb(var(--color-ink-muted))',
+  Rescheduled: 'var(--status-rescheduled)',
 };
 
 interface SalonUsageSectionProps {
@@ -34,7 +35,7 @@ const SalonUsageSection = ({ salonId }: SalonUsageSectionProps) => {
   const statusChartData = data
     ? (Object.keys(STATUS_COLORS) as Array<keyof typeof STATUS_COLORS>).map(status => ({
         status: t(`statuses.${status}`),
-        count: data.bookingsByStatus[status as 'Scheduled' | 'Completed' | 'Cancelled' | 'No-show'],
+        count: data.bookingsByStatus[status as keyof typeof data.bookingsByStatus] ?? 0,
         color: STATUS_COLORS[status],
       }))
     : [];

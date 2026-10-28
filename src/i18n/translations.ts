@@ -58,6 +58,7 @@ const uk = {
     Completed: 'Виконано',
     Cancelled: 'Скасовано',
     'No-show': 'Неявка',
+    Rescheduled: 'Перенесено',
   },
   roles: {
     admin: 'Адміністратор',
@@ -1058,6 +1059,7 @@ const en: typeof uk = {
     Completed: 'Completed',
     Cancelled: 'Cancelled',
     'No-show': 'No-show',
+    Rescheduled: 'Rescheduled',
   },
   roles: {
     admin: 'Administrator',

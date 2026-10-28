@@ -21,7 +21,7 @@ import { getCurrencySymbol } from '../constants/currencies';
 interface RevenueByMonth { month: string; amount: number; cost?: number; profit?: number; }
 interface ServicePerformance { name: string; count: number; revenue: number; cost?: number; profit?: number; }
 interface EmpPerformance { name: string; appointments: number; revenue: number; profit?: number; rating: number; }
-type AppointmentStatus = 'Scheduled' | 'Completed' | 'Cancelled' | 'No-show';
+type AppointmentStatus = 'Scheduled' | 'Completed' | 'Cancelled' | 'No-show' | 'Rescheduled';
 interface DashboardData {
   totalRevenue: number;
   monthRevenue: number;
@@ -84,12 +84,13 @@ const SEGMENT_KEY: Record<string, string> = {
 const BAR_HEIGHT = 128; // px — висота зони графіку (вкладка прогнозу)
 
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
-const STATUS_ORDER: AppointmentStatus[] = ['Completed', 'Scheduled', 'Cancelled', 'No-show'];
+const STATUS_ORDER: AppointmentStatus[] = ['Completed', 'Scheduled', 'Rescheduled', 'Cancelled', 'No-show'];
 const STATUS_COLORS: Record<AppointmentStatus, string> = {
   Completed: 'var(--status-completed)',
   Scheduled: 'var(--status-scheduled)',
   Cancelled: 'var(--status-cancelled)',
   'No-show': 'var(--status-noshow)',
+  Rescheduled: 'var(--status-rescheduled)',
 };
 
 const ChartCard = ({ icon, title, sub, children }: { icon: ReactNode; title: string; sub?: string; children: ReactNode }) => (

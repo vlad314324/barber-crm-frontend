@@ -107,8 +107,9 @@ const PhoneInput = ({ value, onChange }: { value: string; onChange: (v: string) 
 const STATUS_COLORS: Record<string, string> = {
   Scheduled: 'bg-slate-500 border-slate-600',
   Completed:  'bg-brand border-brand-dark',
-  Cancelled:  'bg-red-400 border-red-500',
-  'No-show':  'bg-ink-muted border-ink-muted',
+  Cancelled:  'bg-amber-400 border-amber-500',
+  'No-show':  'bg-red-400 border-red-500',
+  Rescheduled: 'bg-sky-400 border-sky-500',
 };
 
 const DAY_KEYS = ['sun','mon','tue','wed','thu','fri','sat'];
@@ -195,7 +196,7 @@ const defaultAdd = {
   clientId:'', employeeId:'', serviceIds:[] as string[],
   date: dateStr(new Date()), startTime:'09:00', totalDuration:30, prepTime:0, totalPrice:0,
 };
-const defaultNC = { name:'', phone:'', email:'' };
+const defaultNC = { name:'', phone:'', email:'', instagram:'', birthday:'' };
 
 interface EditApptForm {
   clientId: string;
@@ -410,7 +411,7 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
     const e = s + Math.max(duration, 1);
     return apptsFor(empId, date).some(a => {
       if (excludeId && a._id === excludeId) return false;
-      if (a.status === 'Cancelled' || a.status === 'No-show') return false;
+      if (a.status === 'Cancelled' || a.status === 'No-show' || a.status === 'Rescheduled') return false;
       const aStart = toMin(a.startTime);
       return s < aStart + a.totalDuration + (a.prepTime ?? 0) && aStart < e + prep;
     }) || breaksFor(empId, date).some(b => s < toMin(b.endTime) && toMin(b.startTime) < e);
@@ -562,7 +563,7 @@ if (selectedBarber) {
 
   const handleEditSave = async () => {
     if (!editAppt) return;
-    if (editForm.status !== 'Cancelled'
+    if (editForm.status !== 'Cancelled' && editForm.status !== 'Rescheduled'
       && isSlotBusy(editForm.employeeId, editForm.startTime, parseDateLocal(editForm.date), editForm.totalDuration, editAppt._id, editForm.prepTime)) {
       alert(t('appointments.slotBusy')); return;
     }
@@ -834,7 +835,7 @@ if (selectedBarber) {
               {addingNC ? (
                 <div className="border border-line rounded-sm p-3 bg-canvas-soft space-y-2">
                   <div>
-                    <label className="text-xs text-ink-muted mb-1 block">{t('appointments.phoneLabel')}</label>
+                    <label className="text-xs text-ink-muted mb-1 block">{t('appointments.phoneLabel')} <span className="text-red-500">*</span></label>
                     <PhoneInput value={newClient.phone} onChange={handlePhoneChange}/>
                   </div>
                   {phoneMatch ? (
@@ -846,16 +847,28 @@ if (selectedBarber) {
                   ) : (
                     <>
                       <div>
-                        <label className="text-xs text-ink-muted mb-0.5 block">{t('appointments.nameLabel')}</label>
+                        <label className="text-xs text-ink-muted mb-0.5 block">{t('appointments.nameLabel')} <span className="text-red-500">*</span></label>
                         <input type="text" className="field-input py-1.5"
                           placeholder={t('clients.namePlaceholder')} value={newClient.name}
                           onChange={e => setNewClient(p => ({...p, name:e.target.value}))}/>
                       </div>
                       <div>
-                        <label className="text-xs text-ink-muted mb-0.5 block">{t('appointments.emailLabel')}</label>
+                        <label className="text-xs text-ink-muted mb-0.5 block">{t('appointments.emailLabel')} <span className="text-red-500">*</span></label>
                         <input type="email" className="field-input py-1.5"
                           placeholder="email@example.com" value={newClient.email}
                           onChange={e => setNewClient(p => ({...p, email:e.target.value}))}/>
+                      </div>
+                      <div>
+                        <label className="text-xs text-ink-muted mb-0.5 block">{t('clients.instagram')} <span className="text-ink-muted/70">({t('clients.optional')})</span></label>
+                        <input type="text" className="field-input py-1.5"
+                          placeholder={t('clients.instagramPlaceholder')} value={newClient.instagram}
+                          onChange={e => setNewClient(p => ({...p, instagram:e.target.value}))}/>
+                      </div>
+                      <div>
+                        <label className="text-xs text-ink-muted mb-0.5 block">{t('clients.birthday')} <span className="text-ink-muted/70">({t('clients.optional')})</span></label>
+                        <input type="date" className="field-input py-1.5"
+                          value={newClient.birthday} max={new Date().toISOString().slice(0, 10)}
+                          onChange={e => setNewClient(p => ({...p, birthday:e.target.value}))}/>
                       </div>
                     </>
                   )}
@@ -1034,7 +1047,7 @@ if (selectedBarber) {
             <div>
               <label className="field-label mb-2">{t('appointments.status')}</label>
               <div className="flex gap-2 flex-wrap">
-                {['Scheduled','Completed','Cancelled','No-show'].map(s => (
+                {(['Scheduled','Completed','Cancelled','Rescheduled','No-show'] as const).map(s => (
                   <button key={s} onClick={() => setEditForm({...editForm, status:s})}
                     className={`px-3 py-1 rounded-full text-xs font-medium border transition-all
                       ${editForm.status===s ? 'bg-brand text-white border-brand' : 'bg-surface text-ink-secondary border-line hover:border-brand/50'}`}>

@@ -28,6 +28,7 @@
   --status-scheduled: #2a78d6;
   --status-cancelled: #eda100;
   --status-noshow: #e34948;
+  --status-rescheduled: #38b6e8;
 }
 
 .dark {
@@ -53,6 +54,7 @@
   --status-scheduled: #3987e5;
   --status-cancelled: #c98500;
   --status-noshow: #e66767;
+  --status-rescheduled: #4cc4f0;
 }
 
 html, body {
@@ -154,6 +156,9 @@ body {
   }
   .badge-warning {
     @apply bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400;
+  }
+  .badge-info {
+    @apply bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400;
   }
   .badge-solid {
     @apply bg-ink text-canvas;

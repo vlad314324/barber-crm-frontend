@@ -46,8 +46,9 @@ const EmployeeDetails = () => {
   const statusLabel = (status: string) => t(`statuses.${status}`);
   const statusBadgeClass = (status: string) =>
     status === 'Completed' ? 'badge-success' :
-    status === 'Cancelled' ? 'badge-danger' :
-    status === 'No-show' ? 'badge-muted' :
+    status === 'Cancelled' ? 'badge-warning' :
+    status === 'No-show' ? 'badge-danger' :
+    status === 'Rescheduled' ? 'badge-info' :
     'badge-neutral';
 
   const maxEarning = stats ? Math.max(...stats.monthlyEarnings.map(m => m.amount), 1) : 1;

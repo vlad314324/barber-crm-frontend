@@ -203,7 +203,7 @@ export interface Appointment {
   // Підготовка місця після візиту, хв — лише в календарі (клієнт не бачить).
   prepTime?: number;
   totalPrice: number;
-  status: 'Scheduled' | 'Completed' | 'Cancelled' | 'No-show';
+  status: 'Scheduled' | 'Completed' | 'Cancelled' | 'No-show' | 'Rescheduled';
   notes?: AppointmentNote[];
   // Знижка до дня народження (бронювання за посиланням з привітання).
   discountPercent?: number;
@@ -241,7 +241,7 @@ export interface AppointmentResponse {
   startTime: string;
   totalDuration: number;
   totalPrice: number;
-  status: 'Scheduled' | 'Completed' | 'Cancelled' | 'No-show';
+  status: 'Scheduled' | 'Completed' | 'Cancelled' | 'No-show' | 'Rescheduled';
 }
 
 
@@ -311,7 +311,7 @@ export interface CreateAppointmentDto {
   totalDuration: number;
   prepTime?: number;
   totalPrice: number;
-  status?: 'Scheduled' | 'Completed' | 'Cancelled' | 'No-show';
+  status?: 'Scheduled' | 'Completed' | 'Cancelled' | 'No-show' | 'Rescheduled';
 }
 
 export interface CreateReviewDto {
