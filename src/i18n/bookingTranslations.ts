@@ -45,7 +45,6 @@ interface BookingDict {
     busyAt: string;
     timeNoLongerAvailable: string;
     chooseMasterToFinish: string;
-    priceFrom: string;
     addToService: string;
     bookNow: string;
     confirmSelection: string;
@@ -128,7 +127,6 @@ const uk: BookingDict = {
     busyAt: 'Зайнятий о {{time}}',
     timeNoLongerAvailable: 'Обраний час недоступний — оберіть інший',
     chooseMasterToFinish: 'Оберіть спеціаліста, щоб завершити запис',
-    priceFrom: 'від',
     addToService: 'Додати до послуги',
     bookNow: 'Записатися',
     confirmSelection: 'Готово',
@@ -211,7 +209,6 @@ const en: BookingDict = {
     busyAt: 'Busy at {{time}}',
     timeNoLongerAvailable: 'The chosen time is no longer available — pick another',
     chooseMasterToFinish: 'Choose a specialist to finish booking',
-    priceFrom: 'from',
     addToService: 'Add to this service',
     bookNow: 'Book now',
     confirmSelection: 'Done',
@@ -294,7 +291,6 @@ const cs: BookingDict = {
     busyAt: 'V {{time}} obsazeno',
     timeNoLongerAvailable: 'Vybraný čas už není volný — vyberte jiný',
     chooseMasterToFinish: 'Vyberte specialistu pro dokončení rezervace',
-    priceFrom: 'od',
     addToService: 'Přidat ke službě',
     bookNow: 'Rezervovat',
     confirmSelection: 'Hotovo',
@@ -377,7 +373,6 @@ const pl: BookingDict = {
     busyAt: 'Zajęty o {{time}}',
     timeNoLongerAvailable: 'Wybrany termin jest już niedostępny — wybierz inny',
     chooseMasterToFinish: 'Wybierz specjalistę, aby dokończyć rezerwację',
-    priceFrom: 'od',
     addToService: 'Dodaj do usługi',
     bookNow: 'Zarezerwuj',
     confirmSelection: 'Gotowe',

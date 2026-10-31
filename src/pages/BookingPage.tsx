@@ -282,9 +282,35 @@ const BookingPage = () => {
   // згорне показ до одного числа).
   // Ціни й тривалість — обраного майстра (індивідуальні, якщо задані);
   // рахуються від базових послуг, тож зміна майстра одразу їх перераховує.
-  const pricedServices   = effectiveServices(selectedServices.map(s => services.find(b => b._id === s._id) ?? s), selectedEmployee);
-  const totalPrice       = pricedServices.reduce((sum, s) => sum + s.price, 0);
-  const totalPriceMax    = pricedServices.reduce((sum, s) => sum + (s.priceMax ?? s.price), 0);
+  // Майстер підходить, якщо виконує всі обрані послуги (порожній services —
+  // усі) і, коли час уже обрано без майстра, вільний саме тоді.
+  const doesService = (e: Employee, id: string) => !e.services || e.services.length === 0 || e.services.includes(id);
+  const doesServices = (e: Employee) => selectedServices.every(s => doesService(e, s._id));
+  const busyAtTime = (e: Employee) =>
+    !!selectedTime && !!slotMasters && !(slotMasters[selectedTime] || []).includes(e._id);
+  const eligibleEmployees = employees.filter(e => doesServices(e) && !busyAtTime(e));
+
+  // Без обраного майстра ціна — діапазон між майстрами, хто послугу
+  // виконує (у них бувають свої ціни): "1 300–1 500 Kč".
+  const priceSpread = <S extends Service>(list: S[], masters: Employee[]): { price: number; priceMax: number } | null => {
+    const totals = masters.map(e => effectiveServices(list, e));
+    if (totals.length === 0) return null;
+    return {
+      price: Math.min(...totals.map(ss => ss.reduce((sum, x) => sum + x.price, 0))),
+      priceMax: Math.max(...totals.map(ss => ss.reduce((sum, x) => sum + (x.priceMax ?? x.price), 0))),
+    };
+  };
+  const withSpread = <S extends Service>(svc: S): S => {
+    if (selectedEmployee) return svc;
+    const spread = priceSpread([svc], employees.filter(e => doesService(e, svc._id)));
+    return spread ? { ...svc, ...spread } : svc;
+  };
+
+  const baseSelected     = selectedServices.map(s => services.find(b => b._id === s._id) ?? s);
+  const pricedServices   = effectiveServices(baseSelected, selectedEmployee);
+  const totalSpread      = selectedEmployee || baseSelected.length === 0 ? null : priceSpread(baseSelected, eligibleEmployees);
+  const totalPrice       = totalSpread ? totalSpread.price : pricedServices.reduce((sum, s) => sum + s.price, 0);
+  const totalPriceMax    = totalSpread ? totalSpread.priceMax : pricedServices.reduce((sum, s) => sum + (s.priceMax ?? s.price), 0);
   // Знижка показується, поки дата не вибрана або вибрана в межах терміну.
   const giftInRange = !!gift && !gift.used && (!selectedDate || (selectedDate >= gift.validFrom && selectedDate <= gift.validUntil));
   const activePct = giftInRange ? gift!.discountPercent : null;
@@ -390,29 +416,11 @@ const BookingPage = () => {
     }).join(', ');
   })();
 
-  // Майстер підходить, якщо виконує всі обрані послуги (порожній services —
-  // усі) і, коли час уже обрано без майстра, вільний саме тоді.
-  const doesServices = (e: Employee) =>
-    !e.services || e.services.length === 0 || selectedServices.every(s => e.services!.includes(s._id));
-  const busyAtTime = (e: Employee) =>
-    !!selectedTime && !!slotMasters && !(slotMasters[selectedTime] || []).includes(e._id);
-  const eligibleEmployees = employees.filter(e => doesServices(e) && !busyAtTime(e));
-
-  // Ціна без обраного майстра: у майстрів бувають свої ціни — показуємо
-  // найменшу серед тих, хто підходить ("від").
-  const priceFromAny = (() => {
-    if (selectedEmployee || selectedServices.length === 0 || eligibleEmployees.length < 2) return null;
-    const base = selectedServices.map(s => services.find(b => b._id === s._id) ?? s);
-    const totals = eligibleEmployees.map(e => effectiveServices(base, e).reduce((sum, s) => sum + s.price, 0));
-    const min = Math.min(...totals);
-    return min === Math.max(...totals) ? null : min;
-  })();
-
   // Порожній/невизначений selectedEmployee.services означає "без обмежень".
   // Ціни в списку — обраного майстра.
   const employeeServices = effectiveServices(!selectedEmployee || !selectedEmployee.services || selectedEmployee.services.length === 0
     ? services
-    : services.filter(s => selectedEmployee.services!.includes(s._id)), selectedEmployee);
+    : services.filter(s => selectedEmployee.services!.includes(s._id)), selectedEmployee).map(withSpread);
   // Додаткові в списку окремо не показуються — лише під обраною основною.
   const availableServices = employeeServices.filter(s => !s.isAddon);
   const addonsFor = (mainId: string) => employeeServices.filter(s => s.isAddon && s.addonFor?.includes(mainId));
@@ -716,9 +724,7 @@ const BookingPage = () => {
               icon={<ListChecks size={18}/>}
               title={t('booking.menuServices')}
               subtitle={selectedServices.length > 0
-                ? `${selectedServices.length} · ${priceFromAny !== null
-                  ? `${t('booking.priceFrom')} ${formatPriceRange(discounted(priceFromAny, activePct), undefined, branding?.currency)}`
-                  : formatPriceRange(discounted(totalPrice, activePct), discounted(totalPriceMax, activePct), branding?.currency)}${activePct ? ` (−${activePct}%)` : ''}`
+                ? `${selectedServices.length} · ${formatPriceRange(discounted(totalPrice, activePct), discounted(totalPriceMax, activePct), branding?.currency)}${activePct ? ` (−${activePct}%)` : ''}`
                 : undefined}
               onClick={() => setScreen('services')}
             />
