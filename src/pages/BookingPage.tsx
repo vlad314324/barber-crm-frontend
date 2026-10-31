@@ -97,8 +97,8 @@ const ScreenHeader = ({ title, onBack }: { title: string; onBack: () => void }) 
   </div>
 );
 
-const MenuRow = ({ icon, title, subtitle, disabled, disabledHint, onClick }: {
-  icon: ReactNode; title: string; subtitle?: string; disabled?: boolean; disabledHint?: string; onClick: () => void;
+const MenuRow = ({ icon, title, subtitle, warning, disabled, disabledHint, onClick }: {
+  icon: ReactNode; title: string; subtitle?: string; warning?: string; disabled?: boolean; disabledHint?: string; onClick: () => void;
 }) => (
   <button
     type="button"
@@ -111,6 +111,7 @@ const MenuRow = ({ icon, title, subtitle, disabled, disabledHint, onClick }: {
     <div className="flex-1 min-w-0">
       <p className="text-sm font-medium text-ink">{title}</p>
       {subtitle && <p className="text-xs text-brand-dark truncate mt-0.5">{subtitle}</p>}
+      {warning && <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-0.5">{warning}</p>}
       {disabled && disabledHint && <p className="text-xs text-ink-muted mt-0.5">{disabledHint}</p>}
     </div>
     {!disabled && <ChevronRight size={18} className="text-ink-muted flex-shrink-0"/>}
@@ -159,6 +160,10 @@ const BookingPage = () => {
   const [catalogError, setCatalogError]     = useState('');
 
   const [slotsLoading, setSlotsLoading] = useState(false);
+  // Майстра ще не обрано: для кожного вільного часу — хто з майстрів вільний
+  // (GET /booking/available-slots-any). З обраним майстром — null.
+  const [slotMasters, setSlotMasters] = useState<Record<string, string[]> | null>(null);
+  const [timeNotice, setTimeNotice] = useState('');
   const [slotsError, setSlotsError]     = useState('');
 
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
@@ -210,6 +215,8 @@ const BookingPage = () => {
       .then(([servicesRes, employeesRes]) => {
         setServices(servicesRes.data);
         setEmployees(employeesRes.data);
+        // Один майстер у салоні — обирати нема з кого, кроки відкриті одразу.
+        if (employeesRes.data.length === 1) setSelectedEmployee(employeesRes.data[0]);
       })
       .catch(err => setCatalogError(getErrorMessage(err) || t('booking.loadError')))
       .finally(() => setCatalogLoading(false));
@@ -299,7 +306,7 @@ const BookingPage = () => {
   const slotsAbortRef = useRef<AbortController | null>(null);
 
   const loadSlots = () => {
-    if (!selectedEmployee || !selectedDate) return;
+    if (!selectedDate) return;
 
     slotsAbortRef.current?.abort();
     const controller = new AbortController();
@@ -309,12 +316,24 @@ const BookingPage = () => {
     setSlotsError('');
 
     // serviceIds — щоб сервер врахував час майстра на підготовку після візиту.
+    // Без майстра — вільний час усіх, хто виконує обрані послуги.
     const durationParam = totalDuration > 0 ? `&durationMinutes=${totalDuration}&serviceIds=${selectedServiceIdsKey}` : '';
-    api.get(`/booking/available-slots?employeeId=${selectedEmployee._id}&date=${selectedDate}${durationParam}`, { signal: controller.signal })
+    const url = selectedEmployee
+      ? `/booking/available-slots?employeeId=${selectedEmployee._id}&date=${selectedDate}${durationParam}`
+      : `/booking/available-slots-any?date=${selectedDate}${selectedServiceIdsKey ? `&serviceIds=${selectedServiceIdsKey}` : ''}`;
+    api.get(url, { signal: controller.signal })
       .then(r => {
         setIsClosed(r.data.closed || false);
         setNotOpenYet(!!r.data.notOpenYet);
-        let available = r.data.availableSlots;
+        let available: string[];
+        if (selectedEmployee) {
+          available = r.data.availableSlots;
+          setSlotMasters(null);
+        } else {
+          const anySlots = r.data.slots as { time: string; employeeIds: string[] }[];
+          available = anySlots.map(s => s.time);
+          setSlotMasters(Object.fromEntries(anySlots.map(s => [s.time, s.employeeIds])));
+        }
 
         const todayStr = new Date().toISOString().split('T')[0];
         if (selectedDate === todayStr) {
@@ -327,6 +346,12 @@ const BookingPage = () => {
         }
 
         setSlots(available);
+        // Обраний час більше не вільний (інший майстер, довші послуги) —
+        // не тримаємо його мовчки, а просимо обрати інший.
+        setSelectedTime(cur => {
+          if (cur && !available.includes(cur)) { setTimeNotice(t('booking.timeNoLongerAvailable')); return ''; }
+          return cur;
+        });
       })
       .catch(err => {
         if (axios.isCancel(err) || (err as { code?: string })?.code === 'ERR_CANCELED') return;
@@ -363,6 +388,24 @@ const BookingPage = () => {
       own.forEach(a => used.add(a._id));
       return [m, ...own].map(x => serviceName(x, lang)).join(' + ');
     }).join(', ');
+  })();
+
+  // Майстер підходить, якщо виконує всі обрані послуги (порожній services —
+  // усі) і, коли час уже обрано без майстра, вільний саме тоді.
+  const doesServices = (e: Employee) =>
+    !e.services || e.services.length === 0 || selectedServices.every(s => e.services!.includes(s._id));
+  const busyAtTime = (e: Employee) =>
+    !!selectedTime && !!slotMasters && !(slotMasters[selectedTime] || []).includes(e._id);
+  const eligibleEmployees = employees.filter(e => doesServices(e) && !busyAtTime(e));
+
+  // Ціна без обраного майстра: у майстрів бувають свої ціни — показуємо
+  // найменшу серед тих, хто підходить ("від").
+  const priceFromAny = (() => {
+    if (selectedEmployee || selectedServices.length === 0 || eligibleEmployees.length < 2) return null;
+    const base = selectedServices.map(s => services.find(b => b._id === s._id) ?? s);
+    const totals = eligibleEmployees.map(e => effectiveServices(base, e).reduce((sum, s) => sum + s.price, 0));
+    const min = Math.min(...totals);
+    return min === Math.max(...totals) ? null : min;
   })();
 
   // Порожній/невизначений selectedEmployee.services означає "без обмежень".
@@ -592,7 +635,7 @@ const BookingPage = () => {
         <button
           onClick={() => {
             setDone(false); setScreen('menu'); setTelegram({ url: null, linked: false }); setBookedDiscount(null);
-            setSelectedServices([]); setSelectedEmployee(null);
+            setSelectedServices([]); setSelectedEmployee(employees.length === 1 ? employees[0] : null);
             setSelectedDate(''); setSelectedTime('');
             setClientName(''); setClientPhone(''); setClientEmail('');
           }}
@@ -666,23 +709,24 @@ const BookingPage = () => {
               icon={<User size={18}/>}
               title={t('booking.menuMaster')}
               subtitle={selectedEmployee?.name}
+              warning={!selectedEmployee && selectedTime ? t('booking.chooseMasterToFinish') : undefined}
               onClick={() => setScreen('master')}
             />
             <MenuRow
               icon={<ListChecks size={18}/>}
               title={t('booking.menuServices')}
-              subtitle={selectedServices.length > 0 ? `${selectedServices.length} · ${formatPriceRange(discounted(totalPrice, activePct), discounted(totalPriceMax, activePct), branding?.currency)}${activePct ? ` (−${activePct}%)` : ''}` : undefined}
-              // Ціни й тривалість залежать від майстра — спершу майстер.
-              disabled={!selectedEmployee}
-              disabledHint={t('booking.chooseMasterFirst')}
+              subtitle={selectedServices.length > 0
+                ? `${selectedServices.length} · ${priceFromAny !== null
+                  ? `${t('booking.priceFrom')} ${formatPriceRange(discounted(priceFromAny, activePct), undefined, branding?.currency)}`
+                  : formatPriceRange(discounted(totalPrice, activePct), discounted(totalPriceMax, activePct), branding?.currency)}${activePct ? ` (−${activePct}%)` : ''}`
+                : undefined}
               onClick={() => setScreen('services')}
             />
             <MenuRow
               icon={<CalendarDays size={18}/>}
               title={t('booking.menuDateTime')}
               subtitle={selectedDate && selectedTime ? `${selectedDate} ${t('booking.at')} ${selectedTime}` : undefined}
-              disabled={!selectedEmployee}
-              disabledHint={t('booking.chooseMasterFirst')}
+              warning={!selectedTime && timeNotice ? timeNotice : undefined}
               onClick={() => setScreen('datetime')}
             />
             <MenuRow
@@ -693,8 +737,9 @@ const BookingPage = () => {
           </div>
 
           <button
-            disabled={!selectedEmployee || !selectedDate || !selectedTime || selectedServices.length === 0}
-            onClick={() => setScreen('contacts')}
+            disabled={!selectedDate || !selectedTime || selectedServices.length === 0}
+            // Бракує лише майстра — ведемо на його вибір, а не блокуємо.
+            onClick={() => setScreen(selectedEmployee ? 'contacts' : 'master')}
             className="btn btn-primary w-full py-3">
             {t('booking.bookNow')}
           </button>
@@ -776,9 +821,12 @@ const BookingPage = () => {
           <div className="space-y-3">
             {employees.map(e => {
               const initials = e.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+              const reason = !doesServices(e) ? t('booking.notForServices')
+                : busyAtTime(e) ? t('booking.busyAt', { time: selectedTime }) : '';
               return (
                 <button key={e._id} type="button"
                   aria-pressed={selectedEmployee?._id === e._id}
+                  disabled={!!reason}
                   onClick={() => {
                     const allowedIds = !e.services || e.services.length === 0 ? null : new Set(e.services);
                     setSelectedServices(prev => {
@@ -788,14 +836,16 @@ const BookingPage = () => {
                       return kept.filter(x => !x.isAddon || (x.addonFor || []).some(id => mainIds.has(id)));
                     });
                     setSelectedEmployee(e);
+                    setTimeNotice('');
                     // Послуги ще не обрані — одразу до них (ціни вже цього майстра).
                     setScreen(selectedServices.length === 0 ? 'services' : 'menu');
                     trackEvent(api, 'master_selected', { employeeId: e._id });
                   }}
-                  className={`w-full p-4 rounded-md border-2 cursor-pointer transition-colors flex items-center gap-4 text-left
-                    ${selectedEmployee?._id === e._id
-                      ? 'border-brand bg-brand-extra-soft'
-                      : 'border-line bg-surface hover:border-line-medium'}`}>
+                  className={`w-full p-4 rounded-md border-2 transition-colors flex items-center gap-4 text-left
+                    ${reason ? 'border-line bg-surface opacity-60 cursor-not-allowed'
+                      : selectedEmployee?._id === e._id
+                      ? 'border-brand bg-brand-extra-soft cursor-pointer'
+                      : 'border-line bg-surface hover:border-line-medium cursor-pointer'}`}>
                   <div className="w-12 h-12 rounded-full bg-brand flex items-center justify-center flex-shrink-0">
                     <span className="text-white font-semibold">{initials}</span>
                   </div>
@@ -806,6 +856,7 @@ const BookingPage = () => {
                       <p className="text-xs text-ink-muted mt-0.5">{employeeSpecialties(e, lang).join(', ')}</p>
                     )}
                     {employeeBio(e, lang) && <p className="text-sm text-ink-secondary mt-1">{employeeBio(e, lang)}</p>}
+                    {reason && <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mt-1">{reason}</p>}
                   </div>
                 </button>
               );
@@ -851,7 +902,15 @@ const BookingPage = () => {
                 <div className="grid grid-cols-4 gap-2">
                   {slots.map(slot => (
                     <button key={slot}
-                      onClick={() => { setSelectedTime(slot); trackEvent(api, 'slot_selected', { date: selectedDate, time: slot }); }}
+                      onClick={() => {
+                        setSelectedTime(slot); setTimeNotice('');
+                        // Без майстра: якщо о цій порі вільний лише один, що підходить, — обираємо його.
+                        if (!selectedEmployee && slotMasters) {
+                          const free = employees.filter(e => (slotMasters[slot] || []).includes(e._id) && doesServices(e));
+                          if (free.length === 1) setSelectedEmployee(free[0]);
+                        }
+                        trackEvent(api, 'slot_selected', { date: selectedDate, time: slot });
+                      }}
                       className={`py-2 rounded-sm text-sm font-medium border transition-colors
                         ${selectedTime === slot
                           ? 'bg-brand text-white border-brand'
@@ -865,7 +924,7 @@ const BookingPage = () => {
           )}
           <button
             disabled={!selectedDate || !selectedTime || isClosed}
-            onClick={() => setScreen('menu')}
+            onClick={() => setScreen(selectedEmployee ? 'menu' : 'master')}
             className="btn btn-primary w-full mt-6 py-3">
             {t('booking.confirmSelection')}
           </button>

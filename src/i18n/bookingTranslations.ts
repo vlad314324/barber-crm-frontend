@@ -41,6 +41,11 @@ interface BookingDict {
     menuServices: string;
     menuAbout: string;
     chooseMasterFirst: string;
+    notForServices: string;
+    busyAt: string;
+    timeNoLongerAvailable: string;
+    chooseMasterToFinish: string;
+    priceFrom: string;
     addToService: string;
     bookNow: string;
     confirmSelection: string;
@@ -119,6 +124,11 @@ const uk: BookingDict = {
     menuServices: 'Вибір послуг',
     menuAbout: 'Про заклад',
     chooseMasterFirst: 'Спочатку оберіть майстра',
+    notForServices: 'Не виконує обрані послуги',
+    busyAt: 'Зайнятий о {{time}}',
+    timeNoLongerAvailable: 'Обраний час недоступний — оберіть інший',
+    chooseMasterToFinish: 'Оберіть спеціаліста, щоб завершити запис',
+    priceFrom: 'від',
     addToService: 'Додати до послуги',
     bookNow: 'Записатися',
     confirmSelection: 'Готово',
@@ -197,6 +207,11 @@ const en: BookingDict = {
     menuServices: 'Choose services',
     menuAbout: 'About this place',
     chooseMasterFirst: 'Choose a master first',
+    notForServices: "Doesn't do the chosen services",
+    busyAt: 'Busy at {{time}}',
+    timeNoLongerAvailable: 'The chosen time is no longer available — pick another',
+    chooseMasterToFinish: 'Choose a specialist to finish booking',
+    priceFrom: 'from',
     addToService: 'Add to this service',
     bookNow: 'Book now',
     confirmSelection: 'Done',
@@ -275,6 +290,11 @@ const cs: BookingDict = {
     menuServices: 'Výběr služeb',
     menuAbout: 'O salonu',
     chooseMasterFirst: 'Nejprve vyberte mistra',
+    notForServices: 'Neprovádí vybrané služby',
+    busyAt: 'V {{time}} obsazeno',
+    timeNoLongerAvailable: 'Vybraný čas už není volný — vyberte jiný',
+    chooseMasterToFinish: 'Vyberte specialistu pro dokončení rezervace',
+    priceFrom: 'od',
     addToService: 'Přidat ke službě',
     bookNow: 'Rezervovat',
     confirmSelection: 'Hotovo',
@@ -353,6 +373,11 @@ const pl: BookingDict = {
     menuServices: 'Wybór usług',
     menuAbout: 'O salonie',
     chooseMasterFirst: 'Najpierw wybierz mistrza',
+    notForServices: 'Nie wykonuje wybranych usług',
+    busyAt: 'Zajęty o {{time}}',
+    timeNoLongerAvailable: 'Wybrany termin jest już niedostępny — wybierz inny',
+    chooseMasterToFinish: 'Wybierz specjalistę, aby dokończyć rezerwację',
+    priceFrom: 'od',
     addToService: 'Dodaj do usługi',
     bookNow: 'Zarezerwuj',
     confirmSelection: 'Gotowe',
