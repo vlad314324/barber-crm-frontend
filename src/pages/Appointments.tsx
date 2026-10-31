@@ -17,7 +17,7 @@ import DurationInput from '../components/DurationInput';
 import ClientPicker from '../components/ClientPicker';
 import { effectiveService, effectiveServices } from '../utils/employeePricing';
 import ScheduleGrid, { ScheduleColumn, HeaderMenuItem } from '../components/schedule/ScheduleGrid';
-import { BREAK_PATTERN, toMin, validateBreaks } from '../components/schedule/scheduleTime';
+import { BREAK_PATTERN, toMin, validateBreaks, isActive } from '../components/schedule/scheduleTime';
 import BreaksModal from '../components/schedule/BreaksModal';
 import StoryModal from '../components/story/StoryModal';
 
@@ -417,7 +417,7 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
     const e = s + Math.max(duration, 1);
     return apptsFor(empId, date).some(a => {
       if (excludeId && a._id === excludeId) return false;
-      if (a.status === 'Cancelled' || a.status === 'No-show' || a.status === 'Rescheduled') return false;
+      if (!isActive(a)) return false;
       const aStart = toMin(a.startTime);
       return s < aStart + a.totalDuration + (a.prepTime ?? 0) && aStart < e + prep;
     }) || breaksFor(empId, date).some(b => s < toMin(b.endTime) && toMin(b.startTime) < e);

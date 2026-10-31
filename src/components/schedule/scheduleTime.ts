@@ -36,7 +36,9 @@ export const validateBreaks = (rows: Pick<BreakInterval, 'startTime' | 'endTime'
   return null;
 };
 
-export const isActive = (a: Appointment) => a.status !== 'Cancelled' && a.status !== 'No-show' && a.status !== 'Rescheduled';
+// Неявка, як і на сервері (utils/appointmentOverlap.js), займає час —
+// звільняють слот лише скасовані й перенесені записи.
+export const isActive = (a: Appointment) => a.status !== 'Cancelled' && a.status !== 'Rescheduled';
 
 // Хвилини -> px від верху сітки; блок, що виходить за 08:00–20:00, обрізається.
 export const place = (start: number, end: number) => {
