@@ -8,6 +8,7 @@ interface Props {
   onChange: (id: string) => void;
   placeholder: string;
   emptyText?: string;
+  invalid?: boolean;
 }
 
 const MAX_RESULTS = 8;
@@ -30,7 +31,7 @@ const matches = (c: Client, words: string[]) => {
 
 // Пошуковий вибір клієнта замість довгого <select> — список фільтрується
 // з уже завантажених клієнтів, без запитів на кожну літеру.
-const ClientPicker = ({ clients, value, onChange, placeholder, emptyText }: Props) => {
+const ClientPicker = ({ clients, value, onChange, placeholder, emptyText, invalid }: Props) => {
   const selected = clients.find(c => c._id === value);
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -83,7 +84,7 @@ const ClientPicker = ({ clients, value, onChange, placeholder, emptyText }: Prop
     <div ref={rootRef} className="relative">
       <div className="relative">
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
-        <input type="search" className="field-input pl-8" autoComplete="off"
+        <input type="search" className={`field-input pl-8 ${invalid ? 'border-red-400' : ''}`} autoComplete="off"
           placeholder={placeholder} value={query} autoFocus={!!selected}
           onFocus={() => setOpen(true)}
           onChange={e => { setQuery(e.target.value); setActive(0); setOpen(true); }}

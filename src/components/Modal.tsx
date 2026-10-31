@@ -7,6 +7,12 @@ interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
+  // Рядок під заголовком (напр. "Поля з * обов'язкові") і закріплений
+  // низ з кнопками — він не прокручується разом з формою.
+  subtitle?: ReactNode;
+  footer?: ReactNode;
+  // Вкладки/перемикач одразу під заголовком, теж поза скролом.
+  headerExtra?: ReactNode;
   children: ReactNode;
   size?: 'md' | 'lg' | 'xl';
 }
@@ -19,7 +25,7 @@ const SIZE_CLASSES: Record<NonNullable<ModalProps['size']>, string> = {
 
 const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalProps) => {
+const Modal = ({ isOpen, onClose, title, subtitle, footer, headerExtra, children, size = 'md' }: ModalProps) => {
   const { t } = useLocale();
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -93,9 +99,13 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalProps) =>
           aria-labelledby={titleId}
           tabIndex={-1}
           className={`relative bg-surface rounded-lg shadow-lg border border-line w-full ${SIZE_CLASSES[size]} z-50
-          flex flex-col max-h-[85vh] animate-modal-in outline-none`}>
-          <div className="flex items-center justify-between px-5 py-4 border-b border-line shrink-0">
-            <h3 id={titleId} className="text-lg font-bold text-ink tracking-tight">{title}</h3>
+          flex flex-col max-h-[90vh] animate-modal-in outline-none overflow-hidden`}>
+          <div className={`px-5 sm:px-6 pt-5 shrink-0 border-b border-line ${headerExtra ? '' : 'pb-4'}`}>
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h3 id={titleId} className="text-lg font-bold text-ink tracking-tight">{title}</h3>
+              {subtitle && <p className="text-sm text-ink-secondary mt-0.5">{subtitle}</p>}
+            </div>
             <button
               type="button"
               onClick={onClose}
@@ -105,7 +115,14 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalProps) =>
               <X size={20} />
             </button>
           </div>
-          <div className="p-5 flex-1 overflow-y-auto overflow-x-hidden min-h-0">{children}</div>
+          {headerExtra && <div className="mt-3">{headerExtra}</div>}
+          </div>
+          <div className="px-5 sm:px-6 py-5 flex-1 overflow-y-auto overflow-x-hidden min-h-0">{children}</div>
+          {footer && (
+            <div className="px-5 sm:px-6 py-3.5 border-t border-line shrink-0 bg-surface flex flex-wrap items-center gap-3">
+              {footer}
+            </div>
+          )}
         </div>
       </div>
     </div>,

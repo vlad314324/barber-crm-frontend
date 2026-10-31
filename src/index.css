@@ -168,6 +168,10 @@ body {
   .field-label {
     @apply block text-sm font-semibold text-ink mb-1.5;
   }
+  /* Дрібний заголовок розділу у формах модалок */
+  .form-section-title {
+    @apply text-[11px] font-bold uppercase tracking-[0.08em] text-ink-secondary;
+  }
   .field-input {
     @apply w-full bg-surface border border-line rounded-sm px-3.5 py-2.5 text-sm text-ink
            placeholder:text-ink-muted dark:placeholder:text-ink-secondary outline-none

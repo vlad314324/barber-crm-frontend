@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
-import { Calendar, ChevronLeft, ChevronRight, Plus, UserPlus, ChevronDown, Download, Upload, MessageSquare, MoreVertical, Coffee, CalendarDays, Sparkles } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Plus, UserPlus, Download, Upload, MessageSquare, MoreVertical, Coffee, CalendarDays, Sparkles, Clock } from 'lucide-react';
 import { appointmentApi, clientApi, employeeApi, serviceApi, breakApi } from '../api';
 import api from '../api';
 import { Appointment, Client, Employee, Service, ShopSettings, ImportResult, EmployeeBreak } from '../api/types';
@@ -15,95 +15,14 @@ import { formatDurationRangeForUnit } from '../utils/duration';
 import { getCurrencySymbol } from '../constants/currencies';
 import DurationInput from '../components/DurationInput';
 import ClientPicker from '../components/ClientPicker';
+import PhoneInput from '../components/PhoneInput';
+import ServicePicker from '../components/ServicePicker';
+import { errorFieldClass } from '../utils/formValidation';
 import { effectiveService, effectiveServices } from '../utils/employeePricing';
 import ScheduleGrid, { ScheduleColumn, HeaderMenuItem } from '../components/schedule/ScheduleGrid';
 import { BREAK_PATTERN, toMin, validateBreaks, isActive } from '../components/schedule/scheduleTime';
 import BreaksModal from '../components/schedule/BreaksModal';
 import StoryModal from '../components/story/StoryModal';
-
-const COUNTRIES = [
-  { code: '+380', flag: '🇺🇦', name: 'Україна' },
-  { code: '+1',   flag: '🇺🇸', name: 'США / Канада' },
-  { code: '+44',  flag: '🇬🇧', name: 'Велика Британія' },
-  { code: '+49',  flag: '🇩🇪', name: 'Німеччина' },
-  { code: '+33',  flag: '🇫🇷', name: 'Франція' },
-  { code: '+48',  flag: '🇵🇱', name: 'Польща' },
-  { code: '+7',   flag: '🇰🇿', name: 'Казахстан' },
-  { code: '+39',  flag: '🇮🇹', name: 'Італія' },
-  { code: '+34',  flag: '🇪🇸', name: 'Іспанія' },
-  { code: '+31',  flag: '🇳🇱', name: 'Нідерланди' },
-  { code: '+41',  flag: '🇨🇭', name: 'Швейцарія' },
-  { code: '+43',  flag: '🇦🇹', name: 'Австрія' },
-  { code: '+46',  flag: '🇸🇪', name: 'Швеція' },
-  { code: '+47',  flag: '🇳🇴', name: 'Норвегія' },
-  { code: '+45',  flag: '🇩🇰', name: 'Данія' },
-  { code: '+358', flag: '🇫🇮', name: 'Фінляндія' },
-  { code: '+420', flag: '🇨🇿', name: 'Чехія' },
-  { code: '+36',  flag: '🇭🇺', name: 'Угорщина' },
-  { code: '+40',  flag: '🇷🇴', name: 'Румунія' },
-  { code: '+359', flag: '🇧🇬', name: 'Болгарія' },
-];
-
-const PhoneInput = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => {
-  const { t } = useLocale();
-  const [countryCode, setCountryCode] = useState('+380');
-  const [localNumber, setLocalNumber] = useState('');
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [search, setSearch] = useState('');
-  const dropRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (dropRef.current && !dropRef.current.contains(e.target as Node)) {
-        setShowDropdown(false); setSearch('');
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  useEffect(() => {
-    if (value === '') { setLocalNumber(''); setCountryCode('+380'); }
-  }, [value]);
-
-  const handleLocal = (v: string) => { setLocalNumber(v); onChange(countryCode + v); };
-  const selectCountry = (code: string) => { setCountryCode(code); onChange(code + localNumber); setShowDropdown(false); setSearch(''); };
-  const filtered = COUNTRIES.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || c.code.includes(search));
-  const current = COUNTRIES.find(c => c.code === countryCode) || COUNTRIES[0];
-
-  return (
-    <div className="flex gap-1 relative">
-      <div ref={dropRef} className="relative">
-        <button type="button" onClick={() => setShowDropdown(!showDropdown)}
-          className="flex items-center gap-1 px-2 py-1.5 border border-line rounded-sm text-sm bg-surface hover:bg-canvas-soft whitespace-nowrap">
-          <span>{current.flag}</span>
-          <span className="text-ink-secondary">{current.code}</span>
-          <ChevronDown size={12} className="text-ink-muted"/>
-        </button>
-        {showDropdown && (
-          <div className="absolute top-full left-0 mt-1 w-64 max-w-[calc(100vw-2rem)] bg-surface border border-line rounded-md shadow-lg z-50 overflow-hidden">
-            <div className="p-2 border-b border-line">
-              <input autoFocus type="text" placeholder={t('appointments.searchCountryPlaceholder')}
-                className="w-full px-2 py-1 text-sm border border-line rounded-xs focus:outline-none focus:ring-1 focus:ring-brand"
-                value={search} onChange={e => setSearch(e.target.value)}/>
-            </div>
-            <div className="max-h-48 overflow-y-auto">
-              {filtered.map(c => (
-                <button key={c.code} type="button" onClick={() => selectCountry(c.code)}
-                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-brand-extra-soft text-left ${c.code === countryCode ? 'bg-brand-extra-soft text-brand-dark' : 'text-ink-secondary'}`}>
-                  <span>{c.flag}</span><span className="flex-1">{c.name}</span><span className="text-ink-muted">{c.code}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-      <input type="tel"
-        className="field-input flex-1 py-1.5"
-        placeholder={t('appointments.phoneNumberPlaceholder')} value={localNumber} onChange={e => handleLocal(e.target.value)}/>
-    </div>
-  );
-};
 
 const STATUS_COLORS: Record<string, string> = {
   Scheduled: 'bg-slate-500 border-slate-600',
@@ -246,6 +165,13 @@ const Appointments = () => {
   const [addMode, setAddMode] = useState<'appointment' | 'pause'>('appointment');
   const [pauseEnd, setPauseEnd] = useState('');
   const [pauseComment, setPauseComment] = useState('');
+  // Помилки форми запису — під полями, а не alert().
+  const [addErrors, setAddErrors] = useState<Set<'client' | 'master' | 'services'>>(new Set());
+  const [addError, setAddError] = useState('');
+  const [addManual, setAddManual] = useState(false);
+  const clearAddError = (f: 'client' | 'master' | 'services') =>
+    setAddErrors(prev => { if (!prev.has(f)) return prev; const n = new Set(prev); n.delete(f); return n; });
+  const resetAddForm = () => { setAddErrors(new Set()); setAddError(''); setAddManual(false); };
   const [isStoryOpen, setIsStoryOpen] = useState(false);
   const [addForm,   setAddForm]   = useState(defaultAdd);
   const [saving,    setSaving]    = useState(false);
@@ -427,7 +353,7 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
     if (isSlotBusy(empId, time, date)) return;
     setAddForm({ ...defaultAdd, date: dateStr(date), startTime: time, employeeId: empId });
     setAddingNC(false); setNewClient(defaultNC); setPhoneMatch(null);
-    setAddMode('appointment'); setPauseEnd(''); setPauseComment('');
+    setAddMode('appointment'); setPauseEnd(''); setPauseComment(''); resetAddForm();
     setIsAddOpen(true);
   };
 
@@ -580,6 +506,17 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
   };
 
   const handleSave = async () => {
+    const errs = new Set<'client' | 'master' | 'services'>();
+    if (addingNC ? !phoneMatch && (!newClient.name || newClient.phone.replace(/\D/g, '').length < 7 || !newClient.email) : !addForm.clientId) errs.add('client');
+    if (!addForm.employeeId) errs.add('master');
+    if (addForm.serviceIds.length === 0) errs.add('services');
+    setAddErrors(errs);
+    setAddError('');
+    if (errs.size > 0) return;
+    const selectedBarber = barbers.find(e => e._id === addForm.employeeId);
+    if (selectedBarber && isDayOff(selectedBarber, parseDateLocal(addForm.date))) {
+      setAddError(t('appointments.dayOffAlert')); return;
+    }
     setSaving(true);
     try {
       let clientId = addForm.clientId;
@@ -587,26 +524,11 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
         if (phoneMatch) {
           clientId = phoneMatch._id;
         } else {
-          if (!newClient.name || !newClient.phone || !newClient.email) {
-            alert(t('appointments.fillClientData')); setSaving(false); return;
-          }
           const created = await clientApi.create(newClient);
           clientId = created._id;
           setClients(prev => [...prev, created]);
         }
       }
-      if (!clientId || !addForm.employeeId || addForm.serviceIds.length === 0) {
-        alert(t('appointments.fillClientMasterService')); setSaving(false); return;
-      }
-      // перевірка вихідного дня
-const selectedBarber = barbers.find(e => e._id === addForm.employeeId);
-if (selectedBarber) {
-  const selectedDate = parseDateLocal(addForm.date);
-  if (isDayOff(selectedBarber, selectedDate)) {
-    alert(t('appointments.dayOffAlert'));
-    setSaving(false); return;
-  }
-}
       await appointmentApi.create({
         client: clientId, employee: addForm.employeeId,
         services: addForm.serviceIds, date: addForm.date,
@@ -615,9 +537,14 @@ if (selectedBarber) {
       });
       setIsAddOpen(false);
       fetchAll();
-    } catch(err){ alert(getErrorMessage(err) || t('appointments.genericError')); }
+    } catch(err){ setAddError(getErrorMessage(err) || t('appointments.genericError')); }
     finally { setSaving(false); }
   };
+
+  const serviceMeta = (s: Service) => ({
+    price: rangesEnabled ? formatPriceRange(s.price, s.priceMax, currency) : formatPrice(s.price, currency),
+    duration: formatDurationRangeForUnit(s.duration, rangesEnabled ? s.durationMax : undefined, durationUnit, durationLabels),
+  });
 
   const openEdit = (appt: Appointment) => {
     const empId = appt.employee && typeof appt.employee === 'object' ? appt.employee._id : appt.employee;
@@ -799,7 +726,7 @@ if (selectedBarber) {
           )}
           {(isAdmin || myEmployee) && (
           <button
-            onClick={() => { setAddForm({...defaultAdd, date:dateStr(currentDate), employeeId: isAdmin ? '' : (myEmployee?._id || '')}); setAddingNC(false); setAddMode('appointment'); setPauseEnd(''); setPauseComment(''); setIsAddOpen(true); }}
+            onClick={() => { setAddForm({...defaultAdd, date:dateStr(currentDate), employeeId: isAdmin ? '' : (myEmployee?._id || '')}); setAddingNC(false); setAddMode('appointment'); setPauseEnd(''); setPauseComment(''); resetAddForm(); setIsAddOpen(true); }}
             className="btn btn-primary">
             <Plus size={16}/> <span className="hidden sm:inline">{t('appointments.addNew')}</span>
           </button>
@@ -909,194 +836,235 @@ if (selectedBarber) {
           shopName={shopSettings?.shopName}/>
       )}
 
-      <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title={t('appointments.newModalTitle')} size="xl">
-        <div className="space-y-4">
-          <div className="inline-flex gap-1 bg-canvas-soft p-1 rounded-sm" role="group">
+      <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title={t('appointments.newModalTitle')} size="xl"
+        headerExtra={
+          <div className="inline-flex gap-1 bg-canvas-soft p-1 rounded-sm mb-4" role="group">
             {(['appointment', 'pause'] as const).map(m => (
               <button key={m} type="button" onClick={() => setAddMode(m)} aria-pressed={addMode === m}
-                className={`px-3 py-1 rounded-xs text-xs font-medium whitespace-nowrap transition-colors ${
+                className={`px-3.5 py-1.5 rounded-xs text-xs font-bold whitespace-nowrap transition-colors ${
                   addMode === m ? 'bg-surface text-brand-dark shadow-sm' : 'text-ink-secondary hover:text-ink'}`}>
                 {t(m === 'appointment' ? 'appointments.modeAppointment' : 'appointments.modePause')}
               </button>
             ))}
           </div>
-          {addMode === 'pause' ? (
-            <>
-              <div>
-                <label className="field-label">{t('appointments.master')}</label>
-                <select className="field-input disabled:opacity-70" disabled={!isAdmin}
-                  value={addForm.employeeId} onChange={e => setAddForm({...addForm, employeeId: e.target.value})}>
-                  <option value="">{t('appointments.masterChoosePlaceholder')}</option>
-                  {assignableBarbers.map(e => <option key={e._id} value={e._id}>{e.name}</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="field-label">{t('appointments.date')}</label>
-                  <input type="date" className="field-input"
-                    value={addForm.date} onChange={e => setAddForm({...addForm, date:e.target.value})}/>
-                </div>
-                <div>
-                  <label className="field-label">{t('appointments.breakFrom')}</label>
-                  <input type="time" step={300} className="field-input"
-                    value={addForm.startTime} onChange={e => setAddForm({...addForm, startTime:e.target.value})}/>
-                </div>
-                <div>
-                  <label className="field-label">{t('appointments.breakTo')}</label>
-                  <input type="time" step={300} className="field-input"
-                    value={pauseEnd || plusHour(addForm.startTime)} onChange={e => setPauseEnd(e.target.value)}/>
-                </div>
-              </div>
-              <div>
-                <label className="field-label">{t('appointments.breakComment')}</label>
-                <input type="text" maxLength={100} className="field-input" value={pauseComment}
-                  placeholder={t('appointments.breakCommentPlaceholder')} onChange={e => setPauseComment(e.target.value)}/>
-              </div>
-              <div className="flex justify-end gap-3 pt-2">
-                <button onClick={() => setIsAddOpen(false)} className="btn btn-secondary">{t('common.cancel')}</button>
-                <button onClick={handleSavePause} disabled={saving} className="btn btn-primary">
-                  {saving ? t('common.saving') : t('appointments.createPause')}
-                </button>
-              </div>
-            </>
-          ) : (<>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-sm font-semibold text-ink">{t('appointments.client')}</label>
-                <button type="button" onClick={() => { setAddingNC(!addingNC); setPhoneMatch(null); setNewClient(defaultNC); }}
-                  className="text-xs text-brand hover:text-brand-dark flex items-center gap-1">
-                  <UserPlus size={12}/> {addingNC ? t('appointments.chooseExisting') : t('appointments.newClient')}
-                </button>
-              </div>
-              {addingNC ? (
-                <div className="border border-line rounded-sm p-3 bg-canvas-soft space-y-2">
-                  <div>
-                    <label className="text-xs text-ink-muted mb-1 block">{t('appointments.phoneLabel')} <span className="text-red-500">*</span></label>
-                    <PhoneInput value={newClient.phone} onChange={handlePhoneChange}/>
-                  </div>
-                  {phoneMatch ? (
-                    <div className="bg-brand-soft border border-brand/30 rounded-xs p-2">
-                      <p className="text-brand-dark text-sm font-medium">✓ {t('appointments.found', { name: phoneMatch.name })}</p>
-                      <p className="text-brand-dark text-xs">{phoneMatch.email}</p>
-                      <p className="text-ink-muted text-xs mt-0.5">{t('appointments.willUseExisting')}</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div>
-                        <label className="text-xs text-ink-muted mb-0.5 block">{t('appointments.nameLabel')} <span className="text-red-500">*</span></label>
-                        <input type="text" className="field-input py-1.5"
-                          placeholder={t('clients.namePlaceholder')} value={newClient.name}
-                          onChange={e => setNewClient(p => ({...p, name:e.target.value}))}/>
-                      </div>
-                      <div>
-                        <label className="text-xs text-ink-muted mb-0.5 block">{t('appointments.emailLabel')} <span className="text-red-500">*</span></label>
-                        <input type="email" className="field-input py-1.5"
-                          placeholder="email@example.com" value={newClient.email}
-                          onChange={e => setNewClient(p => ({...p, email:e.target.value}))}/>
-                      </div>
-                      <div>
-                        <label className="text-xs text-ink-muted mb-0.5 block">{t('clients.instagram')} <span className="text-ink-muted/70">({t('clients.optional')})</span></label>
-                        <input type="text" className="field-input py-1.5"
-                          placeholder={t('clients.instagramPlaceholder')} value={newClient.instagram}
-                          onChange={e => setNewClient(p => ({...p, instagram:e.target.value}))}/>
-                      </div>
-                      <div>
-                        <label className="text-xs text-ink-muted mb-0.5 block">{t('clients.birthday')} <span className="text-ink-muted/70">({t('clients.optional')})</span></label>
-                        <input type="date" className="field-input py-1.5"
-                          value={newClient.birthday} max={new Date().toISOString().slice(0, 10)}
-                          onChange={e => setNewClient(p => ({...p, birthday:e.target.value}))}/>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <ClientPicker clients={clients} value={addForm.clientId}
-                  onChange={id => setAddForm(f => ({...f, clientId:id}))}
-                  placeholder={t('clients.searchPlaceholder')} emptyText={t('clients.notFound')}/>
-              )}
-            </div>
-
+        }
+        footer={addMode === 'pause' ? (<>
+          <span className="flex-1 min-w-0 text-sm font-bold text-ink truncate">
+            {t('appointments.modePause')} {addForm.startTime}–{pauseEnd || plusHour(addForm.startTime)}
+          </span>
+          <button onClick={() => setIsAddOpen(false)} className="btn btn-secondary">{t('common.cancel')}</button>
+          <button onClick={handleSavePause} disabled={saving} className="btn btn-primary">
+            {saving ? t('common.saving') : t('appointments.createPause')}
+          </button>
+        </>) : (<>
+          <div className="flex-1 min-w-0">
+            {addError
+              ? <p className="text-sm font-semibold text-red-600">{addError}</p>
+              : <>
+                <p className="text-sm font-bold text-ink truncate">
+                  {addForm.serviceIds.length > 0
+                    ? t('appointments.summaryLine', { count: addForm.serviceIds.length, duration: formatDurationRangeForUnit(addForm.totalDuration, undefined, durationUnit, durationLabels), price: formatPrice(addForm.totalPrice, currency) })
+                    : t('appointments.chooseServicesHint')}
+                </p>
+                <p className="text-xs text-ink-secondary truncate">
+                  {parseDateLocal(addForm.date).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'long' })} · {addForm.startTime}
+                  {employees.find(e => e._id === addForm.employeeId) ? ` · ${employees.find(e => e._id === addForm.employeeId)!.name}` : ''}
+                </p>
+              </>}
+          </div>
+          <button onClick={() => setIsAddOpen(false)} className="btn btn-secondary">{t('common.cancel')}</button>
+          <button onClick={handleSave} disabled={saving} className="btn btn-primary">
+            {saving ? t('common.saving') : t('appointments.create')}
+          </button>
+        </>)}>
+        {addMode === 'pause' ? (
+          <div className="space-y-4">
             <div>
               <label className="field-label">{t('appointments.master')}</label>
-              {/* Майстер записує лише на себе — поле зафіксоване */}
               <select className="field-input disabled:opacity-70" disabled={!isAdmin}
-                value={addForm.employeeId} onChange={e => {
-                  const newEmpId = e.target.value;
-                  const allowed = allowedServices(newEmpId);
-                  const prunedIds = pruneAddons(addForm.serviceIds.filter(id => allowed.some(s => s._id === id)));
-                  setAddForm({...addForm, employeeId:newEmpId, serviceIds:prunedIds, ...totalsFor(prunedIds, newEmpId)});
-                }}>
+                value={addForm.employeeId} onChange={e => setAddForm({...addForm, employeeId: e.target.value})}>
                 <option value="">{t('appointments.masterChoosePlaceholder')}</option>
                 {assignableBarbers.map(e => <option key={e._id} value={e._id}>{e.name}</option>)}
               </select>
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="field-label">{t('appointments.date')}</label>
+                <input type="date" className="field-input"
+                  value={addForm.date} onChange={e => setAddForm({...addForm, date:e.target.value})}/>
+              </div>
+              <div>
+                <label className="field-label">{t('appointments.breakFrom')}</label>
+                <input type="time" step={300} className="field-input"
+                  value={addForm.startTime} onChange={e => setAddForm({...addForm, startTime:e.target.value})}/>
+              </div>
+              <div>
+                <label className="field-label">{t('appointments.breakTo')}</label>
+                <input type="time" step={300} className="field-input"
+                  value={pauseEnd || plusHour(addForm.startTime)} onChange={e => setPauseEnd(e.target.value)}/>
+              </div>
+            </div>
+            <div>
+              <label className="field-label">{t('appointments.breakComment')}</label>
+              <input type="text" maxLength={100} className="field-input" value={pauseComment}
+                placeholder={t('appointments.breakCommentPlaceholder')} onChange={e => setPauseComment(e.target.value)}/>
+            </div>
           </div>
+        ) : (
+        <div className="space-y-6">
+          <section className="space-y-3">
+            <h4 className="form-section-title">{t('appointments.sectionClientMaster')}</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="field-label mb-0">{t('appointments.client')} <span className="text-red-500">*</span></label>
+                  <button type="button" onClick={() => { setAddingNC(!addingNC); setPhoneMatch(null); setNewClient(defaultNC); clearAddError('client'); }}
+                    className="text-xs font-bold text-brand-dark hover:text-brand flex items-center gap-1">
+                    <UserPlus size={13}/> {addingNC ? t('appointments.chooseExisting') : t('appointments.newClient')}
+                  </button>
+                </div>
+                {addingNC ? (
+                  <div className={`border rounded-md p-3 bg-canvas-soft/60 space-y-2.5 ${addErrors.has('client') ? 'border-red-400' : 'border-line'}`}>
+                    <PhoneInput value={newClient.phone} onChange={handlePhoneChange}/>
+                    {phoneMatch ? (
+                      <div className="bg-brand-soft border border-brand/30 rounded-sm p-2.5">
+                        <p className="text-brand-dark text-sm font-semibold">✓ {t('appointments.found', { name: phoneMatch.name })}</p>
+                        <p className="text-brand-dark text-xs">{phoneMatch.email}</p>
+                        <p className="text-ink-secondary text-xs mt-0.5">{t('appointments.willUseExisting')}</p>
+                      </div>
+                    ) : (
+                      <>
+                        <input type="text" className="field-input" aria-label={t('appointments.nameLabel')}
+                          placeholder={`${t('clients.fullName')} *`} value={newClient.name}
+                          onChange={e => { setNewClient(p => ({...p, name:e.target.value})); clearAddError('client'); }}/>
+                        <input type="email" className="field-input" aria-label={t('appointments.emailLabel')}
+                          placeholder="Email *" value={newClient.email}
+                          onChange={e => { setNewClient(p => ({...p, email:e.target.value})); clearAddError('client'); }}/>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="field-input flex items-center gap-0.5 min-w-0 focus-within:border-brand">
+                            <span className="text-ink-muted">@</span>
+                            <input type="text" className="flex-1 min-w-0 bg-transparent outline-none" aria-label={t('clients.instagram')}
+                              placeholder="instagram" value={newClient.instagram}
+                              onChange={e => setNewClient(p => ({...p, instagram:e.target.value.replace(/^@/, '')}))}/>
+                          </div>
+                          <input type="date" className="field-input min-w-0" aria-label={t('clients.birthday')} title={t('clients.birthday')}
+                            value={newClient.birthday} max={new Date().toISOString().slice(0, 10)}
+                            onChange={e => setNewClient(p => ({...p, birthday:e.target.value}))}/>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <ClientPicker clients={clients} value={addForm.clientId} invalid={addErrors.has('client')}
+                    onChange={id => { setAddForm(f => ({...f, clientId:id})); clearAddError('client'); }}
+                    placeholder={t('appointments.clientSearchPlaceholder')} emptyText={t('clients.notFound')}/>
+                )}
+                {addErrors.has('client') && (
+                  <p className="text-xs font-medium text-red-500 mt-1">{t(addingNC ? 'appointments.fillClientData' : 'appointments.chooseClientError')}</p>
+                )}
+              </div>
 
-          <div>
-            <label className="field-label">{t('appointments.services')}</label>
-            <div className="border border-line rounded-sm p-2 max-h-56 overflow-y-auto space-y-1">
-              {allowedServices(addForm.employeeId).map(s => (
-                <label key={s._id} className={`flex items-center gap-2 text-sm p-1 rounded-xs ${s.isAddon ? 'ml-6' : ''} ${addonLocked(s, addForm.serviceIds) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-canvas-soft'}`}>
-                  <input type="checkbox" className="rounded border-line text-brand focus:ring-brand"
-                    disabled={addonLocked(s, addForm.serviceIds)}
-                    checked={addForm.serviceIds.includes(s._id)}
-                    onChange={e => {
-                      const {ids,totalPrice,totalDuration,prepTime} = toggleService(addForm.serviceIds, s._id, e.target.checked, addForm.employeeId);
-                      setAddForm({...addForm, serviceIds:ids, totalPrice, totalDuration, prepTime});
-                    }}/>
-                  <span>{s.isAddon ? `+ ${s.name}` : s.name}</span>
-                  <span className="ml-auto text-ink-muted text-xs">
-                    {rangesEnabled ? formatPriceRange(s.price, s.priceMax, currency) : formatPrice(s.price, currency)} · {formatDurationRangeForUnit(s.duration, rangesEnabled ? s.durationMax : undefined, durationUnit, durationLabels)}
-                  </span>
-                </label>
-              ))}
+              <div>
+                <label className="field-label">{t('appointments.master')} <span className="text-red-500">*</span></label>
+                {/* Майстер записує лише на себе — поле зафіксоване */}
+                <select className={`field-input disabled:opacity-70 ${errorFieldClass(addErrors.has('master'))}`} disabled={!isAdmin}
+                  value={addForm.employeeId} onChange={e => {
+                    const newEmpId = e.target.value;
+                    const allowed = allowedServices(newEmpId);
+                    const prunedIds = pruneAddons(addForm.serviceIds.filter(id => allowed.some(s => s._id === id)));
+                    setAddForm({...addForm, employeeId:newEmpId, serviceIds:prunedIds, ...totalsFor(prunedIds, newEmpId)});
+                    clearAddError('master');
+                  }}>
+                  <option value="">{t('appointments.masterChoosePlaceholder')}</option>
+                  {assignableBarbers.map(e => <option key={e._id} value={e._id}>{e.name}</option>)}
+                </select>
+                {addErrors.has('master') && <p className="text-xs font-medium text-red-500 mt-1">{t('appointments.chooseMasterError')}</p>}
+              </div>
             </div>
-          </div>
+          </section>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="field-label">{t('appointments.date')}</label>
-              <input type="date" className="field-input"
-                value={addForm.date} onChange={e => setAddForm({...addForm, date:e.target.value})}/>
-            </div>
-            <div>
-              <label className="field-label">{t('appointments.time')}</label>
-              <input type="time" className="field-input"
-                value={addForm.startTime} onChange={e => setAddForm({...addForm, startTime:e.target.value})}/>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="field-label">{t('appointments.duration')}{durationUnit === 'min' ? ` (${durationLabels.minute})` : ''}</label>
-              <DurationInput unit={durationUnit} value={addForm.totalDuration} min={5} onChange={min => setAddForm({...addForm, totalDuration: min ?? 0})}/>
-            </div>
-            <div>
-              <label className="field-label">{t('appointments.prepTime')}</label>
-              <input type="number" className="field-input" min={0} max={240} step={5}
-                value={addForm.prepTime} onChange={e => setAddForm({...addForm, prepTime: Math.min(240, Math.max(0, Math.round(Number(e.target.value) || 0)))})}/>
-            </div>
-            <div>
-              <label className="field-label">{t('appointments.price')} ({getCurrencySymbol(currency)})</label>
-              <input type="number" className="field-input"
-                value={addForm.totalPrice} onChange={e => setAddForm({...addForm, totalPrice:Number(e.target.value)})}/>
-            </div>
-          </div>
+          <section className="space-y-3">
+            <h4 className="form-section-title">{t('appointments.services')} <span className="text-red-500">*</span></h4>
+            <ServicePicker
+              services={allowedServices(addForm.employeeId)}
+              selected={addForm.serviceIds}
+              invalid={addErrors.has('services')}
+              isLocked={s => addonLocked(s, addForm.serviceIds)}
+              meta={serviceMeta}
+              onToggle={(id, on) => {
+                const {ids,totalPrice,totalDuration,prepTime} = toggleService(addForm.serviceIds, id, on, addForm.employeeId);
+                setAddForm({...addForm, serviceIds:ids, totalPrice, totalDuration, prepTime});
+                clearAddError('services');
+              }}/>
+            {addErrors.has('services') && <p className="text-xs font-medium text-red-500">{t('appointments.chooseServiceError')}</p>}
+          </section>
 
-          <div className="flex justify-end gap-3 pt-2">
-            <button onClick={() => setIsAddOpen(false)} className="btn btn-secondary">
-              {t('common.cancel')}
-            </button>
-            <button onClick={handleSave} disabled={saving} className="btn btn-primary">
-              {saving ? t('common.saving') : t('appointments.create')}
-            </button>
-          </div>
-          </>)}
+          <section className="space-y-3">
+            <h4 className="form-section-title">{t('appointments.sectionWhen')}</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="field-label">{t('appointments.date')}</label>
+                <input type="date" className="field-input"
+                  value={addForm.date} onChange={e => { setAddForm({...addForm, date:e.target.value}); setAddError(''); }}/>
+              </div>
+              <div>
+                <label className="field-label">{t('appointments.time')}</label>
+                <input type="time" className="field-input"
+                  value={addForm.startTime} onChange={e => setAddForm({...addForm, startTime:e.target.value})}/>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 bg-canvas-soft rounded-md px-3.5 py-3">
+              <Clock size={17} className="text-ink-secondary shrink-0"/>
+              <p className="flex-1 min-w-0 text-sm text-ink">
+                <b>{formatDurationRangeForUnit(addForm.totalDuration, undefined, durationUnit, durationLabels)}</b>
+                {addForm.prepTime > 0 && <span className="text-ink-secondary"> · {t('appointments.prepSuffix', { min: addForm.prepTime })}</span>}
+                <span className="text-ink-secondary"> · </span><b>{formatPrice(addForm.totalPrice, currency)}</b>
+              </p>
+              <button type="button" onClick={() => setAddManual(v => !v)} aria-expanded={addManual}
+                className="text-sm font-bold text-brand-dark hover:text-brand px-1 py-1">
+                {addManual ? t('appointments.hideManual') : t('appointments.editManual')}
+              </button>
+            </div>
+            {addManual && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="field-label">{t('appointments.duration')}{durationUnit === 'min' ? ` (${durationLabels.minute})` : ''}</label>
+                  <DurationInput unit={durationUnit} value={addForm.totalDuration} min={5} onChange={min => setAddForm(f => ({...f, totalDuration: min ?? 0}))}/>
+                </div>
+                <div>
+                  <label className="field-label">{t('appointments.prepTime')}</label>
+                  <input type="number" className="field-input" min={0} max={240} step={5}
+                    value={addForm.prepTime} onChange={e => setAddForm({...addForm, prepTime: Math.min(240, Math.max(0, Math.round(Number(e.target.value) || 0)))})}/>
+                </div>
+                <div>
+                  <label className="field-label">{t('appointments.price')} ({getCurrencySymbol(currency)})</label>
+                  <input type="number" className="field-input"
+                    value={addForm.totalPrice} onChange={e => setAddForm({...addForm, totalPrice:Number(e.target.value)})}/>
+                </div>
+              </div>
+            )}
+          </section>
         </div>
+        )}
       </Modal>
 
       {/* ── EDIT MODAL ── */}
-      <Modal isOpen={!!editAppt} onClose={() => setEditAppt(null)} title={t('appointments.editModalTitle')} size="xl">
+      <Modal isOpen={!!editAppt} onClose={() => setEditAppt(null)} title={t('appointments.editModalTitle')} size="xl"
+        footer={editAppt && (<>
+          {isAdmin && (
+            <button onClick={() => handleDelete(editAppt._id)}
+              className="px-2 py-1.5 text-sm text-red-600 hover:text-red-700 font-semibold">
+              {t('appointments.deleteAction')}
+            </button>
+          )}
+          <div className="flex-1" />
+          <button onClick={() => setEditAppt(null)} className="btn btn-secondary">
+            {t('common.cancel')}
+          </button>
+          <button onClick={handleEditSave} disabled={editSaving} className="btn btn-primary">
+            {editSaving ? t('common.saving') : t('common.save')}
+          </button>
+        </>)}>
         {editAppt && (
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1124,24 +1092,16 @@ if (selectedBarber) {
             </div>
             <div>
               <label className="field-label">{t('appointments.services')}</label>
-              <div className="border border-line rounded-sm p-2 max-h-56 overflow-y-auto space-y-1">
-                {allowedServices(editForm.employeeId).map(s => (
-                  <label key={s._id} className={`flex items-center gap-2 text-sm p-1 rounded-xs ${s.isAddon ? 'ml-6' : ''} ${addonLocked(s, editForm.serviceIds||[]) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-canvas-soft'}`}>
-                    <input type="checkbox" className="rounded border-line text-brand focus:ring-brand"
-                      disabled={addonLocked(s, editForm.serviceIds||[])}
-                      checked={(editForm.serviceIds||[]).includes(s._id)}
-                      onChange={e => {
-                        const {ids,totalPrice,totalDuration,prepTime} = toggleService(editForm.serviceIds||[], s._id, e.target.checked, editForm.employeeId);
-                        // Запис зі знижкою до ДН — нова сума теж зі знижкою.
-                        setEditForm({...editForm, serviceIds:ids, totalPrice: discounted(totalPrice, editAppt?.discountPercent), totalDuration, prepTime});
-                      }}/>
-                    <span>{s.isAddon ? `+ ${s.name}` : s.name}</span>
-                    <span className="ml-auto text-ink-muted text-xs">
-                      {rangesEnabled ? formatPriceRange(s.price, s.priceMax, currency) : formatPrice(s.price, currency)} · {formatDurationRangeForUnit(s.duration, rangesEnabled ? s.durationMax : undefined, durationUnit, durationLabels)}
-                    </span>
-                  </label>
-                ))}
-              </div>
+              <ServicePicker
+                services={allowedServices(editForm.employeeId)}
+                selected={editForm.serviceIds || []}
+                isLocked={s => addonLocked(s, editForm.serviceIds || [])}
+                meta={serviceMeta}
+                onToggle={(id, on) => {
+                  const {ids,totalPrice,totalDuration,prepTime} = toggleService(editForm.serviceIds||[], id, on, editForm.employeeId);
+                  // Запис зі знижкою до ДН — нова сума теж зі знижкою.
+                  setEditForm({...editForm, serviceIds:ids, totalPrice: discounted(totalPrice, editAppt?.discountPercent), totalDuration, prepTime});
+                }}/>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
@@ -1217,22 +1177,6 @@ if (selectedBarber) {
                 <button onClick={handleAddNote} disabled={addingNote || !noteText.trim()}
                   className="btn btn-secondary self-end">
                   {t('appointments.addNote')}
-                </button>
-              </div>
-            </div>
-            <div className="flex justify-between pt-2 border-t border-line">
-              {isAdmin ? (
-                <button onClick={() => handleDelete(editAppt._id)}
-                  className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 font-medium">
-                  {t('appointments.deleteAction')}
-                </button>
-              ) : <div />}
-              <div className="flex gap-2">
-                <button onClick={() => setEditAppt(null)} className="btn btn-secondary">
-                  {t('common.cancel')}
-                </button>
-                <button onClick={handleEditSave} disabled={editSaving} className="btn btn-primary">
-                  {editSaving ? t('common.saving') : t('common.save')}
                 </button>
               </div>
             </div>

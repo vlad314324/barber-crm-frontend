@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router';
 import { clientApi } from '../api';
 import { Client, ImportResult } from '../api/types';
 import Modal from '../components/Modal';
+import PhoneInput from '../components/PhoneInput';
 import UpcomingBirthdays from '../components/clients/UpcomingBirthdays';
 import { useLocale } from '../i18n/LocaleContext';
 import { useAuth } from '../context/AuthContext';
@@ -119,8 +120,13 @@ const Clients = () => {
     setIsModalOpen(true);
   };
 
+  const clearError = (field: string) =>
+    setFieldErrors(prev => { const n = new Set(prev); n.delete(field); return n; });
+
   const handleSave = async () => {
     const missing = missingFields(formData, ['name', 'phone', 'email']);
+    // Лише код країни ("+420") — номера ще немає.
+    if (formData.phone.replace(/\D/g, '').length < 7) missing.add('phone');
     if (missing.size > 0) {
       setFieldErrors(missing);
       return;
@@ -338,73 +344,77 @@ const Clients = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingClient ? t('clients.editModalTitle') : t('clients.addModalTitle')}
+        subtitle={<>{t('common.requiredHintPre')} <span className="text-red-500">*</span> {t('common.requiredHintPost')}</>}
+        footer={<>
+          <div className="flex-1" />
+          <button onClick={() => setIsModalOpen(false)} className="btn btn-secondary">
+            {t('common.cancel')}
+          </button>
+          <button onClick={handleSave} disabled={saving} className="btn btn-primary">
+            {saving ? t('common.saving') : editingClient ? t('common.save') : t('clients.addNew')}
+          </button>
+        </>}
       >
         <div className="space-y-4">
           <div>
-            <label className="field-label">{t('common.name')} <span className="text-red-500">*</span></label>
+            <label htmlFor="cl-name" className="field-label">{t('clients.fullName')} <span className="text-red-500">*</span></label>
             <input
+              id="cl-name"
               type="text"
+              autoFocus
               className={`field-input ${errorFieldClass(fieldErrors.has('name'))}`}
               value={formData.name}
-              onChange={(e) => { setFormData({ ...formData, name: e.target.value }); setFieldErrors(prev => { const n = new Set(prev); n.delete('name'); return n; }); }}
+              onChange={(e) => { setFormData({ ...formData, name: e.target.value }); clearError('name'); }}
               placeholder={t('clients.namePlaceholder')}
             />
-            {fieldErrors.has('name') && <p className="text-xs text-red-500 mt-1">{t('common.fieldRequired')}</p>}
+            {fieldErrors.has('name') && <p className="text-xs font-medium text-red-500 mt-1">{t('common.fieldRequired')}</p>}
           </div>
           <div>
-            <label className="field-label">{t('common.phone')} <span className="text-red-500">*</span></label>
-            <input
-              type="tel"
-              className={`field-input ${errorFieldClass(fieldErrors.has('phone'))}`}
-              value={formData.phone}
-              onChange={(e) => { setFormData({ ...formData, phone: e.target.value }); setFieldErrors(prev => { const n = new Set(prev); n.delete('phone'); return n; }); }}
-              placeholder="+380..."
-            />
-            {fieldErrors.has('phone') && <p className="text-xs text-red-500 mt-1">{t('common.fieldRequired')}</p>}
+            <label htmlFor="cl-phone" className="field-label">{t('common.phone')} <span className="text-red-500">*</span></label>
+            <PhoneInput id="cl-phone" value={formData.phone} invalid={fieldErrors.has('phone')}
+              onChange={(v) => { setFormData(f => ({ ...f, phone: v })); clearError('phone'); }} />
+            {fieldErrors.has('phone') && <p className="text-xs font-medium text-red-500 mt-1">{t('common.fieldRequired')}</p>}
           </div>
           <div>
-            <label className="field-label">{t('common.email')} <span className="text-red-500">*</span></label>
+            <label htmlFor="cl-email" className="field-label">{t('common.email')} <span className="text-red-500">*</span></label>
             <input
+              id="cl-email"
               type="email"
               className={`field-input ${errorFieldClass(fieldErrors.has('email'))}`}
               value={formData.email}
-              onChange={(e) => { setFormData({ ...formData, email: e.target.value }); setFieldErrors(prev => { const n = new Set(prev); n.delete('email'); return n; }); }}
+              onChange={(e) => { setFormData({ ...formData, email: e.target.value }); clearError('email'); }}
               placeholder={t('clients.emailPlaceholder')}
             />
-            {fieldErrors.has('email') && <p className="text-xs text-red-500 mt-1">{t('common.fieldRequired')}</p>}
+            {fieldErrors.has('email') && <p className="text-xs font-medium text-red-500 mt-1">{t('common.fieldRequired')}</p>}
           </div>
-          <div>
-            <label className="field-label">
-              {t('clients.instagram')} <span className="font-normal text-ink-muted">({t('clients.optional')})</span>
-            </label>
-            <input
-              type="text"
-              className="field-input"
-              value={formData.instagram}
-              onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
-              placeholder={t('clients.instagramPlaceholder')}
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="min-w-0">
+              <label htmlFor="cl-ig" className="field-label">{t('clients.instagram')}</label>
+              <div className="field-input flex items-center gap-0.5 focus-within:border-brand">
+                <span className="text-ink-muted">@</span>
+                <input
+                  id="cl-ig"
+                  type="text"
+                  className="flex-1 min-w-0 bg-transparent outline-none"
+                  value={formData.instagram}
+                  onChange={(e) => setFormData({ ...formData, instagram: e.target.value.replace(/^@/, '') })}
+                  placeholder="nickname"
+                />
+              </div>
+            </div>
+            <div className="min-w-0">
+              <label htmlFor="cl-bday" className="field-label">{t('clients.birthday')}</label>
+              <input
+                id="cl-bday"
+                type="date"
+                className="field-input"
+                value={formData.birthday}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
+              />
+            </div>
           </div>
-          <div>
-            <label className="field-label">
-              {t('clients.birthday')} <span className="font-normal text-ink-muted">({t('clients.optional')})</span>
-            </label>
-            <input
-              type="date"
-              className="field-input"
-              value={formData.birthday}
-              max={new Date().toISOString().slice(0, 10)}
-              onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
-            />
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <button onClick={() => setIsModalOpen(false)} className="btn btn-secondary">
-              {t('common.cancel')}
-            </button>
-            <button onClick={handleSave} disabled={saving} className="btn btn-primary">
-              {saving ? t('common.saving') : editingClient ? t('common.save') : t('clients.addNew')}
-            </button>
-          </div>
+          <p className="text-xs text-ink-secondary -mt-1">{t('clients.optionalFieldsHint')}</p>
         </div>
       </Modal>
 

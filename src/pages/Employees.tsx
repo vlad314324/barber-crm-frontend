@@ -8,6 +8,7 @@ import { useLocale } from '../i18n/LocaleContext';
 import { getErrorMessage } from '../utils/errors';
 import { getPasswordError } from '../utils/passwordValidation';
 import { missingFields, errorFieldClass } from '../utils/formValidation';
+import PhoneInput from '../components/PhoneInput';
 import { useShopCurrency, useShopBookingLanguages, useShopDefaultBookingLanguage, useShopServiceRangesEnabled } from '../context/SettingsContext';
 import { formatPrice } from '../utils/money';
 import { getCurrencySymbol } from '../constants/currencies';
@@ -39,11 +40,7 @@ const defaultSchedule: Record<typeof DAY_KEYS[number], { isOpen: boolean; from: 
   sun: { isOpen: false, from: '10:00', to: '16:00' },
 };
 
-const formatRange = (d: { from: string; to: string }) => `${d.from}-${d.to}`;
-const parseRange = (value: string) => {
-  const [from, to] = value.split('-').map(s => s.trim());
-  return { from: from || '09:00', to: to || '18:00' };
-};
+const EMP_TABS = ['main', 'schedule', 'services', 'translations'] as const;
 
 const defaultForm = {
   name: '', phone: '', email: '',
@@ -87,6 +84,8 @@ const Employees = () => {
   const [formData,       setFormData]       = useState(defaultForm);
   const [fieldErrors,    setFieldErrors]    = useState<Set<string>>(new Set());
   const [saving,         setSaving]         = useState(false);
+  const [empTab, setEmpTab] = useState<typeof EMP_TABS[number]>('main');
+  const [trLang, setTrLang] = useState('');
 
   // reviews modal
   const [reviewsEmp,    setReviewsEmp]    = useState<Employee|null>(null);
@@ -126,6 +125,7 @@ const Employees = () => {
     setEditingEmployee(null);
     setFormData(defaultForm);
     setFieldErrors(new Set());
+    setEmpTab('main');
     setIsModalOpen(true);
   };
 
@@ -150,6 +150,7 @@ const Employees = () => {
       ),
     });
     setFieldErrors(new Set());
+    setEmpTab('main');
     setIsModalOpen(true);
   };
 
@@ -179,18 +180,31 @@ const Employees = () => {
     }));
   };
 
-  const setDayHours = (day: keyof typeof defaultSchedule, value: string) => {
-    setFormData(p => ({
-      ...p,
-      schedule: { ...p.schedule, [day]: { ...p.schedule[day], ...parseRange(value) } },
-    }));
+  const setDayTime = (day: keyof typeof defaultSchedule, field: 'from' | 'to', value: string) => {
+    setFormData(p => ({ ...p, schedule: { ...p.schedule, [day]: { ...p.schedule[day], [field]: value } } }));
   };
+
+  // Години понеділка — на всі інші робочі дні.
+  const copyMondayHours = () => {
+    setFormData(p => {
+      const { from, to } = p.schedule.mon;
+      const schedule = { ...p.schedule };
+      DAY_KEYS.forEach(k => { if (schedule[k].isOpen) schedule[k] = { ...schedule[k], from, to }; });
+      return { ...p, schedule };
+    });
+  };
+
+  const clearFieldError = (key: string) =>
+    setFieldErrors(prev => { const n = new Set(prev); n.delete(key); return n; });
+
 
   // ── save ───────────────────────────────────────────────────────────────────
   const handleSave = async () => {
     const missing = missingFields({ name: formData.name, email: formData.email, phone: formData.phone }, ['name', 'email', 'phone']);
+    if (formData.phone.replace(/\D/g, '').length < 7) missing.add('phone');
     if (missing.size > 0) {
       setFieldErrors(missing);
+      setEmpTab('main');
       return;
     }
     setSaving(true);
@@ -495,196 +509,256 @@ const Employees = () => {
 
       {/* ── ADD/EDIT MODAL ── */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}
-        title={editingEmployee ? t('employees.editModalTitle') : t('employees.addModalTitle')} size="xl">
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              {[
-                { label: t('employees.fieldName'),         key: 'name' as const,       type: 'text',   placeholder: 'Employee name', required: true },
-                { label: t('employees.fieldPhone'),        key: 'phone' as const,      type: 'tel',    placeholder: '+380...', required: true },
-                { label: t('employees.fieldEmail'),        key: 'email' as const,      type: 'email',  placeholder: 'email@example.com', required: true },
-                { label: `${t('employees.fieldHourlyRate')} (${getCurrencySymbol(currency)})`, key: 'hourlyRate' as const, type: 'number', placeholder: '0', required: false },
-                { label: t('employees.fieldSpecialties'), key: 'specialties' as const, type: 'text', placeholder: t('employees.fieldSpecialtiesPlaceholder'), required: false },
-                { label: t('employees.fieldBio'),            key: 'bio' as const,        type: 'text',   placeholder: t('employees.fieldBioPlaceholder'), required: false },
-              ].map(({ label, key, type, placeholder, required }) => (
-                <div key={key}>
-                  <label className="field-label">{label} {required && <span className="text-red-500">*</span>}</label>
-                  <input type={type}
-                    className={`field-input ${errorFieldClass(fieldErrors.has(key))}`}
-                    value={String(formData[key])}
-                    placeholder={placeholder}
-                    onChange={e => {
-                      setFormData({ ...formData, [key]: type === 'number' ? Number(e.target.value) : e.target.value });
-                      setFieldErrors(prev => { const n = new Set(prev); n.delete(key); return n; });
-                    }}/>
-                  {fieldErrors.has(key) && <p className="text-xs text-red-500 mt-1">{t('common.fieldRequired')}</p>}
-                </div>
-              ))}
-
-              {translationLangs.length > 0 && (
-                <div className="space-y-3 border-t border-line pt-3">
-                  <div>
-                    <p className="text-xs font-semibold text-ink uppercase tracking-wide">{t('employees.translationsTitle')}</p>
-                    <p className="text-xs text-ink-muted mt-0.5">{t('employees.translationsHint')}</p>
-                  </div>
-                  {translationLangs.map(lng => (
-                    <div key={lng} className="space-y-2">
-                      <p className="text-xs font-medium text-brand">{BOOKING_LANG_LABELS[lng]}</p>
-                      <input
-                        type="text"
-                        className="field-input"
-                        value={formData.translations[lng]?.customRoleLabel || ''}
-                        onChange={e => updateTranslation(lng, 'customRoleLabel', e.target.value)}
-                        placeholder={t('employees.fieldCustomRole')}
-                      />
-                      <input
-                        type="text"
-                        className="field-input"
-                        value={formData.translations[lng]?.specialtiesText || ''}
-                        onChange={e => updateTranslation(lng, 'specialtiesText', e.target.value)}
-                        placeholder={t('employees.fieldSpecialtiesPlaceholder')}
-                      />
-                      <input
-                        type="text"
-                        className="field-input"
-                        value={formData.translations[lng]?.bio || ''}
-                        onChange={e => updateTranslation(lng, 'bio', e.target.value)}
-                        placeholder={t('employees.fieldBioPlaceholder')}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div>
-                <label className="field-label">{t('employees.fieldServices')}</label>
-                <p className="text-xs text-ink-muted mb-1">{t('employees.fieldServicesHint')}</p>
-                <p className="text-xs text-ink-muted mb-1">{t('employees.ownPriceHint')}</p>
-                <div className="border border-line rounded-sm divide-y divide-line max-h-80 overflow-y-auto">
-                  {orderedServices.map(s => {
-                    const active = formData.serviceIds.length === 0 || formData.serviceIds.includes(s._id);
-                    const ov = formData.overrides[s._id] || {};
-                    const changed = OVERRIDE_FIELDS.some(f => (ov[f] ?? '').trim() !== '');
-                    const setOv = (f: OverrideField, v: string) => setFormData(p => ({
-                      ...p, overrides: { ...p.overrides, [s._id]: { ...p.overrides[s._id], [f]: v } },
-                    }));
-                    const base: Record<OverrideField, number | undefined> = { price: s.price, priceMax: s.priceMax, duration: s.duration, durationMax: s.durationMax };
-                    const input = (f: OverrideField, label: string) => (
-                      <label className="flex flex-col gap-0.5 min-w-0">
-                        <span className="text-[11px] text-ink-muted">{label}</span>
-                        <input type="number" min={f.startsWith('price') ? 0 : 1} step={f.startsWith('price') ? 'any' : 5}
-                          className={`field-input !py-1.5 !text-sm ${(ov[f] ?? '').trim() !== '' ? 'border-brand bg-brand-extra-soft' : ''}`}
-                          placeholder={base[f] !== undefined ? String(base[f]) : '—'}
-                          value={ov[f] ?? ''} onChange={e => setOv(f, e.target.value)} />
-                      </label>
-                    );
-                    return (
-                      <div key={s._id} className={`p-2 ${s.isAddon ? 'pl-8' : ''}`}>
-                        <div className="flex items-center gap-2 text-sm">
-                          <input type="checkbox" className="rounded border-line text-brand focus:ring-brand cursor-pointer"
-                            id={`svc-${s._id}`}
-                            checked={formData.serviceIds.includes(s._id)}
-                            onChange={e => setFormData(p => ({
-                              ...p,
-                              serviceIds: e.target.checked ? [...p.serviceIds, s._id] : p.serviceIds.filter(id => id !== s._id),
-                            }))}/>
-                          <label htmlFor={`svc-${s._id}`} className="flex-1 min-w-0 truncate cursor-pointer">
-                            {s.isAddon && <span className="text-ink-muted">+ </span>}{s.name}
-                            {s.isAddon && <span className="ml-1.5 badge bg-brand-extra-soft text-brand-dark !text-[10px]">{t('services.addonBadge')}</span>}
-                          </label>
-                          <span className="text-xs text-ink-muted whitespace-nowrap">
-                            {t('employees.basePrice', { price: formatPrice(s.price, currency), duration: s.duration })}
-                          </span>
-                          {changed && (
-                            <button type="button" className="text-xs text-brand hover:text-brand-dark whitespace-nowrap"
-                              onClick={() => setFormData(p => { const next = { ...p.overrides }; delete next[s._id]; return { ...p, overrides: next }; })}>
-                              {t('employees.resetPrice')}
-                            </button>
-                          )}
-                        </div>
-                        {active && (
-                          <div className={`grid gap-2 mt-1.5 pl-6 ${rangesEnabled ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'}`}>
-                            {input('price', `${t('employees.ownPrice')} (${getCurrencySymbol(currency)})`)}
-                            {rangesEnabled && input('priceMax', t('employees.ownPriceMax'))}
-                            {input('duration', t('employees.ownDuration'))}
-                            {rangesEnabled && input('durationMax', t('employees.ownDurationMax'))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+        title={editingEmployee ? t('employees.editModalTitle') : t('employees.addModalTitle')} size="xl"
+        subtitle={<>{t('common.requiredHintPre')} <span className="text-red-500">*</span> {t('common.requiredHintPost')}</>}
+        headerExtra={
+          <div role="tablist" className="flex gap-1 -mb-px overflow-x-auto">
+            {EMP_TABS.map(tab => {
+              const on = empTab === tab;
+              const hasError = tab === 'main' && ['name', 'phone', 'email'].some(k => fieldErrors.has(k));
+              return (
+                <button key={tab} type="button" role="tab" aria-selected={on} onClick={() => setEmpTab(tab)}
+                  className={`h-11 px-3.5 text-sm whitespace-nowrap inline-flex items-center gap-1.5 border-b-2 transition-colors
+                    ${on ? 'font-bold text-brand-dark border-brand' : 'font-semibold text-ink-secondary border-transparent hover:text-ink'}`}>
+                  {t(`employees.tab_${tab}`)}
+                  {hasError && <span className="w-1.5 h-1.5 rounded-full bg-red-500" aria-label={t('common.fieldRequired')} />}
+                </button>
+              );
+            })}
+          </div>
+        }
+        footer={<>
+          <span className="flex-1 min-w-0 text-sm text-ink-secondary truncate">
+            {['name', 'phone', 'email'].some(k => fieldErrors.has(k))
+              ? <span className="font-semibold text-red-600">{t('employees.fixMainTab')}</span>
+              : t('employees.footerSummary', {
+                  services: formData.serviceIds.length || services.length,
+                  days: DAY_KEYS.filter(k => formData.schedule[k].isOpen).length,
+                })}
+          </span>
+          <button onClick={() => setIsModalOpen(false)} className="btn btn-secondary">
+            {t('common.cancel')}
+          </button>
+          <button onClick={handleSave} disabled={saving} className="btn btn-primary">
+            {saving ? t('common.saving') : editingEmployee ? t('common.save') : t('employees.addNew')}
+          </button>
+        </>}>
+        {empTab === 'main' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="min-w-0">
+                <label htmlFor="emp-name" className="field-label">{t('employees.fieldName')} <span className="text-red-500">*</span></label>
+                <input id="emp-name" type="text" autoFocus
+                  className={`field-input ${errorFieldClass(fieldErrors.has('name'))}`}
+                  value={formData.name} placeholder={t('employees.fieldNamePlaceholder')}
+                  onChange={e => { setFormData({ ...formData, name: e.target.value }); clearFieldError('name'); }}/>
+                {fieldErrors.has('name') && <p className="text-xs font-medium text-red-500 mt-1">{t('common.fieldRequired')}</p>}
+              </div>
+              <div className="min-w-0">
+                <label htmlFor="emp-role" className="field-label">{t('employees.fieldCustomRole')}</label>
+                <input id="emp-role" type="text" className="field-input"
+                  value={formData.customRoleLabel}
+                  onChange={e => setFormData({ ...formData, customRoleLabel: e.target.value })}
+                  placeholder={t('employees.fieldCustomRolePlaceholder')} />
+              </div>
+              <div className="min-w-0">
+                <label htmlFor="emp-phone" className="field-label">{t('employees.fieldPhone')} <span className="text-red-500">*</span></label>
+                <PhoneInput id="emp-phone" value={formData.phone} invalid={fieldErrors.has('phone')}
+                  onChange={v => { setFormData(f => ({ ...f, phone: v })); clearFieldError('phone'); }}/>
+                {fieldErrors.has('phone') && <p className="text-xs font-medium text-red-500 mt-1">{t('common.fieldRequired')}</p>}
+              </div>
+              <div className="min-w-0">
+                <label htmlFor="emp-email" className="field-label">{t('employees.fieldEmail')} <span className="text-red-500">*</span></label>
+                <input id="emp-email" type="email"
+                  className={`field-input ${errorFieldClass(fieldErrors.has('email'))}`}
+                  value={formData.email} placeholder="email@example.com"
+                  onChange={e => { setFormData({ ...formData, email: e.target.value }); clearFieldError('email'); }}/>
+                {fieldErrors.has('email') && <p className="text-xs font-medium text-red-500 mt-1">{t('common.fieldRequired')}</p>}
+              </div>
+            </div>
+            <div>
+              <label htmlFor="emp-bio" className="field-label">{t('employees.fieldBio')}</label>
+              <textarea id="emp-bio" rows={3} className="field-input"
+                value={formData.bio} placeholder={t('employees.fieldBioPlaceholder')}
+                onChange={e => setFormData({ ...formData, bio: e.target.value })}/>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="min-w-0">
+                <label htmlFor="emp-spec" className="field-label">{t('employees.fieldSpecialties')}</label>
+                <input id="emp-spec" type="text" className="field-input"
+                  value={formData.specialties} placeholder={t('employees.fieldSpecialtiesPlaceholder')}
+                  onChange={e => setFormData({ ...formData, specialties: e.target.value })}/>
+              </div>
+              <div className="min-w-0">
+                <label htmlFor="emp-rate" className="field-label">{t('employees.fieldHourlyRate')}</label>
+                <div className="field-input flex items-center gap-2 focus-within:border-brand">
+                  <input id="emp-rate" type="number" min={0} className="flex-1 min-w-0 bg-transparent outline-none"
+                    value={formData.hourlyRate} placeholder="0"
+                    onChange={e => setFormData({ ...formData, hourlyRate: Number(e.target.value) })}/>
+                  <span className="text-sm font-semibold text-ink-secondary">{getCurrencySymbol(currency)}</span>
                 </div>
               </div>
-
-              <div>
-                <label className="field-label">{t('employees.fieldRole')}</label>
-                <select className="field-input"
+              <div className="min-w-0">
+                <label htmlFor="emp-sysrole" className="field-label">{t('employees.fieldRole')}</label>
+                <select id="emp-sysrole" className="field-input"
                   value={formData.role}
                   onChange={e => setFormData({ ...formData, role: e.target.value as Employee['role'] })}>
                   <option value="Barber">{t('roles.Barber')}</option>
                   <option value="Manager">{t('roles.Manager')}</option>
                 </select>
               </div>
-
-              <div>
-                <label className="field-label">{t('employees.fieldCustomRole')}</label>
-                <input type="text" className="field-input"
-                  value={formData.customRoleLabel}
-                  onChange={e => setFormData({ ...formData, customRoleLabel: e.target.value })}
-                  placeholder={t('employees.fieldCustomRolePlaceholder')} />
-                <p className="text-xs text-ink-muted mt-1.5">{t('employees.fieldCustomRoleHint')}</p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="isAvailable" checked={formData.isAvailable}
+              <label className="flex items-center gap-2.5 min-h-[44px] sm:mt-6 cursor-pointer">
+                <input type="checkbox" checked={formData.isAvailable}
                   onChange={e => setFormData({ ...formData, isAvailable: e.target.checked })}
-                  className="rounded border-line text-brand focus:ring-brand"/>
-                <label htmlFor="isAvailable" className="text-sm text-ink-secondary">{t('employees.availableForAppointments')}</label>
-              </div>
+                  className="w-[18px] h-[18px] rounded border-line text-brand focus:ring-brand"/>
+                <span className="text-sm font-medium text-ink">{t('employees.availableForAppointments')}</span>
+              </label>
             </div>
+            <p className="text-xs text-ink-secondary">{t('employees.fieldCustomRoleHint')}</p>
+          </div>
+        )}
 
-            {/* Schedule editor */}
-            <div>
-              <label className="field-label mb-2">{t('employees.schedule')}</label>
-              <div className="space-y-2">
-                {DAYS.map(({ key, label }) => {
-                  const day = formData.schedule[key];
-                  const isOff = !day.isOpen;
-                  return (
-                    <div key={key} className="flex items-center gap-3">
-                      <span className="text-sm text-ink-secondary w-6">{label}</span>
-                      <button type="button"
-                        onClick={() => toggleDay(key)}
-                        className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors
-                          ${isOff ? 'bg-line-medium' : 'bg-brand'}`}>
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform
-                          ${isOff ? 'translate-x-0' : 'translate-x-4'}`}/>
-                      </button>
-                      {isOff ? (
-                        <span className="text-xs text-red-500">{t('appointments.dayOff')}</span>
-                      ) : (
-                        <input type="text"
-                          className="flex-1 bg-surface text-ink border border-line rounded-xs px-2 py-1 text-xs placeholder:text-ink-muted dark:placeholder:text-ink-secondary focus:outline-none focus:ring-2 focus:ring-brand/15 focus:border-brand"
-                          defaultValue={formatRange(day)}
-                          placeholder="09:00-18:00"
-                          onBlur={e => setDayHours(key, e.target.value)}/>
+        {empTab === 'schedule' && (
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+              <p className="text-sm text-ink-secondary">{t('employees.scheduleHint')}</p>
+              <button type="button" onClick={copyMondayHours} className="btn btn-secondary !h-9 !px-3.5 text-sm">
+                {t('employees.copyMonday')}
+              </button>
+            </div>
+            {DAYS.map(({ key, label }) => {
+              const day = formData.schedule[key];
+              return (
+                <div key={key} className="flex flex-wrap items-center gap-3 min-h-[52px] py-1.5 border-t border-line">
+                  <span className="w-10 text-sm font-semibold text-ink">{label}</span>
+                  <button type="button" role="switch" aria-checked={day.isOpen} aria-label={label}
+                    onClick={() => toggleDay(key)}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors
+                      ${day.isOpen ? 'bg-brand' : 'bg-line-medium'}`}>
+                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform
+                      ${day.isOpen ? 'translate-x-5' : 'translate-x-0'}`}/>
+                  </button>
+                  {day.isOpen ? (
+                    <div className="flex items-center gap-2">
+                      <input type="time" step={300} className="field-input !w-auto" aria-label={`${label} ${t('appointments.breakFrom')}`}
+                        value={day.from} onChange={e => setDayTime(key, 'from', e.target.value)}/>
+                      <span className="text-ink-secondary">–</span>
+                      <input type="time" step={300} className="field-input !w-auto" aria-label={`${label} ${t('appointments.breakTo')}`}
+                        value={day.to} onChange={e => setDayTime(key, 'to', e.target.value)}/>
+                    </div>
+                  ) : (
+                    <span className="text-sm font-semibold text-ink-secondary">{t('appointments.dayOff')}</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {empTab === 'services' && (
+          <div>
+            <label className="field-label">{t('employees.fieldServices')}</label>
+            <p className="text-xs text-ink-muted mb-1">{t('employees.fieldServicesHint')}</p>
+            <p className="text-xs text-ink-muted mb-1">{t('employees.ownPriceHint')}</p>
+            <div className="border border-line rounded-md divide-y divide-line">
+              {orderedServices.map(s => {
+                const active = formData.serviceIds.length === 0 || formData.serviceIds.includes(s._id);
+                const ov = formData.overrides[s._id] || {};
+                const changed = OVERRIDE_FIELDS.some(f => (ov[f] ?? '').trim() !== '');
+                const setOv = (f: OverrideField, v: string) => setFormData(p => ({
+                  ...p, overrides: { ...p.overrides, [s._id]: { ...p.overrides[s._id], [f]: v } },
+                }));
+                const base: Record<OverrideField, number | undefined> = { price: s.price, priceMax: s.priceMax, duration: s.duration, durationMax: s.durationMax };
+                const input = (f: OverrideField, label: string) => (
+                  <label className="flex flex-col gap-0.5 min-w-0">
+                    <span className="text-[11px] text-ink-muted">{label}</span>
+                    <input type="number" min={f.startsWith('price') ? 0 : 1} step={f.startsWith('price') ? 'any' : 5}
+                      className={`field-input !py-1.5 !text-sm ${(ov[f] ?? '').trim() !== '' ? 'border-brand bg-brand-extra-soft' : ''}`}
+                      placeholder={base[f] !== undefined ? String(base[f]) : '—'}
+                      value={ov[f] ?? ''} onChange={e => setOv(f, e.target.value)} />
+                  </label>
+                );
+                return (
+                  <div key={s._id} className={`p-2 ${s.isAddon ? 'pl-8' : ''}`}>
+                    <div className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" className="rounded border-line text-brand focus:ring-brand cursor-pointer"
+                        id={`svc-${s._id}`}
+                        checked={formData.serviceIds.includes(s._id)}
+                        onChange={e => setFormData(p => ({
+                          ...p,
+                          serviceIds: e.target.checked ? [...p.serviceIds, s._id] : p.serviceIds.filter(id => id !== s._id),
+                        }))}/>
+                      <label htmlFor={`svc-${s._id}`} className="flex-1 min-w-0 truncate cursor-pointer">
+                        {s.isAddon && <span className="text-ink-muted">+ </span>}{s.name}
+                        {s.isAddon && <span className="ml-1.5 badge bg-brand-extra-soft text-brand-dark !text-[10px]">{t('services.addonBadge')}</span>}
+                      </label>
+                      <span className="text-xs text-ink-muted whitespace-nowrap">
+                        {t('employees.basePrice', { price: formatPrice(s.price, currency), duration: s.duration })}
+                      </span>
+                      {changed && (
+                        <button type="button" className="text-xs text-brand hover:text-brand-dark whitespace-nowrap"
+                          onClick={() => setFormData(p => { const next = { ...p.overrides }; delete next[s._id]; return { ...p, overrides: next }; })}>
+                          {t('employees.resetPrice')}
+                        </button>
                       )}
                     </div>
-                  );
-                })}
-              </div>
+                    {active && (
+                      <div className={`grid gap-2 mt-1.5 pl-6 ${rangesEnabled ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'}`}>
+                        {input('price', `${t('employees.ownPrice')} (${getCurrencySymbol(currency)})`)}
+                        {rangesEnabled && input('priceMax', t('employees.ownPriceMax'))}
+                        {input('duration', t('employees.ownDuration'))}
+                        {rangesEnabled && input('durationMax', t('employees.ownDurationMax'))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-2">
-            <button onClick={() => setIsModalOpen(false)} className="btn btn-secondary">
-              {t('common.cancel')}
-            </button>
-            <button onClick={handleSave} disabled={saving} className="btn btn-primary">
-              {saving ? t('common.saving') : editingEmployee ? t('common.save') : t('employees.addNew')}
-            </button>
-          </div>
-        </div>
+        )}
+
+        {empTab === 'translations' && (
+          translationLangs.length === 0 ? (
+            <p className="text-sm text-ink-secondary">{t('employees.noTranslationLangs')}</p>
+          ) : (() => {
+            const lng = translationLangs.includes(trLang as BookingLang) ? trLang as BookingLang : translationLangs[0];
+            return (
+              <div className="space-y-3">
+                <p className="text-sm text-ink-secondary">{t('employees.translationsHint')}</p>
+                <div role="tablist" className="inline-flex gap-1 bg-canvas-soft p-1 rounded-sm">
+                  {translationLangs.map(l => (
+                    <button key={l} type="button" role="tab" aria-selected={l === lng} onClick={() => setTrLang(l)}
+                      className={`px-3 py-1.5 rounded-xs text-xs font-bold ${l === lng ? 'bg-surface text-brand-dark shadow-sm' : 'text-ink-secondary hover:text-ink'}`}>
+                      {BOOKING_LANG_LABELS[l]}
+                    </button>
+                  ))}
+                </div>
+                <div>
+                  <label className="field-label">{t('employees.fieldCustomRole')}</label>
+                  <input type="text" className="field-input"
+                    value={formData.translations[lng]?.customRoleLabel || ''}
+                    onChange={e => updateTranslation(lng, 'customRoleLabel', e.target.value)}
+                    placeholder={t('employees.fieldCustomRole')} />
+                </div>
+                <div>
+                  <label className="field-label">{t('employees.fieldSpecialties')}</label>
+                  <input type="text" className="field-input"
+                    value={formData.translations[lng]?.specialtiesText || ''}
+                    onChange={e => updateTranslation(lng, 'specialtiesText', e.target.value)}
+                    placeholder={t('employees.fieldSpecialtiesPlaceholder')} />
+                </div>
+                <div>
+                  <label className="field-label">{t('employees.fieldBio')}</label>
+                  <textarea rows={3} className="field-input"
+                    value={formData.translations[lng]?.bio || ''}
+                    onChange={e => updateTranslation(lng, 'bio', e.target.value)}
+                    placeholder={t('employees.fieldBioPlaceholder')} />
+                </div>
+              </div>
+            );
+          })()
+        )}
       </Modal>
 
       {/* ── REVIEWS MODAL ── */}

@@ -3,7 +3,7 @@ import {
   Scissors, ScissorsLineDashed, Droplet, ShowerHead, Wind, Sparkles,
   Heart, Flower2, Palette, Waves, Sun, Gem, Brush, Hand, Zap, SprayCan,
   Syringe, Sparkle, Vibrate, Stethoscope,
-  Plus, Search, Pencil, Trash2, Clock, Banknote, Tags, X, Check,
+  Plus, Search, Pencil, Trash2, Clock, Banknote, Tags, X, Check, Globe, SlidersHorizontal, ChevronDown,
 } from 'lucide-react';
 import { serviceApi, categoryApi } from '../api';
 import { Service, Category } from '../api/types';
@@ -89,6 +89,10 @@ const Services = () => {
   const [fieldErrors, setFieldErrors] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [imageChange, setImageChange] = useState<ImageChange>(null);
+  // Згорнуті розділи форми: переклади й додаткові налаштування.
+  const [trOpen, setTrOpen] = useState(false);
+  const [trLang, setTrLang] = useState('');
+  const [advOpen, setAdvOpen] = useState(false);
   // Одиниця відображення/вводу тривалості — керується глобальним
   // налаштуванням закладу (Settings > Загальні), а не локальним перемикачем.
   const durationUnit = useShopDurationUnit();
@@ -146,6 +150,7 @@ const Services = () => {
     setFormData({ ...defaultForm, category: categories[0]?.name || '' });
     setImageChange(null);
     setFieldErrors(new Set());
+    setTrOpen(false); setAdvOpen(false);
     setIsModalOpen(true);
   };
 
@@ -168,6 +173,7 @@ const Services = () => {
     });
     setImageChange(null);
     setFieldErrors(new Set());
+    setTrOpen(false); setAdvOpen(false);
     setIsModalOpen(true);
   };
 
@@ -454,238 +460,297 @@ const Services = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingService ? t('services.editModalTitle') : t('services.addModalTitle')}
+        subtitle={<>{t('common.requiredHintPre')} <span className="text-red-500">*</span> {t('common.requiredHintPost')}</>}
+        size="lg"
+        footer={<>
+          <p className="flex-1 min-w-0 text-sm font-bold text-ink truncate">
+            {formData.price > 0 ? formatPrice(formData.price, currency) : ''}
+            {formData.duration > 0 ? ` · ${formatDurationForUnit(formData.duration, durationUnit, durationLabels)}` : ''}
+            {formData.prepTime > 0 && <span className="font-medium text-ink-secondary"> · {t('appointments.prepSuffix', { min: formData.prepTime })}</span>}
+          </p>
+          <button onClick={() => setIsModalOpen(false)} className="btn btn-secondary">
+            {t('common.cancel')}
+          </button>
+          <button onClick={handleSave} disabled={saving} className="btn btn-primary">
+            {saving ? t('common.saving') : editingService ? t('common.save') : t('services.addNew')}
+          </button>
+        </>}
       >
-        <div className="space-y-3">
-          <ImageCropField
-            label={t('services.fieldPhoto')}
-            hint={t('services.photoHint')}
-            existingUrl={editingService?.imageUrl}
-            value={imageChange}
-            onChange={setImageChange}
-            aspect={1}
-            maxOutputWidth={1000}
-            previewClassName="w-24 h-24"
-          />
-          <div>
-            <label className="field-label">{t('services.fieldName')} <span className="text-red-500">*</span></label>
-            <input
-              type="text"
-              className={`field-input ${errorFieldClass(fieldErrors.has('name'))}`}
-              value={formData.name}
-              onChange={(e) => { setFormData({ ...formData, name: e.target.value }); setFieldErrors(prev => { const n = new Set(prev); n.delete('name'); return n; }); }}
-              placeholder={t('services.fieldNamePlaceholder')}
+        <div className="space-y-6">
+          <section className="space-y-3">
+            <ImageCropField
+              label={t('services.fieldPhoto')}
+              hint={t('services.photoHint')}
+              existingUrl={editingService?.imageUrl}
+              value={imageChange}
+              onChange={setImageChange}
+              aspect={1}
+              maxOutputWidth={1000}
+              previewClassName="w-24 h-24"
             />
-            {fieldErrors.has('name') && <p className="text-xs text-red-500 mt-1">{t('common.fieldRequired')}</p>}
-          </div>
-          <div>
-            <label className="field-label">{t('services.fieldDescription')}</label>
-            <textarea
-              className="field-input"
-              rows={2}
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder={t('services.fieldDescriptionPlaceholder')}
-            />
-          </div>
-          {translationLangs.length > 0 && (
-            <div className="space-y-3 border-t border-line pt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <p className="text-xs font-semibold text-ink uppercase tracking-wide">{t('services.translationsTitle')}</p>
-                <p className="text-xs text-ink-muted mt-0.5">{t('services.translationsHint')}</p>
-              </div>
-              {translationLangs.map(lang => (
-                <div key={lang} className="space-y-2">
-                  <p className="text-xs font-medium text-brand">{BOOKING_LANG_LABELS[lang]}</p>
-                  <input
-                    type="text"
-                    className="field-input"
-                    value={formData.translations[lang]?.name || ''}
-                    onChange={(e) => updateTranslation(lang, 'name', e.target.value)}
-                    placeholder={t('services.fieldNamePlaceholder')}
-                  />
-                  <textarea
-                    className="field-input"
-                    rows={2}
-                    value={formData.translations[lang]?.description || ''}
-                    onChange={(e) => updateTranslation(lang, 'description', e.target.value)}
-                    placeholder={t('services.fieldDescriptionPlaceholder')}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="field-label">{t('services.fieldPrice')} ({getCurrencySymbol(currency)}) <span className="text-red-500">*</span></label>
-              <input
-                type="number"
-                className={`field-input ${errorFieldClass(fieldErrors.has('price'))}`}
-                value={formData.price}
-                onChange={(e) => { setFormData({ ...formData, price: Number(e.target.value) }); setFieldErrors(prev => { const n = new Set(prev); n.delete('price'); return n; }); }}
-                onFocus={(e) => e.target.select()}
-                min="0"
-              />
-              {fieldErrors.has('price') && <p className="text-xs text-red-500 mt-1">{t('services.priceMustBePositive')}</p>}
-            </div>
-            <div>
-              <label className="field-label">{t('services.fieldDuration')}{durationUnit === 'min' ? ` (${durationLabels.minute})` : ''} <span className="text-red-500">*</span></label>
-              <DurationInput
-                unit={durationUnit}
-                value={formData.duration}
-                min={5}
-                onChange={(v) => { setFormData({ ...formData, duration: v ?? 0 }); setFieldErrors(prev => { const n = new Set(prev); n.delete('duration'); return n; }); }}
-              />
-              {fieldErrors.has('duration') && <p className="text-xs text-red-500 mt-1">{t('services.durationMustBePositive')}</p>}
-            </div>
-          </div>
-          {(() => {
-            // Фактичний час майстра = час для клієнта (макс. з діапазону) + підготовка.
-            const clientDur = rangesEnabled ? (formData.durationMax ?? formData.duration) : formData.duration;
-            const actual = clientDur + formData.prepTime;
-            const fmt = (m: number) => formatDurationForUnit(m, durationUnit, durationLabels);
-            const invalid = fieldErrors.has('actualDuration') || formData.prepTime < 0 || formData.prepTime > MAX_PREP;
-            return (
-              <div>
-                <label className="field-label">{t('services.fieldActualDuration')}{durationUnit === 'min' ? ` (${durationLabels.minute})` : ''}</label>
-                <DurationInput
-                  key={clientDur}
-                  unit={durationUnit}
-                  value={actual}
-                  min={clientDur}
-                  onChange={(v) => { setFormData({ ...formData, prepTime: (v ?? clientDur) - clientDur }); setFieldErrors(prev => { const n = new Set(prev); n.delete('actualDuration'); return n; }); }}
+                <label className="field-label">{t('services.fieldName')} <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  className={`field-input ${errorFieldClass(fieldErrors.has('name'))}`}
+                  value={formData.name}
+                  onChange={(e) => { setFormData({ ...formData, name: e.target.value }); setFieldErrors(prev => { const n = new Set(prev); n.delete('name'); return n; }); }}
+                  placeholder={t('services.fieldNamePlaceholder')}
                 />
-                {invalid ? (
-                  <p className="text-xs text-red-600 mt-1 font-medium">
-                    {formData.prepTime < 0 ? t('services.actualTooShort') : t('services.actualTooLong', { max: fmt(MAX_PREP) })}
-                  </p>
-                ) : formData.prepTime > 0 ? (
-                  <p className="text-xs text-brand-dark mt-1 font-medium">
-                    {t('services.actualHint', { client: fmt(clientDur), actual: fmt(actual), prep: fmt(formData.prepTime) })}
-                  </p>
-                ) : (
-                  <p className="text-xs text-ink-muted mt-1">{t('services.actualEmptyHint')}</p>
-                )}
+                {fieldErrors.has('name') && <p className="text-xs text-red-500 mt-1">{t('common.fieldRequired')}</p>}
               </div>
-            );
-          })()}
-          <div>
-            <label className="field-label">{t('services.fieldCost')} ({getCurrencySymbol(currency)})</label>
-            <input
-              type="number"
-              className="field-input"
-              value={formData.cost || ''}
-              placeholder="0"
-              min="0"
-              onChange={(e) => setFormData({ ...formData, cost: e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)) })}
-              onFocus={(e) => e.target.select()}
-            />
-            {formData.cost > 0 && formData.price > 0 ? (() => {
-              const m = marginOf(formData.price, formData.cost);
-              return (
-                <p className={`text-xs mt-1 font-medium ${m.profit < 0 ? 'text-red-600' : 'text-brand-dark'}`}>
-                  {m.profit < 0
-                    ? t('services.costAbovePrice')
-                    : t('services.profitHint', { profit: formatPrice(m.profit, currency), percent: m.percent })}
-                </p>
-              );
-            })() : (
-              <p className="text-xs text-ink-muted mt-1">{t('services.costHint')}</p>
-            )}
-          </div>
-          {rangesEnabled && (
-            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="field-label">{t('services.fieldPriceMax')}</label>
+                <label className="field-label">{t('services.fieldCategory')} <span className="text-red-500">*</span></label>
+                <select
+                  className={`field-input ${errorFieldClass(fieldErrors.has('category'))}`}
+                  value={formData.category}
+                  onChange={(e) => { setFormData({ ...formData, category: e.target.value }); setFieldErrors(prev => { const n = new Set(prev); n.delete('category'); return n; }); }}
+                >
+                  {categories.length === 0 && <option value="">{t('services.noCategoriesYet')}</option>}
+                  {categories.map(c => <option key={c._id} value={c.name}>{categoryLabel(c.name)}</option>)}
+                </select>
+                {fieldErrors.has('category') && <p className="text-xs text-red-500 mt-1">{t('common.fieldRequired')}</p>}
+              </div>
+            </div>
+            <div>
+              <label className="field-label">{t('services.fieldDescription')}</label>
+              <textarea
+                className="field-input"
+                rows={2}
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder={t('services.fieldDescriptionPlaceholder')}
+              />
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <h4 className="form-section-title">{t('services.sectionPriceTime')}</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
+              <div>
+                <label className="field-label">{t('services.fieldPrice')} ({getCurrencySymbol(currency)}) <span className="text-red-500">*</span></label>
                 <input
                   type="number"
-                  className="field-input"
-                  value={formData.priceMax ?? ''}
-                  placeholder="—"
-                  min={formData.price}
-                  onChange={(e) => setFormData({ ...formData, priceMax: e.target.value === '' ? undefined : Number(e.target.value) })}
+                  className={`field-input ${errorFieldClass(fieldErrors.has('price'))}`}
+                  value={formData.price}
+                  onChange={(e) => { setFormData({ ...formData, price: Number(e.target.value) }); setFieldErrors(prev => { const n = new Set(prev); n.delete('price'); return n; }); }}
                   onFocus={(e) => e.target.select()}
+                  min="0"
                 />
+                {fieldErrors.has('price') && <p className="text-xs text-red-500 mt-1">{t('services.priceMustBePositive')}</p>}
               </div>
               <div>
-                <label className="field-label">{t('services.fieldDurationMax')}{durationUnit === 'min' ? ` (${durationLabels.minute})` : ''}</label>
+                <label className="field-label">{t('services.fieldDuration')}{durationUnit === 'min' ? ` (${durationLabels.minute})` : ''} <span className="text-red-500">*</span></label>
                 <DurationInput
                   unit={durationUnit}
-                  value={formData.durationMax}
-                  min={formData.duration}
-                  onChange={(v) => setFormData({ ...formData, durationMax: v })}
+                  value={formData.duration}
+                  min={5}
+                  onChange={(v) => { setFormData({ ...formData, duration: v ?? 0 }); setFieldErrors(prev => { const n = new Set(prev); n.delete('duration'); return n; }); }}
                 />
+                {fieldErrors.has('duration') && <p className="text-xs text-red-500 mt-1">{t('services.durationMustBePositive')}</p>}
               </div>
+              {(() => {
+                // Фактичний час майстра = час для клієнта (макс. з діапазону) + підготовка.
+                const clientDur = rangesEnabled ? (formData.durationMax ?? formData.duration) : formData.duration;
+                const actual = clientDur + formData.prepTime;
+                const fmt = (m: number) => formatDurationForUnit(m, durationUnit, durationLabels);
+                const invalid = fieldErrors.has('actualDuration') || formData.prepTime < 0 || formData.prepTime > MAX_PREP;
+                return (
+                  <div>
+                    <label className="field-label">{t('services.fieldActualDuration')}{durationUnit === 'min' ? ` (${durationLabels.minute})` : ''}</label>
+                    <DurationInput
+                      key={clientDur}
+                      unit={durationUnit}
+                      value={actual}
+                      min={clientDur}
+                      onChange={(v) => { setFormData({ ...formData, prepTime: (v ?? clientDur) - clientDur }); setFieldErrors(prev => { const n = new Set(prev); n.delete('actualDuration'); return n; }); }}
+                    />
+                    {invalid ? (
+                      <p className="text-xs text-red-600 mt-1 font-medium">
+                        {formData.prepTime < 0 ? t('services.actualTooShort') : t('services.actualTooLong', { max: fmt(MAX_PREP) })}
+                      </p>
+                    ) : formData.prepTime > 0 ? (
+                      <p className="text-xs text-brand-dark mt-1 font-medium">
+                        {t('services.actualHint', { client: fmt(clientDur), actual: fmt(actual), prep: fmt(formData.prepTime) })}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-ink-muted mt-1">{t('services.actualEmptyHint')}</p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
-          )}
-          <div>
-            <label className="field-label">{t('services.fieldCategory')} <span className="text-red-500">*</span></label>
-            <select
-              className={`field-input ${errorFieldClass(fieldErrors.has('category'))}`}
-              value={formData.category}
-              onChange={(e) => { setFormData({ ...formData, category: e.target.value }); setFieldErrors(prev => { const n = new Set(prev); n.delete('category'); return n; }); }}
-            >
-              {categories.length === 0 && <option value="">{t('services.noCategoriesYet')}</option>}
-              {categories.map(c => <option key={c._id} value={c.name}>{categoryLabel(c.name)}</option>)}
-            </select>
-            {fieldErrors.has('category') && <p className="text-xs text-red-500 mt-1">{t('common.fieldRequired')}</p>}
-          </div>
-          <div className="rounded-sm border border-line p-3 space-y-2">
-            <label className="flex items-start gap-2 cursor-pointer">
-              <input type="checkbox" className="rounded border-line text-brand focus:ring-brand mt-0.5"
-                checked={formData.isAddon}
-                onChange={(e) => { setFormData({ ...formData, isAddon: e.target.checked }); setFieldErrors(prev => { const n = new Set(prev); n.delete('addonFor'); return n; }); }} />
-              <span>
-                <span className="text-sm font-medium text-ink">{t('services.isAddon')}</span>
-                <span className="block text-xs text-ink-muted">{t('services.addonHint')}</span>
-              </span>
-            </label>
-            {formData.isAddon && (() => {
-              const mains = services.filter(s => !s.isAddon && s._id !== editingService?._id);
-              return (
+            {rangesEnabled && (
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <p className="text-xs font-medium text-ink-secondary mb-1">{t('services.addonFor')}</p>
-                  {mains.length === 0 ? (
-                    <p className="text-xs text-ink-muted">{t('services.addonNoMains')}</p>
-                  ) : (
-                    <div className={`border rounded-sm p-2 max-h-40 overflow-y-auto space-y-1 ${fieldErrors.has('addonFor') ? 'border-red-500' : 'border-line'}`}>
-                      {mains.map(s => (
-                        <label key={s._id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-canvas-soft p-1 rounded-xs">
-                          <input type="checkbox" className="rounded border-line text-brand focus:ring-brand"
-                            checked={formData.addonFor.includes(s._id)}
-                            onChange={(e) => {
-                              const next = e.target.checked ? [...formData.addonFor, s._id] : formData.addonFor.filter(id => id !== s._id);
-                              setFormData({ ...formData, addonFor: next });
-                              setFieldErrors(prev => { const n = new Set(prev); n.delete('addonFor'); return n; });
-                            }} />
-                          <span className="flex-1 min-w-0 truncate">{s.name}</span>
-                          <span className="text-xs text-ink-muted">{categoryLabel(s.category)}</span>
-                        </label>
+                  <label className="field-label">{t('services.fieldPriceMax')}</label>
+                  <input
+                    type="number"
+                    className="field-input"
+                    value={formData.priceMax ?? ''}
+                    placeholder="—"
+                    min={formData.price}
+                    onChange={(e) => setFormData({ ...formData, priceMax: e.target.value === '' ? undefined : Number(e.target.value) })}
+                    onFocus={(e) => e.target.select()}
+                  />
+                </div>
+                <div>
+                  <label className="field-label">{t('services.fieldDurationMax')}{durationUnit === 'min' ? ` (${durationLabels.minute})` : ''}</label>
+                  <DurationInput
+                    unit={durationUnit}
+                    value={formData.durationMax}
+                    min={formData.duration}
+                    onChange={(v) => setFormData({ ...formData, durationMax: v })}
+                  />
+                </div>
+              </div>
+            )}
+            <div>
+              <label className="field-label">{t('services.fieldCost')} ({getCurrencySymbol(currency)})</label>
+              <input
+                type="number"
+                className="field-input"
+                value={formData.cost || ''}
+                placeholder="0"
+                min="0"
+                onChange={(e) => setFormData({ ...formData, cost: e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)) })}
+                onFocus={(e) => e.target.select()}
+              />
+              {formData.cost > 0 && formData.price > 0 ? (() => {
+                const m = marginOf(formData.price, formData.cost);
+                return (
+                  <p className={`text-xs mt-1 font-medium ${m.profit < 0 ? 'text-red-600' : 'text-brand-dark'}`}>
+                    {m.profit < 0
+                      ? t('services.costAbovePrice')
+                      : t('services.profitHint', { profit: formatPrice(m.profit, currency), percent: m.percent })}
+                  </p>
+                );
+              })() : (
+                <p className="text-xs text-ink-muted mt-1">{t('services.costHint')}</p>
+              )}
+            </div>
+          </section>
+
+          {translationLangs.length > 0 && (() => {
+            const filled = translationLangs.filter(l => formData.translations[l]?.name?.trim()).length;
+            const lang = translationLangs.includes(trLang as BookingLang) ? trLang as BookingLang : translationLangs[0];
+            return (
+              <section className="border border-line rounded-md overflow-hidden">
+                <button type="button" onClick={() => setTrOpen(o => !o)} aria-expanded={trOpen}
+                  className="w-full flex items-center gap-3 px-4 py-3 bg-canvas-soft/60 hover:bg-canvas-soft text-left">
+                  <Globe size={17} className="text-ink-secondary shrink-0" />
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-bold text-ink">{t('services.translationsTitle')}</span>
+                    <span className="block text-xs text-ink-secondary">{t('services.translationsHint')}</span>
+                  </span>
+                  <span className="text-xs font-bold text-brand-dark bg-brand-soft rounded-full px-2.5 py-1 whitespace-nowrap">
+                    {t('services.translationsFilled', { filled, total: translationLangs.length })}
+                  </span>
+                  <ChevronDown size={16} className={`text-ink-secondary transition-transform ${trOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {trOpen && (
+                  <div className="p-4 space-y-3 border-t border-line">
+                    <div role="tablist" className="inline-flex gap-1 bg-canvas-soft p-1 rounded-sm">
+                      {translationLangs.map(l => (
+                        <button key={l} type="button" role="tab" aria-selected={l === lang} onClick={() => setTrLang(l)}
+                          className={`px-3 py-1.5 rounded-xs text-xs font-bold inline-flex items-center gap-1.5 ${l === lang ? 'bg-surface text-brand-dark shadow-sm' : 'text-ink-secondary hover:text-ink'}`}>
+                          {BOOKING_LANG_LABELS[l]}
+                          <span className={`w-1.5 h-1.5 rounded-full ${formData.translations[l]?.name?.trim() ? 'bg-brand' : 'bg-line-medium'}`} />
+                        </button>
                       ))}
                     </div>
-                  )}
-                  {fieldErrors.has('addonFor') && <p className="text-xs text-red-500 mt-1">{t('services.addonNeedsParent')}</p>}
+                    <input
+                      type="text"
+                      className="field-input"
+                      aria-label={`${t('services.fieldName')} (${BOOKING_LANG_LABELS[lang]})`}
+                      value={formData.translations[lang]?.name || ''}
+                      onChange={(e) => updateTranslation(lang, 'name', e.target.value)}
+                      placeholder={t('services.fieldNamePlaceholder')}
+                    />
+                    <textarea
+                      className="field-input"
+                      rows={2}
+                      aria-label={`${t('services.fieldDescription')} (${BOOKING_LANG_LABELS[lang]})`}
+                      value={formData.translations[lang]?.description || ''}
+                      onChange={(e) => updateTranslation(lang, 'description', e.target.value)}
+                      placeholder={t('services.fieldDescriptionPlaceholder')}
+                    />
+                  </div>
+                )}
+              </section>
+            );
+          })()}
+
+          {(() => {
+            const open = advOpen || fieldErrors.has('addonFor');
+            return (
+              <section className={`border rounded-md overflow-hidden ${fieldErrors.has('addonFor') ? 'border-red-400' : 'border-line'}`}>
+                <button type="button" onClick={() => setAdvOpen(o => !o)} aria-expanded={open}
+                  className="w-full flex items-center gap-3 px-4 py-3 bg-canvas-soft/60 hover:bg-canvas-soft text-left">
+                  <SlidersHorizontal size={17} className="text-ink-secondary shrink-0" />
+                  <span className="flex-1 min-w-0 text-sm font-bold text-ink">{t('services.sectionAdvanced')}</span>
+                  <span className="text-xs text-ink-secondary truncate">
+                    {formData.isAvailable ? t('services.fieldAvailable') : t('services.inactive')}{formData.isAddon ? ` · ${t('services.isAddon')}` : ''}
+                  </span>
+                  <ChevronDown size={16} className={`text-ink-secondary transition-transform ${open ? 'rotate-180' : ''}`} />
+                </button>
+                {open && (
+                  <div className="px-4 py-3 border-t border-line space-y-1">
+                <div className="flex items-center gap-2 min-h-[40px]">
+                  <input
+                    type="checkbox"
+                    id="isAvailable"
+                    checked={formData.isAvailable}
+                    onChange={(e) => setFormData({ ...formData, isAvailable: e.target.checked })}
+                    className="rounded border-line text-brand focus:ring-brand"
+                  />
+                  <label htmlFor="isAvailable" className="text-sm text-ink-secondary">{t('services.fieldAvailable')}</label>
                 </div>
-              );
-            })()}
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="isAvailable"
-              checked={formData.isAvailable}
-              onChange={(e) => setFormData({ ...formData, isAvailable: e.target.checked })}
-              className="rounded border-line text-brand focus:ring-brand"
-            />
-            <label htmlFor="isAvailable" className="text-sm text-ink-secondary">{t('services.fieldAvailable')}</label>
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <button onClick={() => setIsModalOpen(false)} className="btn btn-secondary">
-              {t('common.cancel')}
-            </button>
-            <button onClick={handleSave} disabled={saving} className="btn btn-primary">
-              {saving ? t('common.saving') : editingService ? t('common.save') : t('services.addNew')}
-            </button>
-          </div>
+                <div className="space-y-2 pt-3 border-t border-line">
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input type="checkbox" className="rounded border-line text-brand focus:ring-brand mt-0.5"
+                      checked={formData.isAddon}
+                      onChange={(e) => { setFormData({ ...formData, isAddon: e.target.checked }); setFieldErrors(prev => { const n = new Set(prev); n.delete('addonFor'); return n; }); }} />
+                    <span>
+                      <span className="text-sm font-medium text-ink">{t('services.isAddon')}</span>
+                      <span className="block text-xs text-ink-muted">{t('services.addonHint')}</span>
+                    </span>
+                  </label>
+                  {formData.isAddon && (() => {
+                    const mains = services.filter(s => !s.isAddon && s._id !== editingService?._id);
+                    return (
+                      <div>
+                        <p className="text-xs font-medium text-ink-secondary mb-1">{t('services.addonFor')}</p>
+                        {mains.length === 0 ? (
+                          <p className="text-xs text-ink-muted">{t('services.addonNoMains')}</p>
+                        ) : (
+                          <div className={`border rounded-sm p-2 max-h-40 overflow-y-auto space-y-1 ${fieldErrors.has('addonFor') ? 'border-red-500' : 'border-line'}`}>
+                            {mains.map(s => (
+                              <label key={s._id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-canvas-soft p-1 rounded-xs">
+                                <input type="checkbox" className="rounded border-line text-brand focus:ring-brand"
+                                  checked={formData.addonFor.includes(s._id)}
+                                  onChange={(e) => {
+                                    const next = e.target.checked ? [...formData.addonFor, s._id] : formData.addonFor.filter(id => id !== s._id);
+                                    setFormData({ ...formData, addonFor: next });
+                                    setFieldErrors(prev => { const n = new Set(prev); n.delete('addonFor'); return n; });
+                                  }} />
+                                <span className="flex-1 min-w-0 truncate">{s.name}</span>
+                                <span className="text-xs text-ink-muted">{categoryLabel(s.category)}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                        {fieldErrors.has('addonFor') && <p className="text-xs text-red-500 mt-1">{t('services.addonNeedsParent')}</p>}
+                      </div>
+                    );
+                  })()}
+                </div>
+                  </div>
+                )}
+              </section>
+            );
+          })()}
         </div>
       </Modal>
 
