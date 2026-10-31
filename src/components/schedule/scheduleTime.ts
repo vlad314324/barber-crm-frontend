@@ -1,4 +1,4 @@
-import type { Appointment } from '../../api/types';
+import type { Appointment, BreakInterval } from '../../api/types';
 
 // Геометрія сітки календаря (08:00–20:00, 30-хвилинні рядки по 32px) і
 // спільні хелпери часу для ScheduleGrid / BreaksModal / сторінки записів.
@@ -21,6 +21,19 @@ export const DAY_END = END_HOUR * 60;
 export const toMin = (hhmm: string) => {
   const [h, m] = hhmm.split(':').map(Number);
   return h * 60 + m;
+};
+
+// Набір перерв одного дня: кожна від < до, між собою не перетинаються.
+// Повертає i18n-ключ помилки або null.
+export const validateBreaks = (rows: Pick<BreakInterval, 'startTime' | 'endTime'>[]): string | null => {
+  for (const r of rows) {
+    if (!r.startTime || !r.endTime || toMin(r.startTime) >= toMin(r.endTime)) return 'appointments.breakInvalidRange';
+  }
+  const sorted = [...rows].sort((a, b) => toMin(a.startTime) - toMin(b.startTime));
+  for (let i = 1; i < sorted.length; i++) {
+    if (toMin(sorted[i].startTime) < toMin(sorted[i - 1].endTime)) return 'appointments.breakOverlap';
+  }
+  return null;
 };
 
 export const isActive = (a: Appointment) => a.status !== 'Cancelled' && a.status !== 'No-show' && a.status !== 'Rescheduled';

@@ -5,7 +5,7 @@ import { breakApi } from '../../api';
 import { BreakInterval, Employee, EmployeeBreak } from '../../api/types';
 import { useLocale } from '../../i18n/LocaleContext';
 import { getErrorMessage } from '../../utils/errors';
-import { toMin } from './scheduleTime';
+import { toMin, validateBreaks } from './scheduleTime';
 
 interface Props {
   employee: Employee | null;
@@ -52,21 +52,10 @@ const BreaksModal = ({ employee, date, dateKey, breaks, onClose, onSaved }: Prop
     }
   };
 
-  const validate = (): string | null => {
-    for (const r of rows) {
-      if (!r.startTime || !r.endTime || toMin(r.startTime) >= toMin(r.endTime)) return t('appointments.breakInvalidRange');
-    }
-    const sorted = [...rows].sort((a, b) => toMin(a.startTime) - toMin(b.startTime));
-    for (let i = 1; i < sorted.length; i++) {
-      if (toMin(sorted[i].startTime) < toMin(sorted[i - 1].endTime)) return t('appointments.breakOverlap');
-    }
-    return null;
-  };
-
   const handleSave = async () => {
     if (!employee) return;
-    const invalid = validate();
-    if (invalid) { setError(invalid); return; }
+    const invalid = validateBreaks(rows);
+    if (invalid) { setError(t(invalid)); return; }
     setSaving(true);
     setError(null);
     try {

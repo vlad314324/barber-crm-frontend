@@ -14,9 +14,10 @@ import { formatPrice, formatPriceRange, discounted } from '../utils/money';
 import { formatDurationRangeForUnit } from '../utils/duration';
 import { getCurrencySymbol } from '../constants/currencies';
 import DurationInput from '../components/DurationInput';
+import ClientPicker from '../components/ClientPicker';
 import { effectiveService, effectiveServices } from '../utils/employeePricing';
 import ScheduleGrid, { ScheduleColumn, HeaderMenuItem } from '../components/schedule/ScheduleGrid';
-import { BREAK_PATTERN, toMin } from '../components/schedule/scheduleTime';
+import { BREAK_PATTERN, toMin, validateBreaks } from '../components/schedule/scheduleTime';
 import BreaksModal from '../components/schedule/BreaksModal';
 import StoryModal from '../components/story/StoryModal';
 
@@ -240,6 +241,11 @@ const Appointments = () => {
   const [breakTarget, setBreakTarget] = useState<{ employee: Employee; date: Date } | null>(null);
 
   const [isAddOpen, setIsAddOpen] = useState(false);
+  // Модалка "Новий запис" вміє ще й ставити паузу майстру (той самий
+  // майстер/дата/час, замість окремого діалогу перерв).
+  const [addMode, setAddMode] = useState<'appointment' | 'pause'>('appointment');
+  const [pauseEnd, setPauseEnd] = useState('');
+  const [pauseComment, setPauseComment] = useState('');
   const [isStoryOpen, setIsStoryOpen] = useState(false);
   const [addForm,   setAddForm]   = useState(defaultAdd);
   const [saving,    setSaving]    = useState(false);
@@ -421,6 +427,7 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
     if (isSlotBusy(empId, time, date)) return;
     setAddForm({ ...defaultAdd, date: dateStr(date), startTime: time, employeeId: empId });
     setAddingNC(false); setNewClient(defaultNC); setPhoneMatch(null);
+    setAddMode('appointment'); setPauseEnd(''); setPauseComment('');
     setIsAddOpen(true);
   };
 
@@ -492,6 +499,32 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
     const digits = phone.replace(/\D/g,'');
     const match  = clients.find(c => c.phone.replace(/\D/g,'') === digits);
     setPhoneMatch(match || null);
+  };
+
+  const plusHour = (hhmm: string) => {
+    const m = Math.min(toMin(hhmm || '09:00') + 60, 24 * 60 - 1);
+    return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+  };
+
+  // Пауза дописується до вже наявних перерв майстра на цей день —
+  // API зберігає набір перерв дня цілим (PUT /breaks/:employeeId/:date).
+  const handleSavePause = async () => {
+    if (!addForm.employeeId) { alert(t('appointments.fillClientMasterService')); return; }
+    const newRow = { startTime: addForm.startTime, endTime: pauseEnd || plusHour(addForm.startTime), comment: pauseComment.trim() };
+    const rows = [
+      ...breaksFor(addForm.employeeId, parseDateLocal(addForm.date))
+        .map(b => ({ startTime: b.startTime, endTime: b.endTime, comment: b.comment || '' })),
+      newRow,
+    ];
+    const invalid = validateBreaks(rows);
+    if (invalid) { alert(t(invalid)); return; }
+    setSaving(true);
+    try {
+      await breakApi.saveDay(addForm.employeeId, addForm.date, rows);
+      setIsAddOpen(false);
+      fetchBreaks();
+    } catch (err) { alert(getErrorMessage(err) || t('appointments.breaksSaveError')); }
+    finally { setSaving(false); }
   };
 
   const handleSave = async () => {
@@ -714,7 +747,7 @@ if (selectedBarber) {
           )}
           {(isAdmin || myEmployee) && (
           <button
-            onClick={() => { setAddForm({...defaultAdd, date:dateStr(currentDate), employeeId: isAdmin ? '' : (myEmployee?._id || '')}); setAddingNC(false); setIsAddOpen(true); }}
+            onClick={() => { setAddForm({...defaultAdd, date:dateStr(currentDate), employeeId: isAdmin ? '' : (myEmployee?._id || '')}); setAddingNC(false); setAddMode('appointment'); setPauseEnd(''); setPauseComment(''); setIsAddOpen(true); }}
             className="btn btn-primary">
             <Plus size={16}/> <span className="hidden sm:inline">{t('appointments.addNew')}</span>
           </button>
@@ -823,6 +856,55 @@ if (selectedBarber) {
 
       <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title={t('appointments.newModalTitle')} size="xl">
         <div className="space-y-4">
+          <div className="inline-flex gap-1 bg-canvas-soft p-1 rounded-sm" role="group">
+            {(['appointment', 'pause'] as const).map(m => (
+              <button key={m} type="button" onClick={() => setAddMode(m)} aria-pressed={addMode === m}
+                className={`px-3 py-1 rounded-xs text-xs font-medium whitespace-nowrap transition-colors ${
+                  addMode === m ? 'bg-surface text-brand-dark shadow-sm' : 'text-ink-secondary hover:text-ink'}`}>
+                {t(m === 'appointment' ? 'appointments.modeAppointment' : 'appointments.modePause')}
+              </button>
+            ))}
+          </div>
+          {addMode === 'pause' ? (
+            <>
+              <div>
+                <label className="field-label">{t('appointments.master')}</label>
+                <select className="field-input disabled:opacity-70" disabled={!isAdmin}
+                  value={addForm.employeeId} onChange={e => setAddForm({...addForm, employeeId: e.target.value})}>
+                  <option value="">{t('appointments.masterChoosePlaceholder')}</option>
+                  {assignableBarbers.map(e => <option key={e._id} value={e._id}>{e.name}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="field-label">{t('appointments.date')}</label>
+                  <input type="date" className="field-input"
+                    value={addForm.date} onChange={e => setAddForm({...addForm, date:e.target.value})}/>
+                </div>
+                <div>
+                  <label className="field-label">{t('appointments.breakFrom')}</label>
+                  <input type="time" step={300} className="field-input"
+                    value={addForm.startTime} onChange={e => setAddForm({...addForm, startTime:e.target.value})}/>
+                </div>
+                <div>
+                  <label className="field-label">{t('appointments.breakTo')}</label>
+                  <input type="time" step={300} className="field-input"
+                    value={pauseEnd || plusHour(addForm.startTime)} onChange={e => setPauseEnd(e.target.value)}/>
+                </div>
+              </div>
+              <div>
+                <label className="field-label">{t('appointments.breakComment')}</label>
+                <input type="text" maxLength={100} className="field-input" value={pauseComment}
+                  placeholder={t('appointments.breakCommentPlaceholder')} onChange={e => setPauseComment(e.target.value)}/>
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button onClick={() => setIsAddOpen(false)} className="btn btn-secondary">{t('common.cancel')}</button>
+                <button onClick={handleSavePause} disabled={saving} className="btn btn-primary">
+                  {saving ? t('common.saving') : t('appointments.createPause')}
+                </button>
+              </div>
+            </>
+          ) : (<>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <div className="flex items-center justify-between mb-1">
@@ -874,11 +956,9 @@ if (selectedBarber) {
                   )}
                 </div>
               ) : (
-                <select className="field-input"
-                  value={addForm.clientId} onChange={e => setAddForm({...addForm, clientId:e.target.value})}>
-                  <option value="">{t('appointments.choosePlaceholder')}</option>
-                  {clients.map(c => <option key={c._id} value={c._id}>{c.name} · {c.phone}</option>)}
-                </select>
+                <ClientPicker clients={clients} value={addForm.clientId}
+                  onChange={id => setAddForm(f => ({...f, clientId:id}))}
+                  placeholder={t('clients.searchPlaceholder')} emptyText={t('clients.notFound')}/>
               )}
             </div>
 
@@ -956,6 +1036,7 @@ if (selectedBarber) {
               {saving ? t('common.saving') : t('appointments.create')}
             </button>
           </div>
+          </>)}
         </div>
       </Modal>
 
@@ -966,10 +1047,9 @@ if (selectedBarber) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="field-label">{t('appointments.client')}</label>
-                <select className="field-input"
-                  value={editForm.clientId} onChange={e => setEditForm({...editForm, clientId:e.target.value})}>
-                  {clients.map(c => <option key={c._id} value={c._id}>{c.name} · {c.phone}</option>)}
-                </select>
+                <ClientPicker clients={clients} value={editForm.clientId}
+                  onChange={id => setEditForm(f => ({...f, clientId:id}))}
+                  placeholder={t('clients.searchPlaceholder')} emptyText={t('clients.notFound')}/>
               </div>
               <div>
                 <label className="field-label">{t('appointments.master')}</label>

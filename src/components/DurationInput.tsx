@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { DurationUnit } from '../utils/duration';
 
 interface DurationInputProps {
@@ -18,11 +18,24 @@ interface DurationInputProps {
 // неможливо. Компонент монтується заново щоразу, коли відкривається
 // модалка редагування іншого запису (Modal розмонтовує дітей при закритті),
 // тож lazy-ініціалізація з value тут безпечна.
-const DurationInput = ({ value, onChange, unit, min = 0 }: DurationInputProps) => {
+// Але value може змінитись і ззовні, поки поле відкрите (вибір послуг у
+// записі перераховує тривалість) — тоді текст переписується з value.
+// Власні зміни не чіпаємо: порівнюємо з тим, що поле саме віддало
+// (undefined ~ 0, бо форма запису зберігає порожнє поле як 0).
+const DurationInput = ({ value, onChange: onChangeProp, unit, min = 0 }: DurationInputProps) => {
   const [hoursText, setHoursText] = useState(() => (value === undefined ? '' : String(Math.floor(value / 60))));
   const [minutesText, setMinutesText] = useState(() =>
     value === undefined ? '' : String(unit === 'hour' ? value % 60 : value)
   );
+  const lastEmitted = useRef(value);
+  const onChange = (minutes: number | undefined) => { lastEmitted.current = minutes; onChangeProp(minutes); };
+
+  useEffect(() => {
+    if ((value ?? 0) === (lastEmitted.current ?? 0)) return;
+    lastEmitted.current = value;
+    setHoursText(value === undefined ? '' : String(Math.floor(value / 60)));
+    setMinutesText(value === undefined ? '' : String(unit === 'hour' ? value % 60 : value));
+  }, [value, unit]);
 
   if (unit === 'hour') {
     const emit = (h: string, m: string) => {
