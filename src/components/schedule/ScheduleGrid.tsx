@@ -1,6 +1,38 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import { Appointment, EmployeeBreak } from '../../api/types';
-import { SLOTS, SLOT_MIN, PX_PER_SLOT, TOTAL_H, toMin, place, isActive, BREAK_PATTERN, PREP_PATTERN } from './scheduleTime';
+import { SLOTS, SLOT_MIN, PX_PER_SLOT, TOTAL_H, DAY_START, DAY_END, toMin, minToTime, place, isActive, BREAK_PATTERN, PREP_PATTERN } from './scheduleTime';
+
+const SNAP_MIN = 15;
+const DRAG_THRESHOLD_PX = 5;
+const TOUCH_HOLD_MS = 350;
+const AUTOSCROLL_EDGE_PX = 48;
+
+// Найближчий предок, що скролиться по вертикалі (у Layout це <main>).
+const scrollParent = (el: HTMLElement | null): HTMLElement | null => {
+  for (let p = el?.parentElement; p; p = p.parentElement) {
+    const oy = getComputedStyle(p).overflowY;
+    if ((oy === 'auto' || oy === 'scroll') && p.scrollHeight > p.clientHeight) return p;
+  }
+  return null;
+};
+
+interface DragState {
+  appt: Appointment;
+  fromCol: string;
+  pointerId: number;
+  x0: number;
+  y0: number;
+  grabMin: number;     // де всередині блока схопили, хв від його початку
+  started: boolean;
+  holdTimer?: number;
+}
+
+interface Ghost {
+  apptId: string;
+  colKey: string;
+  start: number;
+  ok: boolean;
+}
 
 
 export interface HeaderMenuItem {
@@ -11,6 +43,8 @@ export interface HeaderMenuItem {
 
 export interface ScheduleColumn {
   key: string;
+  employeeId: string;  // куди потрапляє запис, перетягнутий у цю колонку
+  date: Date;
   header: ReactNode;
   menuItems: HeaderMenuItem[];
   dayOff: boolean;
@@ -29,13 +63,117 @@ interface Props {
   prepLabel: (minutes: number) => string;
   renderAppointment: (appt: Appointment, heightPx: number) => ReactNode;
   onAppointmentClick: (appt: Appointment) => void;
+  // Перетягування записів; без onAppointmentDrop сітка лише для перегляду.
+  canDrag?: (appt: Appointment) => boolean;
+  canDrop?: (appt: Appointment, colKey: string, startTime: string) => boolean;
+  onAppointmentDrop?: (appt: Appointment, colKey: string, startTime: string) => void;
 }
 
 // Сітка календаря: колонки (майстри дня або дні тижня одного майстра) ×
 // 30-хвилинні рядки 08:00–20:00. Записи й перерви позиціонуються абсолютно
 // за хвилинами, тож запис о 10:15 малюється там, де він є.
-const ScheduleGrid = ({ columns, emptyText, breakLabel, prepLabel, renderAppointment, onAppointmentClick }: Props) => {
+const ScheduleGrid = ({ columns, emptyText, breakLabel, prepLabel, renderAppointment, onAppointmentClick, canDrag, canDrop, onAppointmentDrop }: Props) => {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const colRefs = useRef(new Map<string, HTMLDivElement>());
+  const drag = useRef<DragState | null>(null);
+  const [ghost, setGhost] = useState<Ghost | null>(null);
+  const ghostRef = useRef<Ghost | null>(null);
+  const suppressClick = useRef(false);
+  // Обробники на window живуть увесь drag — беруть свіжі props через ref.
+  const live = useRef({ columns, canDrop, onAppointmentDrop });
+  live.current = { columns, canDrop, onAppointmentDrop };
+
+  const showGhost = (g: Ghost | null) => { ghostRef.current = g; setGhost(g); };
+
+  // Точка курсора -> колонка і початок запису, прив'язаний до 15 хв.
+  const locate = (d: DragState, x: number, y: number): Ghost | null => {
+    for (const col of live.current.columns) {
+      const r = colRefs.current.get(col.key)?.getBoundingClientRect();
+      if (!r || x < r.left || x >= r.right) continue;
+      const dur = Math.max(d.appt.totalDuration, SNAP_MIN);
+      const raw = DAY_START + ((y - r.top) / PX_PER_SLOT) * SLOT_MIN - d.grabMin;
+      const start = Math.max(DAY_START, Math.min(Math.round(raw / SNAP_MIN) * SNAP_MIN, DAY_END - dur));
+      const ok = !col.dayOff && (live.current.canDrop?.(d.appt, col.key, minToTime(start)) ?? true);
+      return { apptId: d.appt._id, colKey: col.key, start, ok };
+    }
+    return null;
+  };
+
+  const endDrag = (commit: boolean) => {
+    const d = drag.current;
+    if (!d) return;
+    window.clearTimeout(d.holdTimer);
+    const g = ghostRef.current;
+    if (commit && d.started && g && g.ok && (g.colKey !== d.fromCol || g.start !== toMin(d.appt.startTime))) {
+      live.current.onAppointmentDrop?.(d.appt, g.colKey, minToTime(g.start));
+    }
+    if (d.started) {
+      suppressClick.current = true;
+      window.setTimeout(() => { suppressClick.current = false; }, 0);
+    }
+    drag.current = null;
+    showGhost(null);
+  };
+
+  const beginDrag = (d: DragState, x: number, y: number) => {
+    d.started = true;
+    showGhost(locate(d, x, y));
+  };
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      const d = drag.current;
+      if (!d || e.pointerId !== d.pointerId) return;
+      if (!d.started) {
+        const moved = Math.hypot(e.clientX - d.x0, e.clientY - d.y0) > DRAG_THRESHOLD_PX;
+        // Тач: рух до кінця утримання — це скрол сторінки, не drag.
+        if (e.pointerType === 'touch') { if (moved) endDrag(false); return; }
+        if (!moved) return;
+        beginDrag(d, e.clientX, e.clientY);
+      }
+      const scroller = scrollParent(colRefs.current.values().next().value ?? null);
+      const top = scroller ? scroller.getBoundingClientRect().top : 0;
+      const bottom = scroller ? scroller.getBoundingClientRect().bottom : window.innerHeight;
+      const step = e.clientY < top + AUTOSCROLL_EDGE_PX ? -16 : e.clientY > bottom - AUTOSCROLL_EDGE_PX ? 16 : 0;
+      if (step) (scroller ?? window).scrollBy(0, step);
+      showGhost(locate(d, e.clientX, e.clientY));
+    };
+    const onUp = (e: PointerEvent) => { if (drag.current?.pointerId === e.pointerId) endDrag(true); };
+    const onCancel = (e: PointerEvent) => { if (drag.current?.pointerId === e.pointerId) endDrag(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') endDrag(false); };
+    // Під час drag пальцем сторінка не повинна скролитись.
+    const onTouchMove = (e: TouchEvent) => { if (drag.current?.started) e.preventDefault(); };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('touchmove', onTouchMove);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const onApptPointerDown = (e: React.PointerEvent, a: Appointment, colKey: string) => {
+    if (!onAppointmentDrop || !canDrag?.(a) || e.button !== 0 || drag.current) return;
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const d: DragState = {
+      appt: a, fromCol: colKey, pointerId: e.pointerId, x0: e.clientX, y0: e.clientY,
+      grabMin: ((e.clientY - rect.top) / PX_PER_SLOT) * SLOT_MIN, started: false,
+    };
+    drag.current = d;
+    if (e.pointerType === 'touch') {
+      d.holdTimer = window.setTimeout(() => {
+        if (drag.current === d) { beginDrag(d, d.x0, d.y0); navigator.vibrate?.(20); }
+      }, TOUCH_HOLD_MS);
+    } else {
+      e.preventDefault(); // без виділення тексту під час drag мишею
+    }
+  };
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!openMenu) return;
@@ -105,7 +243,8 @@ const ScheduleGrid = ({ columns, emptyText, breakLabel, prepLabel, renderAppoint
 
         {/* ── колонки ── */}
         {columns.map(col => (
-          <div key={col.key} className="relative border-l border-l-line/50" style={{ height: TOTAL_H }}>
+          <div key={col.key} className="relative border-l border-l-line/50" style={{ height: TOTAL_H }}
+            ref={el => { if (el) colRefs.current.set(col.key, el); else colRefs.current.delete(col.key); }}>
             {SLOTS.map(slot => {
               const topColor = slot.endsWith(':00') ? 'border-t-line' : 'border-t-line/50';
               const blocked = col.dayOff || slotBlocked(col, slot);
@@ -148,13 +287,17 @@ const ScheduleGrid = ({ columns, emptyText, breakLabel, prepLabel, renderAppoint
               // (лише в активних: скасований запис час не тримає).
               const prep = isActive(a) && (a.prepTime ?? 0) > 0 ? place(end, end + (a.prepTime ?? 0)) : null;
               if (!pos && !prep) return null;
+              const draggable = !!onAppointmentDrop && !!canDrag?.(a);
               return (
-                <div key={a._id}>
+                <div key={a._id} className={ghost?.apptId === a._id ? 'opacity-40' : ''}>
                   {pos && (
                     <div
-                      onClick={e => { e.stopPropagation(); onAppointmentClick(a); }}
-                      style={{ top: pos.top + 1, height: pos.height - (prep ? 1 : 2), left: 4, right: 4 }}
-                      className={`absolute ${isActive(a) ? 'z-[6]' : 'z-[5]'}`}>
+                      onClick={e => { e.stopPropagation(); if (!suppressClick.current) onAppointmentClick(a); }}
+                      onPointerDown={e => onApptPointerDown(e, a, col.key)}
+                      // Утримання пальцем інакше відкриває системне меню замість drag.
+                      onContextMenu={e => { if (drag.current) e.preventDefault(); }}
+                      style={{ top: pos.top + 1, height: pos.height - (prep ? 1 : 2), left: 4, right: 4, WebkitTouchCallout: 'none' }}
+                      className={`absolute ${isActive(a) ? 'z-[6]' : 'z-[5]'} ${draggable ? 'select-none' : ''}`}>
                       {renderAppointment(a, pos.height - 2)}
                     </div>
                   )}
@@ -170,6 +313,21 @@ const ScheduleGrid = ({ columns, emptyText, breakLabel, prepLabel, renderAppoint
                 </div>
               );
             })}
+
+            {ghost?.colKey === col.key && (() => {
+              const appt = drag.current?.appt;
+              if (!appt) return null;
+              const end = ghost.start + Math.max(appt.totalDuration, SNAP_MIN);
+              const pos = place(ghost.start, end);
+              if (!pos) return null;
+              return (
+                <div style={{ top: pos.top + 1, height: pos.height - 2, left: 4, right: 4 }}
+                  className={`absolute z-[8] pointer-events-none rounded border-2 border-dashed px-1.5 py-0.5 text-xs font-semibold shadow-md ${
+                    ghost.ok ? 'border-brand bg-brand-soft/80 text-brand-dark' : 'border-red-500 bg-red-50/80 text-red-600 dark:bg-red-950/60 dark:text-red-400'}`}>
+                  {minToTime(ghost.start)}–{minToTime(end)}
+                </div>
+              );
+            })()}
           </div>
         ))}
       </div>

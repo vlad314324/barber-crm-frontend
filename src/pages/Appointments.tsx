@@ -447,6 +447,8 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
 
   const columnFor = (emp: Employee, date: Date, header: ReactNode, extraMenu: HeaderMenuItem[], key: string, highlight = false): ScheduleColumn => ({
     key,
+    employeeId: emp._id,
+    date,
     header,
     menuItems: [...breakMenuItem(emp, date), ...extraMenu],
     dayOff: isDayOff(emp, date),
@@ -493,6 +495,56 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
         ), [], dateStr(date), isToday);
       })
       : [];
+
+  // ── Перетягування записів у календарі ──
+  // Лише заплановані; майстер — тільки свої і тільки у своїй колонці
+  // (сервер перевіряє те саме, тут — щоб не показувати марний drag).
+  const apptEmployeeId = (a: Appointment) =>
+    a.employee && typeof a.employee === 'object' ? a.employee._id : (a.employee as unknown as string);
+  const canDragAppt = (a: Appointment) =>
+    a.status === 'Scheduled' && (isAdmin || (!!myEmployee && apptEmployeeId(a) === myEmployee._id));
+
+  const canDropAppt = (a: Appointment, colKey: string, time: string) => {
+    const col = gridColumns.find(c => c.key === colKey);
+    if (!col || col.dayOff) return false;
+    if (!isAdmin && col.employeeId !== myEmployee?._id) return false;
+    if (col.employeeId !== apptEmployeeId(a)) {
+      const allowed = new Set(allowedServices(col.employeeId).map(s => s._id));
+      if (!a.services.every(s => allowed.has(typeof s === 'object' ? s._id : s))) return false;
+    }
+    return !isSlotBusy(col.employeeId, time, col.date, a.totalDuration, a._id, a.prepTime ?? 0);
+  };
+
+  const handleApptDrop = async (a: Appointment, colKey: string, time: string) => {
+    const col = gridColumns.find(c => c.key === colKey);
+    if (!col) return;
+    const emp = employees.find(e => e._id === col.employeeId);
+    const ok = window.confirm(t('appointments.moveConfirm', {
+      name: clientName(a.client),
+      date: col.date.toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'long' }),
+      time,
+      master: emp?.name || '',
+    }));
+    if (!ok) return;
+    const masterChanged = col.employeeId !== apptEmployeeId(a);
+    const prev = appointments;
+    // Одразу ставимо блок на нове місце, сервер підтвердить або відкотимо.
+    setAppointments(list => list.map(x => x._id === a._id
+      ? { ...x, date: dateStr(col.date), startTime: time, employee: emp ?? x.employee }
+      : x));
+    try {
+      await appointmentApi.update(a._id, {
+        employee: col.employeeId, date: dateStr(col.date), startTime: time,
+        // З іншим майстром сервер перевірить, що він надає ці послуги.
+        ...(masterChanged ? { services: a.services.map(s => (typeof s === 'object' ? s._id : s)) } : {}),
+      });
+      // Тихе оновлення: fetchAll показав би лоадер на всю сторінку.
+      appointmentApi.getAll().then(setAppointments).catch(() => {});
+    } catch (err) {
+      setAppointments(prev);
+      alert(getErrorMessage(err) || t('appointments.moveFailed'));
+    }
+  };
 
   const handlePhoneChange = (phone: string) => {
     setNewClient(p => ({ ...p, phone }));
@@ -820,6 +872,9 @@ if (selectedBarber) {
             breakLabel={t('appointments.breakLabel')}
             prepLabel={min => t('appointments.prepLabel', { min })}
             onAppointmentClick={openEdit}
+            canDrag={canDragAppt}
+            canDrop={canDropAppt}
+            onAppointmentDrop={handleApptDrop}
             renderAppointment={(a, height) => {
               const color = STATUS_COLORS[a.status] || 'bg-brand border-brand-dark';
               return (

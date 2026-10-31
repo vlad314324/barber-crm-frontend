@@ -36,6 +36,9 @@ export const validateBreaks = (rows: Pick<BreakInterval, 'startTime' | 'endTime'
   return null;
 };
 
+export const minToTime = (min: number) =>
+  `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+
 // Неявка, як і на сервері (utils/appointmentOverlap.js), займає час —
 // звільняють слот лише скасовані й перенесені записи.
 export const isActive = (a: Appointment) => a.status !== 'Cancelled' && a.status !== 'Rescheduled';
