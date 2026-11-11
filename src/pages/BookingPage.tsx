@@ -8,7 +8,7 @@ import {
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { API_BASE_URL } from '../api';
-import { BOOKING_LANG_LABELS, BookingLang, tBooking } from '../i18n/bookingTranslations';
+import { BOOKING_LANGS, BOOKING_LANG_LABELS, BookingLang, tBooking } from '../i18n/bookingTranslations';
 import LanguageToggle from '../components/LanguageToggle';
 import LocationMap from '../components/LocationMap';
 import { getErrorMessage, getErrorCode } from '../utils/errors';
@@ -16,7 +16,7 @@ import { PublicBookingSettings } from '../api/types';
 import { formatPriceRange, discounted } from '../utils/money';
 import PriceTag from '../components/booking/PriceTag';
 
-const BOOKING_LOCALES: Record<string, string> = { uk: 'uk-UA', en: 'en-US', cs: 'cs-CZ', pl: 'pl-PL' };
+const BOOKING_LOCALES: Record<string, string> = { uk: 'uk-UA', en: 'en-US', cs: 'cs-CZ', pl: 'pl-PL', de: 'de-DE' };
 import { formatDurationRange } from '../utils/duration';
 import { trackEvent } from '../utils/tracking';
 import { useTheme } from '../context/ThemeContext';
@@ -250,7 +250,7 @@ const BookingPage = () => {
     branding?.serviceCategoryTranslations?.[category]?.[lang]?.trim() || category;
 
   const enabledLangs = (branding?.bookingLanguages?.length
-    ? branding.bookingLanguages.filter((l): l is BookingLang => (DEFAULT_BOOKING_LANGS as string[]).includes(l) || l === 'cs' || l === 'pl')
+    ? branding.bookingLanguages.filter((l): l is BookingLang => (BOOKING_LANGS as readonly string[]).includes(l))
     : DEFAULT_BOOKING_LANGS);
 
   // Початкова мова сторінки (нею ж прийде лист клієнту), за пріоритетом:

@@ -6,7 +6,7 @@
 // `booking`) so existing `t('booking.x')` / `t('common.x')` / `t(\`roles.${role}\`)`
 // call sites on the booking page keep working unchanged.
 
-export const BOOKING_LANGS = ['uk', 'en', 'cs', 'pl'] as const;
+export const BOOKING_LANGS = ['uk', 'en', 'cs', 'pl', 'de'] as const;
 export type BookingLang = typeof BOOKING_LANGS[number];
 
 export const BOOKING_LANG_LABELS: Record<BookingLang, string> = {
@@ -14,6 +14,7 @@ export const BOOKING_LANG_LABELS: Record<BookingLang, string> = {
   en: 'EN',
   cs: 'CZ',
   pl: 'PL',
+  de: 'DE',
 };
 
 interface BookingDict {
@@ -424,7 +425,90 @@ const pl: BookingDict = {
   },
 };
 
-export const bookingTranslations: Record<BookingLang, BookingDict> = { uk, en, cs, pl };
+const de: BookingDict = {
+  roles: { Barber: 'Friseur', Receptionist: 'Rezeption', Manager: 'Manager' },
+  days: { monday: 'Mo', tuesday: 'Di', wednesday: 'Mi', thursday: 'Do', friday: 'Fr', saturday: 'Sa', sunday: 'So' },
+  gift: {
+    banner: '{{name}}, Ihr Geburtstagsgeschenk: −{{pct}} % auf einen Termin bis {{date}}',
+    bannerNoName: 'Ihr Geburtstagsgeschenk: −{{pct}} % auf einen Termin bis {{date}}',
+    used: 'Der Rabatt aus diesem Link wurde bereits eingelöst — wir zeigen die regulären Preise.',
+    outOfRange: 'Der Rabatt von −{{pct}} % gilt für Termine bis {{date}}. Bitte wählen Sie ein früheres Datum.',
+    withoutDiscount: 'Ohne Rabatt buchen',
+    errors: {
+      PROMO_NOT_FOUND: 'Der Rabatt aus diesem Link wurde nicht gefunden.',
+      PROMO_DATE_OUT_OF_RANGE: 'Der Rabatt gilt nur für Termine innerhalb seiner Gültigkeitsdauer.',
+      PROMO_PHONE_MISMATCH: 'Der Rabatt gilt nur für die Telefonnummer, an die er gesendet wurde.',
+      PROMO_ALREADY_USED: 'Dieser Rabatt wurde bereits eingelöst.',
+    },
+  },
+  booking: {
+    copyAddress: 'Kopieren',
+    at: 'um',
+    onlineBooking: 'Online-Buchung',
+    noSalonTitle: 'Kein Salon angegeben',
+    noSalonSubtitle: 'Dieser Link führt zu keinem bestimmten Salon. Prüfen Sie, ob Sie den vollständigen Link kopiert haben — er sollte den Namen des Salons enthalten (z. B. /book/barbershop).',
+    menuMaster: 'Spezialist wählen',
+    menuDateTime: 'Datum und Uhrzeit wählen',
+    menuServices: 'Leistungen wählen',
+    menuAbout: 'Über den Salon',
+    chooseMasterFirst: 'Wählen Sie zuerst einen Spezialisten',
+    notForServices: 'Bietet die gewählten Leistungen nicht an',
+    busyAt: 'Um {{time}} belegt',
+    timeNoLongerAvailable: 'Die gewählte Uhrzeit ist nicht mehr verfügbar — bitte wählen Sie eine andere',
+    chooseMasterToFinish: 'Wählen Sie einen Spezialisten, um die Buchung abzuschließen',
+    addToService: 'Zur Leistung hinzufügen',
+    bookNow: 'Buchen',
+    confirmSelection: 'Fertig',
+    aboutTitle: 'Über den Salon',
+    workingHoursTitle: 'Öffnungszeiten',
+    locationTitle: 'Standort',
+    noCoordinates: 'Der Administrator hat noch keine Kartenkoordinaten festgelegt',
+    chooseService: 'Leistung wählen',
+    chooseMaster: 'Spezialist wählen',
+    chooseDateTime: 'Datum und Uhrzeit wählen',
+    contactsTitle: 'Ihre Kontaktdaten',
+    confirmTitle: 'Buchungsbestätigung',
+    selectedCount: 'Ausgewählt: {{count}} Leistungen • {{duration}}',
+    readMore: 'Weiterlesen',
+    showLess: 'Weniger anzeigen',
+    dateLabel: 'Datum',
+    availableTimeLabel: 'Freie Zeiten',
+    closedMessage: '🚫 Der Salon ist an diesem Tag geschlossen',
+    notOpenYetMessage: '🗓 Für diesen Tag ist die Buchung noch nicht geöffnet. Online-Buchung ist bis {{date}} möglich',
+    openUntilHint: 'Online-Buchung ist bis {{date}} geöffnet',
+    noSlots: 'An diesem Tag sind keine Termine frei',
+    nameLabel: 'Vor- und Nachname *',
+    namePlaceholder: 'Max Mustermann',
+    phoneLabel: 'Telefon *',
+    messagingConsent: 'Ich bin einverstanden, von {{salon}} Benachrichtigungen zu meiner Buchung per Viber, WhatsApp oder SMS zu erhalten',
+    emailLabel: 'E-Mail *',
+    next: 'Weiter',
+    back: 'Zurück',
+    confirmBtn: 'Buchung bestätigen',
+    booking: 'Wird gebucht...',
+    confirmed: 'Buchung bestätigt!',
+    masterLabel: 'Spezialist',
+    servicesLabel: 'Leistungen',
+    dateTimeLabel: 'Datum und Uhrzeit',
+    durationLabel: 'Dauer',
+    sumLabel: 'Gesamt',
+    bookAgain: 'Erneut buchen',
+    telegramCta: 'Benachrichtigungen in Telegram erhalten',
+    telegramHint: 'Bestätigung, Erinnerungen 24 h und 2 h vor dem Termin, Änderungen der Buchung',
+    telegramLinked: 'Erinnerungen kommen per Telegram',
+    invalidEmail: 'Bitte geben Sie eine gültige E-Mail ein (z. B. max@gmail.com)',
+    fillAll: 'Bitte füllen Sie alle Felder aus',
+    bookingError: 'Fehler bei der Buchung',
+    minutes: 'Min.',
+    hours: 'Std.',
+    loading: 'Wird geladen...',
+    loadError: 'Die Seitendaten konnten nicht geladen werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.',
+    retry: 'Erneut versuchen',
+    slotsLoadError: 'Freie Termine konnten nicht geladen werden. Bitte versuchen Sie es erneut.',
+  },
+};
+
+export const bookingTranslations: Record<BookingLang, BookingDict> = { uk, en, cs, pl, de };
 
 const getPath = (obj: unknown, path: string): unknown =>
   path.split('.').reduce<unknown>((acc, key) => {
