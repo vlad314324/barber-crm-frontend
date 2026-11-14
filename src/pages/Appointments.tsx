@@ -16,6 +16,7 @@ import { getCurrencySymbol } from '../constants/currencies';
 import DurationInput from '../components/DurationInput';
 import ClientPicker from '../components/ClientPicker';
 import PhoneInput from '../components/PhoneInput';
+import BirthdayInput from '../components/BirthdayInput';
 import ServicePicker from '../components/ServicePicker';
 import { errorFieldClass } from '../utils/formValidation';
 import { effectiveService, effectiveServices } from '../utils/employeePricing';
@@ -947,9 +948,8 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
                               placeholder="instagram" value={newClient.instagram}
                               onChange={e => setNewClient(p => ({...p, instagram:e.target.value.replace(/^@/, '')}))}/>
                           </div>
-                          <input type="date" className="field-input min-w-0" aria-label={t('clients.birthday')} title={t('clients.birthday')}
-                            value={newClient.birthday} max={new Date().toISOString().slice(0, 10)}
-                            onChange={e => setNewClient(p => ({...p, birthday:e.target.value}))}/>
+                          <BirthdayInput value={newClient.birthday}
+                            onChange={v => setNewClient(p => ({...p, birthday:v}))}/>
                         </div>
                       </>
                     )}

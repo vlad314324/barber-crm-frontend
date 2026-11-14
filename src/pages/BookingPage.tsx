@@ -6,6 +6,7 @@ import {
   User, CalendarDays, ListChecks, Info, MapPin, Phone, Globe, Copy, Check,
 } from 'lucide-react';
 import PhoneInput from 'react-phone-number-input';
+import { shopCountry } from '../utils/shopCountry';
 import 'react-phone-number-input/style.css';
 import { API_BASE_URL } from '../api';
 import { BOOKING_LANGS, BOOKING_LANG_LABELS, BookingLang, tBooking } from '../i18n/bookingTranslations';
@@ -1008,7 +1009,7 @@ const BookingPage = () => {
               <label className="field-label">{t('booking.phoneLabel')}</label>
               <PhoneInput
                 international
-                defaultCountry="UA"
+                defaultCountry={shopCountry(branding?.phone, branding?.timezone)}
                 value={clientPhone}
                 onChange={(val) => setClientPhone(val || '')}
                 className="phone-input"

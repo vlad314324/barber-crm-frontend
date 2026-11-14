@@ -13,6 +13,7 @@ import { getErrorMessage } from '../utils/errors';
 import { useShopCurrency } from '../context/SettingsContext';
 import { formatPrice } from '../utils/money';
 import { instagramUrl, formatBirthday } from '../utils/clientProfile';
+import BirthdayInput from '../components/BirthdayInput';
 
 const ClientDetails = () => {
   const { t, lang } = useLocale();
@@ -334,14 +335,17 @@ const ClientDetails = () => {
                 {label}
                 {optional && <span className="ml-1 font-normal text-ink-muted">({t('clients.optional')})</span>}
               </label>
-              <input
-                type={type}
-                className="field-input"
-                value={formData[key]}
-                placeholder={placeholder}
-                max={type === 'date' ? new Date().toISOString().slice(0, 10) : undefined}
-                onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
-              />
+              {type === 'date' ? (
+                <BirthdayInput value={formData[key]} onChange={(v) => setFormData({ ...formData, [key]: v })} />
+              ) : (
+                <input
+                  type={type}
+                  className="field-input"
+                  value={formData[key]}
+                  placeholder={placeholder}
+                  onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
+                />
+              )}
             </div>
           ))}
           <div className="flex justify-end gap-3 pt-2">

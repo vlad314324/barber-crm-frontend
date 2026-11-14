@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { useLocale } from '../i18n/LocaleContext';
+import { useShopPhoneDialCode } from '../context/SettingsContext';
 
-const DEFAULT_CODE = '+380';
+const FALLBACK_CODE = '+380';
 
 const COUNTRIES = [
   { code: '+380', flag: '🇺🇦', name: 'Україна' },
@@ -29,10 +30,11 @@ const COUNTRIES = [
 
 // Повний номер ("+420723016335") -> код країни + локальна частина.
 // Найдовший збіг, щоб "+358" не сприймався як "+3…".
-const splitPhone = (full: string) => {
+// defaultCode — код країни салону, для порожнього номера.
+const splitPhone = (full: string, defaultCode: string) => {
   const v = (full || '').replace(/\s/g, '');
   const match = [...COUNTRIES].sort((a, b) => b.code.length - a.code.length).find(c => v.startsWith(c.code));
-  return match ? { code: match.code, local: v.slice(match.code.length) } : { code: DEFAULT_CODE, local: v.replace(/^\+/, '') };
+  return match ? { code: match.code, local: v.slice(match.code.length) } : { code: defaultCode, local: v.replace(/^\+/, '') };
 };
 
 interface PhoneInputProps {
@@ -45,8 +47,11 @@ interface PhoneInputProps {
 // Телефон з вибором країни; віддає повний номер ("+420…").
 const PhoneInput = ({ value, onChange, invalid, id }: PhoneInputProps) => {
   const { t } = useLocale();
-  const [countryCode, setCountryCode] = useState(() => splitPhone(value).code);
-  const [localNumber, setLocalNumber] = useState(() => splitPhone(value).local);
+  // Код країни салону (Чехія -> +420); якщо його немає в списку — український.
+  const shopCode = useShopPhoneDialCode();
+  const defaultCode = COUNTRIES.some(c => c.code === shopCode) ? shopCode : FALLBACK_CODE;
+  const [countryCode, setCountryCode] = useState(() => splitPhone(value, defaultCode).code);
+  const [localNumber, setLocalNumber] = useState(() => splitPhone(value, defaultCode).local);
   const [showDropdown, setShowDropdown] = useState(false);
   const [search, setSearch] = useState('');
   const dropRef = useRef<HTMLDivElement>(null);
@@ -62,8 +67,8 @@ const PhoneInput = ({ value, onChange, invalid, id }: PhoneInputProps) => {
   }, []);
 
   useEffect(() => {
-    if (value === '') { setLocalNumber(''); setCountryCode(DEFAULT_CODE); }
-  }, [value]);
+    if (value === '') { setLocalNumber(''); setCountryCode(defaultCode); }
+  }, [value, defaultCode]);
 
   const handleLocal = (v: string) => { setLocalNumber(v); onChange(countryCode + v); };
   const selectCountry = (code: string) => { setCountryCode(code); onChange(code + localNumber); setShowDropdown(false); setSearch(''); };

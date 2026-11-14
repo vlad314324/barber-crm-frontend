@@ -3,6 +3,7 @@ import api from '../api';
 import { DEFAULT_CURRENCY } from '../constants/currencies';
 import { DurationUnit } from '../utils/duration';
 import { BookingLang, BOOKING_LANGS } from '../i18n/bookingTranslations';
+import { shopCountry, dialCodeOf } from '../utils/shopCountry';
 
 const DEFAULT_DURATION_UNIT: DurationUnit = 'min';
 const DEFAULT_BOOKING_LANGUAGES: BookingLang[] = ['uk', 'en'];
@@ -19,6 +20,8 @@ interface SettingsContextType {
   // поля перекладу лише для реально увімкнених мов.
   bookingLanguages: BookingLang[];
   defaultBookingLanguage: BookingLang;
+  // Телефонний код країни салону ("+420") — за замовчуванням у нових номерах.
+  phoneDialCode: string;
   // Дозволяє будь-якому компоненту (напр. сторінці Налаштувань після
   // збереження) примусово перечитати /settings, щоб решта застосунку
   // (уже змонтована — контекст ініціалізується лише раз при старті) одразу
@@ -31,6 +34,7 @@ const noopRefresh = async () => {};
 const SettingsContext = createContext<SettingsContextType>({
   currency: DEFAULT_CURRENCY, serviceRangesEnabled: false, durationUnit: DEFAULT_DURATION_UNIT,
   bookingLanguages: DEFAULT_BOOKING_LANGUAGES, defaultBookingLanguage: DEFAULT_BOOKING_LANGUAGE,
+  phoneDialCode: dialCodeOf(shopCountry()),
   refresh: noopRefresh,
 });
 
@@ -40,12 +44,14 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const [durationUnit, setDurationUnit] = useState<DurationUnit>(DEFAULT_DURATION_UNIT);
   const [bookingLanguages, setBookingLanguages] = useState<BookingLang[]>(DEFAULT_BOOKING_LANGUAGES);
   const [defaultBookingLanguage, setDefaultBookingLanguage] = useState<BookingLang>(DEFAULT_BOOKING_LANGUAGE);
+  const [phoneDialCode, setPhoneDialCode] = useState(() => dialCodeOf(shopCountry()));
 
   const refresh = useCallback(async () => {
     try {
       const r = await api.get('/settings');
       setCurrency(r.data.currency || DEFAULT_CURRENCY);
       setServiceRangesEnabled(!!r.data.serviceRangesEnabled);
+      setPhoneDialCode(dialCodeOf(shopCountry(r.data.phone, r.data.timezone)));
       setDurationUnit(r.data.durationDisplayUnit === 'hours' ? 'hour' : DEFAULT_DURATION_UNIT);
       const langs = (Array.isArray(r.data.bookingLanguages) ? r.data.bookingLanguages : [])
         .filter((l: string): l is BookingLang => (BOOKING_LANGS as readonly string[]).includes(l));
@@ -63,7 +69,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => { refresh(); }, [refresh]);
 
   return (
-    <SettingsContext.Provider value={{ currency, serviceRangesEnabled, durationUnit, bookingLanguages, defaultBookingLanguage, refresh }}>
+    <SettingsContext.Provider value={{ currency, serviceRangesEnabled, durationUnit, bookingLanguages, defaultBookingLanguage, phoneDialCode, refresh }}>
       {children}
     </SettingsContext.Provider>
   );
@@ -74,4 +80,5 @@ export const useShopServiceRangesEnabled = () => useContext(SettingsContext).ser
 export const useShopDurationUnit = () => useContext(SettingsContext).durationUnit;
 export const useShopBookingLanguages = () => useContext(SettingsContext).bookingLanguages;
 export const useShopDefaultBookingLanguage = () => useContext(SettingsContext).defaultBookingLanguage;
+export const useShopPhoneDialCode = () => useContext(SettingsContext).phoneDialCode;
 export const useRefreshShopSettings = () => useContext(SettingsContext).refresh;

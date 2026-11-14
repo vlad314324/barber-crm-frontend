@@ -5,6 +5,7 @@ import { clientApi } from '../api';
 import { Client, ImportResult } from '../api/types';
 import Modal from '../components/Modal';
 import PhoneInput from '../components/PhoneInput';
+import BirthdayInput from '../components/BirthdayInput';
 import UpcomingBirthdays from '../components/clients/UpcomingBirthdays';
 import { useLocale } from '../i18n/LocaleContext';
 import { useAuth } from '../context/AuthContext';
@@ -404,13 +405,10 @@ const Clients = () => {
             </div>
             <div className="min-w-0">
               <label htmlFor="cl-bday" className="field-label">{t('clients.birthday')}</label>
-              <input
+              <BirthdayInput
                 id="cl-bday"
-                type="date"
-                className="field-input"
                 value={formData.birthday}
-                max={new Date().toISOString().slice(0, 10)}
-                onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
+                onChange={(v) => setFormData({ ...formData, birthday: v })}
               />
             </div>
           </div>

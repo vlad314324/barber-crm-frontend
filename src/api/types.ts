@@ -422,6 +422,7 @@ export interface ShopSettings {
 // Публічний підмножина ShopSettings, яку віддає /booking/settings
 export interface PublicBookingSettings {
   shopName: string;
+  timezone?: string;
   coverImageUrl?: string;
   logoUrl?: string;
   tagline?: string;
