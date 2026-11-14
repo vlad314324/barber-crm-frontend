@@ -9,6 +9,8 @@ import { getErrorMessage } from '../utils/errors';
 import { getPasswordError } from '../utils/passwordValidation';
 import { missingFields, errorFieldClass } from '../utils/formValidation';
 import PhoneInput from '../components/PhoneInput';
+import Stars from '../components/reviews/Stars';
+import ReviewsList from '../components/reviews/ReviewsList';
 import { useShopCurrency, useShopBookingLanguages, useShopDefaultBookingLanguage, useShopServiceRangesEnabled } from '../context/SettingsContext';
 import { formatPrice } from '../utils/money';
 import { getCurrencySymbol } from '../constants/currencies';
@@ -54,14 +56,6 @@ const defaultForm = {
   translations: {} as EmployeeTranslationsForm,
 };
 
-const Stars = ({ rating, size = 14 }: { rating: number; size?: number }) => (
-  <div className="flex gap-0.5">
-    {[1,2,3,4,5].map(i => (
-      <Star key={i} size={size}
-        className={i <= Math.round(rating) ? 'text-amber-400 fill-amber-400' : 'text-line-medium'}/>
-    ))}
-  </div>
-);
 
 const Employees = () => {
   const { t, lang } = useLocale();
@@ -323,11 +317,7 @@ const Employees = () => {
     setReviewsEmp(emp);
     setReviewsLoading(true);
     try {
-      const data = await reviewApi.getAll();
-      setReviews(data.filter((r) => {
-        const eid = typeof r.employee === 'object' ? r.employee._id : r.employee;
-        return eid === emp._id;
-      }));
+      setReviews(await reviewApi.getByEmployee(emp._id));
     } catch { setReviews([]); }
     finally { setReviewsLoading(false); }
   };
@@ -766,40 +756,29 @@ const Employees = () => {
         title={t('employees.reviewsTitle', { name: reviewsEmp?.name || '' })} size="lg">
         <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
 
-          {/* Rating summary */}
-          {reviewsEmp && (
-            <div className="flex items-center gap-3 pb-3 border-b border-line">
-              <span className="text-3xl font-bold text-ink tracking-tight">
-                {(reviewsEmp.rating || 0).toFixed(1)}
-              </span>
-              <div>
-                <Stars rating={reviewsEmp.rating || 0} size={16}/>
-                <p className="text-xs text-ink-muted mt-0.5">{t('employees.reviewsCount', { count: reviewsEmp.reviewCount || 0 })}</p>
+          {/* Rating summary — зі свіжого списку майстрів (рейтинг змінюється
+              після приховування/видалення відгуку) */}
+          {reviewsEmp && (() => {
+            const cur = employees.find(e => e._id === reviewsEmp._id) || reviewsEmp;
+            return (
+              <div className="flex items-center gap-3 pb-3 border-b border-line">
+                <span className="text-3xl font-bold text-ink tracking-tight">
+                  {(cur.rating || 0).toFixed(1)}
+                </span>
+                <div>
+                  <Stars rating={cur.rating || 0} size={16}/>
+                  <p className="text-xs text-ink-muted mt-0.5">{t('employees.reviewsCount', { count: cur.reviewCount || 0 })}</p>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Reviews list */}
           {reviewsLoading ? (
             <p className="text-sm text-center text-ink-muted py-4">{t('common.loading')}</p>
-          ) : reviews.length === 0 ? (
-            <p className="text-sm text-center text-ink-muted py-4">{t('employees.noReviewsYet')}</p>
-          ) : reviews.map(r => (
-            <div key={r._id} className="border border-line rounded-sm p-3">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-ink">
-                    {typeof r.client === 'object' ? r.client.name : t('employees.clientLabel')}
-                  </span>
-                  <Stars rating={r.rating} size={12}/>
-                </div>
-                <span className="text-xs text-ink-muted">
-                  {new Date(r.createdAt).toLocaleDateString(lang === 'uk' ? 'uk-UA' : 'en-US')}
-                </span>
-              </div>
-              {r.text && <p className="text-sm text-ink-secondary">{r.text}</p>}
-            </div>
-          ))}
+          ) : (
+            <ReviewsList reviews={reviews} onChanged={() => { if (reviewsEmp) openReviews(reviewsEmp); fetchEmployees(); }}/>
+          )}
 
           {/* Add review */}
           <div className="border-t border-line pt-3 space-y-2">

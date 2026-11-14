@@ -25,6 +25,7 @@ const Reports = lazy(() => import('./pages/Reports'));
 const Settings = lazy(() => import('./pages/Settings'));
 const OnboardingGuide = lazy(() => import('./pages/OnboardingGuide'));
 const BookingPage = lazy(() => import('./pages/BookingPage'));
+const ReviewPage = lazy(() => import('./pages/ReviewPage'));
 
 function App() {
   return (
@@ -43,6 +44,7 @@ function App() {
           <Route path="/platform-admin" element={<PlatformAdmin />} />
           <Route path="/book" element={<BookingPage />} />
           <Route path="/book/:salonSlug" element={<BookingPage />} />
+          <Route path="/review/:salonSlug/:token" element={<ReviewPage />} />
 
           <Route path="/" element={
             <ProtectedRoute>

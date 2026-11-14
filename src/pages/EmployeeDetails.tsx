@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router';
 import { ArrowLeft, Phone, Mail, Star, Calendar, TrendingUp, Users } from 'lucide-react';
-import { employeeApi } from '../api';
-import { Employee, Appointment, EmployeeStats } from '../api/types';
+import { employeeApi, reviewApi } from '../api';
+import { Employee, Appointment, EmployeeStats, Review } from '../api/types';
+import ReviewsList from '../components/reviews/ReviewsList';
+import Stars from '../components/reviews/Stars';
 import { useLocale } from '../i18n/LocaleContext';
 import { useShopCurrency } from '../context/SettingsContext';
 import { formatPrice } from '../utils/money';
@@ -18,6 +20,17 @@ const EmployeeDetails = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [stats, setStats] = useState<EmployeeStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reviews, setReviews] = useState<Review[]>([]);
+
+  // Відгуки й рейтинг — окремо, щоб після приховування/видалення відгуку
+  // оновити лише їх, а не всю сторінку.
+  const loadReviews = useCallback(async () => {
+    if (!id) return;
+    const [list, emp] = await Promise.all([reviewApi.getByEmployee(id), employeeApi.getById(id)]);
+    setReviews(list);
+    setEmployee(emp);
+  }, [id]);
+  useEffect(() => { loadReviews().catch(() => setReviews([])); }, [loadReviews]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -189,6 +202,25 @@ const EmployeeDetails = () => {
             </table>
           </div>
         )}
+      </div>
+
+      {/* Reviews */}
+      <div className="ds-card overflow-hidden">
+        <div className="ds-card-header">
+          <div className="flex items-center">
+            <Star size={18} className="mr-2 text-brand" />
+            <h3 className="text-base font-semibold text-ink">{t('employees.reviewsSection')}</h3>
+          </div>
+          {(employee.reviewCount || 0) > 0 && (
+            <div className="flex items-center gap-2">
+              <Stars rating={employee.rating || 0} size={14}/>
+              <span className="text-sm text-ink-muted">{(employee.rating || 0).toFixed(1)} ({employee.reviewCount})</span>
+            </div>
+          )}
+        </div>
+        <div className="p-4 sm:p-6">
+          <ReviewsList reviews={reviews} onChanged={() => { loadReviews().catch(() => {}); }}/>
+        </div>
       </div>
 
       {/* Appointment history */}

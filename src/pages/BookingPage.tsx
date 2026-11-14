@@ -10,12 +10,15 @@ import { shopCountry } from '../utils/shopCountry';
 import 'react-phone-number-input/style.css';
 import { API_BASE_URL } from '../api';
 import { BOOKING_LANGS, BOOKING_LANG_LABELS, BookingLang, tBooking } from '../i18n/bookingTranslations';
+import { tReview } from '../i18n/reviewTranslations';
 import LanguageToggle from '../components/LanguageToggle';
 import LocationMap from '../components/LocationMap';
 import { getErrorMessage, getErrorCode } from '../utils/errors';
 import { PublicBookingSettings } from '../api/types';
 import { formatPriceRange, discounted } from '../utils/money';
 import PriceTag from '../components/booking/PriceTag';
+import MasterReviewsSheet from '../components/booking/MasterReviewsSheet';
+import Stars from '../components/reviews/Stars';
 
 const BOOKING_LOCALES: Record<string, string> = { uk: 'uk-UA', en: 'en-US', cs: 'cs-CZ', pl: 'pl-PL', de: 'de-DE' };
 import { formatDurationRange } from '../utils/duration';
@@ -34,6 +37,7 @@ interface Employee {
   _id: string; name: string; role: string; customRoleLabel?: string; services?: string[]; specialties?: string[]; bio?: string;
   serviceOverrides?: ServiceOverride[];
   translations?: Partial<Record<BookingLang, { bio: string; specialties: string[]; customRoleLabel?: string }>>;
+  rating?: number; reviewCount?: number;
 }
 
 // Ім'я майстра свідомо не перекладається — лише опис послуги та bio/спеціалізації.
@@ -171,6 +175,8 @@ const BookingPage = () => {
   const [openCategories, setOpenCategories]     = useState<Set<string>>(new Set());
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  // Майстер, чиї відгуки зараз відкрито (вікно поверх екрана вибору майстра).
+  const [reviewsFor, setReviewsFor] = useState<Employee | null>(null);
   const [selectedDate, setSelectedDate]         = useState('');
   const [selectedTime, setSelectedTime]         = useState('');
   const [clientName, setClientName]   = useState('');
@@ -830,8 +836,10 @@ const BookingPage = () => {
               const initials = e.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
               const reason = !doesServices(e) ? t('booking.notForServices')
                 : busyAtTime(e) ? t('booking.busyAt', { time: selectedTime }) : '';
+              const rated = (e.reviewCount || 0) > 0;
               return (
-                <button key={e._id} type="button"
+                <div key={e._id} className="relative">
+                <button type="button"
                   aria-pressed={selectedEmployee?._id === e._id}
                   disabled={!!reason}
                   onClick={() => {
@@ -864,11 +872,24 @@ const BookingPage = () => {
                     )}
                     {employeeBio(e, lang) && <p className="text-sm text-ink-secondary mt-1">{employeeBio(e, lang)}</p>}
                     {reason && <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mt-1">{reason}</p>}
+                    {rated && <span className="block h-7" aria-hidden="true"/>}
                   </div>
                 </button>
+                {/* Рейтинг — окрема кнопка поверх картки (кнопка в кнопці
+                    невалідна): відкриває відгуки, а не обирає майстра. */}
+                {rated && (
+                  <button type="button" onClick={() => setReviewsFor(e)}
+                    className="absolute left-[80px] bottom-3 inline-flex items-center gap-1.5 rounded-full px-2 py-1 -ml-2 text-xs text-ink-secondary hover:bg-canvas-soft">
+                    <Stars rating={e.rating || 0} size={13}/>
+                    <span className="font-semibold text-ink">{(e.rating || 0).toFixed(1)}</span>
+                    <span className="underline underline-offset-2">{tReview(lang, 'reviews', { count: e.reviewCount || 0 })}</span>
+                  </button>
+                )}
+                </div>
               );
             })}
           </div>
+          {reviewsFor && <MasterReviewsSheet api={api} employee={reviewsFor} lang={lang} onClose={() => setReviewsFor(null)}/>}
         </div>
       )}
 

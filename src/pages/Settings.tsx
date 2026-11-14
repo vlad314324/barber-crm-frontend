@@ -38,6 +38,7 @@ const Settings = () => {
     durationDisplayUnit: 'minutes',
     bookingGroupByCategory: false,
     bookingOpenUntil: '',
+    reviewRequestsEnabled: true,
   });
 
   const [passwords, setPasswords] = useState({
@@ -73,6 +74,7 @@ const Settings = () => {
         durationDisplayUnit: data.durationDisplayUnit === 'hours' ? 'hours' : 'minutes',
         bookingGroupByCategory: !!data.bookingGroupByCategory,
         bookingOpenUntil: data.bookingOpenUntil || '',
+        reviewRequestsEnabled: data.reviewRequestsEnabled !== false,
       });
     }).catch(err => {
       setLoadError(getErrorMessage(err) || t('settings.loadError'));
@@ -387,6 +389,19 @@ const Settings = () => {
                   <label htmlFor="bookingGroupByCategory" className="field-label !mb-0">{t('settings.fieldGroupByCategory')}</label>
                 </div>
                 <p className="text-xs text-ink-muted mt-1.5">{t('settings.fieldGroupByCategoryHint')}</p>
+              </div>
+              <div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="reviewRequestsEnabled"
+                    checked={settings.reviewRequestsEnabled !== false}
+                    onChange={e => setSettings(prev => ({ ...prev, reviewRequestsEnabled: e.target.checked }))}
+                    className="w-4 h-4 text-brand rounded flex-shrink-0 focus:ring-brand"
+                  />
+                  <label htmlFor="reviewRequestsEnabled" className="field-label !mb-0">{t('settings.fieldReviewRequests')}</label>
+                </div>
+                <p className="text-xs text-ink-muted mt-1.5">{t('settings.fieldReviewRequestsHint')}</p>
               </div>
               <div>
                 <label className="field-label" htmlFor="bookingOpenUntil">{t('settings.fieldBookingOpenUntil')}</label>

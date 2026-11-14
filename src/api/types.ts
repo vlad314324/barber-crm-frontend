@@ -145,6 +145,9 @@ export interface Notification {
   // type: 'birthday'
   clientId?: string;
   daysUntil?: number;
+  // type: 'new_review'
+  employee?: string;
+  rating?: number;
 }
 
 // GET /clients/birthdays — найближчі дні народження клієнтів.
@@ -248,11 +251,24 @@ export interface AppointmentResponse {
 export interface Review {
   _id: string;
   client: Client;
-  appointment: Appointment;
-  employee: Employee;
+  // CRM віддає запис із датою й назвами послуг (populate), якщо відгук
+  // залишено за посиланням після візиту.
+  appointment?: { _id: string; date: string; startTime: string; services?: { _id: string; name: string }[] } | null;
+  employee: Employee | string;
+  rating: number;
+  text?: string;
+  source?: 'client' | 'admin';
+  hidden?: boolean;
+  createdAt: string;
+}
+
+// GET /booking/employees/:id/reviews — публічні відгуки майстра.
+export interface PublicReview {
+  _id: string;
   rating: number;
   text?: string;
   createdAt: string;
+  clientName: string;
 }
 
 // Request DTOs (Data Transfer Objects)
@@ -316,7 +332,7 @@ export interface CreateAppointmentDto {
 
 export interface CreateReviewDto {
   client: string; // client ID
-  appointment: string; // appointment ID
+  appointment?: string; // appointment ID (ручний відгук у CRM — без запису)
   employee: string; // employee ID
   rating: number;
   text?: string;
@@ -417,6 +433,8 @@ export interface ShopSettings {
   bookingGroupByCategory?: boolean;
   // Останній день онлайн-запису "YYYY-MM-DD" ('' — без обмеження)
   bookingOpenUntil?: string;
+  // Запрошувати клієнтів залишити відгук після візиту «Виконано»
+  reviewRequestsEnabled?: boolean;
 }
 
 // Публічний підмножина ShopSettings, яку віддає /booking/settings

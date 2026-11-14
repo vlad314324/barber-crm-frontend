@@ -191,6 +191,7 @@ export const reviewApi = {
   getById: async (id: string): Promise<Review> => (await api.get(`/reviews/${id}`)).data,
   create: async (data: CreateReviewDto): Promise<Review> => (await api.post('/reviews', data)).data,
   update: async (id: string, data: Partial<CreateReviewDto>): Promise<Review> => (await api.put(`/reviews/${id}`, data)).data,
+  setHidden: async (id: string, hidden: boolean): Promise<Review> => (await api.patch(`/reviews/${id}`, { hidden })).data,
   delete: async (id: string): Promise<void> => { await api.delete(`/reviews/${id}`); },
 };
 
