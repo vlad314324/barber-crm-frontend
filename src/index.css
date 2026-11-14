@@ -217,3 +217,15 @@ body {
   font-size: 0.875rem;
   cursor: pointer;
 }
+
+/* iOS Safari збільшує сторінку при фокусі на полі зі шрифтом < 16px — після
+   цього межі "розʼїжджаються" і з'являється горизонтальний скрол. На сенсорних
+   екранах даємо полям 16px (на десктопі лишається 14px). !important — щоб
+   перебити text-sm/text-xs на окремих полях. Pinch-zoom не блокуємо. */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file']),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
