@@ -118,6 +118,7 @@ export const employeeApi = {
   delete: async (id: string): Promise<void> => { await api.delete(`/employees/${id}`); },
   deactivate: async (id: string): Promise<Employee> => (await api.post(`/employees/${id}/deactivate`)).data,
   reactivate: async (id: string): Promise<Employee> => (await api.post(`/employees/${id}/reactivate`)).data,
+  reorder: async (ids: string[]): Promise<Employee[]> => (await api.put('/employees/order', { ids })).data,
   export: async (): Promise<Blob> => (await api.get('/employees/export', { responseType: 'blob' })).data,
   import: (file: File): Promise<ImportResult> => importFile('/employees/import', file),
   getAppointments: async (id: string): Promise<Appointment[]> => (await api.get(`/employees/${id}/appointments`)).data,

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router';
-import { User, Plus, Star, Scissors, Pencil, UserX, UserCheck } from 'lucide-react';
+import { User, Plus, Star, Scissors, Pencil, UserX, UserCheck, ChevronUp, ChevronDown } from 'lucide-react';
 import { employeeApi, reviewApi, clientApi, serviceApi, authApi } from '../api';
 import { Employee, Client, Review, Service } from '../api/types';
 import Modal from '../components/Modal';
@@ -349,6 +349,24 @@ const Employees = () => {
     activeTab === 'active' ? e.isActive !== false : e.isActive === false
   );
 
+  // Порядок майстрів (календар, сторінка онлайн-запису): міняємо сусідів
+  // місцями й одразу зберігаємо весь порядок активних.
+  const moveEmployee = async (id: string, dir: -1 | 1) => {
+    const active = employees.filter(e => e.isActive !== false);
+    const i = active.findIndex(e => e._id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= active.length) return;
+    const next = [...active];
+    [next[i], next[j]] = [next[j], next[i]];
+    setEmployees([...next, ...employees.filter(e => e.isActive === false)]);
+    try {
+      await employeeApi.reorder(next.map(e => e._id));
+    } catch (err) {
+      alert(getErrorMessage(err) || t('appointments.genericError'));
+      fetchEmployees();
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center gap-2">
@@ -377,8 +395,12 @@ const Employees = () => {
       : error   ? <div className="text-center py-8 text-red-500">{error}</div>
       : visibleEmployees.length === 0 ? <div className="text-center py-8 text-ink-muted">{t('employees.notFound')}</div>
       : (
+        <>
+        {activeTab === 'active' && visibleEmployees.length > 1 && (
+          <p className="text-sm text-ink-muted -mt-2">{t('employees.orderHint')}</p>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {visibleEmployees.map(emp => (
+          {visibleEmployees.map((emp, idx) => (
             <div key={emp._id} className={`ds-card overflow-hidden flex flex-col ${emp.isActive === false ? 'opacity-70' : ''}`}>
 
               {/* Header */}
@@ -406,6 +428,20 @@ const Employees = () => {
                     </button>
                   )}
                 </div>
+                {activeTab === 'active' && visibleEmployees.length > 1 && (
+                  <div className="flex flex-col -mr-2 -mt-1 flex-shrink-0">
+                    <button type="button" onClick={() => moveEmployee(emp._id, -1)} disabled={idx === 0}
+                      aria-label={t('employees.moveUp')} title={t('employees.moveUp')}
+                      className="p-1.5 rounded-xs text-ink-muted hover:text-brand hover:bg-canvas-soft disabled:opacity-25 disabled:pointer-events-none">
+                      <ChevronUp size={18}/>
+                    </button>
+                    <button type="button" onClick={() => moveEmployee(emp._id, 1)} disabled={idx === visibleEmployees.length - 1}
+                      aria-label={t('employees.moveDown')} title={t('employees.moveDown')}
+                      className="p-1.5 rounded-xs text-ink-muted hover:text-brand hover:bg-canvas-soft disabled:opacity-25 disabled:pointer-events-none">
+                      <ChevronDown size={18}/>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Bio */}
@@ -495,6 +531,7 @@ const Employees = () => {
             </div>
           ))}
         </div>
+        </>
       )}
 
       {/* ── ADD/EDIT MODAL ── */}
