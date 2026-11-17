@@ -368,16 +368,7 @@ const BookingPage = () => {
           setSlotMasters(Object.fromEntries(anySlots.map(s => [s.time, s.employeeIds])));
         }
 
-        const todayStr = new Date().toISOString().split('T')[0];
-        if (selectedDate === todayStr) {
-          const now = new Date();
-          const currentMinutes = now.getHours() * 60 + now.getMinutes();
-          available = available.filter((slot: string) => {
-            const [h, m] = slot.split(':').map(Number);
-            return h * 60 + m > currentMinutes;
-          });
-        }
-
+        // Минулий час і мінімум до візиту відсіює сервер за годинником салону.
         setSlots(available);
         // Обраний час більше не вільний (інший майстер, довші послуги) —
         // не тримаємо його мовчки, а просимо обрати інший.
@@ -542,6 +533,11 @@ const BookingPage = () => {
 
   // Останній день онлайн-запису (Settings.bookingOpenUntil), '' — без обмеження.
   const bookingOpenUntil = branding?.bookingOpenUntil || '';
+  // Мінімум часу до візиту (Settings.bookingMinLeadMinutes): «2 год», «30 хв».
+  const minLead = branding?.bookingMinLeadMinutes || 0;
+  const leadLabel = minLead % 60 === 0
+    ? `${minLead / 60} ${t('booking.unitHours')}`
+    : `${minLead} ${t('booking.unitMinutes')}`;
 
   const handleCopyAddress = async () => {
     if (!branding?.address) return;
@@ -581,6 +577,8 @@ const BookingPage = () => {
       const code = getErrorCode(err);
       if (code && code.startsWith('PROMO_')) {
         setPromoError(t(`gift.errors.${code}`));
+      } else if (code === 'BOOKING_TOO_SOON') {
+        setError(t('booking.tooSoonError', { time: leadLabel }));
       } else {
         setError(getErrorMessage(err) || t('booking.bookingError'));
       }
@@ -909,6 +907,9 @@ const BookingPage = () => {
           {selectedDate && (
             <div>
               <label className="field-label">{t('booking.availableTimeLabel')}</label>
+              {minLead > 0 && (
+                <p className="text-xs text-ink-muted -mt-1 mb-2">{t('booking.leadTimeHint', { time: leadLabel })}</p>
+              )}
               {slotsLoading ? (
                 <p className="text-ink-muted text-sm">{t('booking.loading')}</p>
               ) : slotsError ? (

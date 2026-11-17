@@ -67,6 +67,10 @@ interface BookingDict {
     notOpenYetMessage: string;
     openUntilHint: string;
     noSlots: string;
+    leadTimeHint: string;
+    tooSoonError: string;
+    unitHours: string;
+    unitMinutes: string;
     nameLabel: string;
     namePlaceholder: string;
     phoneLabel: string;
@@ -149,6 +153,10 @@ const uk: BookingDict = {
     notOpenYetMessage: '🗓 Запис на цю дату ще не відкрито. Онлайн-запис доступний до {{date}}',
     openUntilHint: 'Онлайн-запис відкрито до {{date}}',
     noSlots: 'Немає вільних слотів на цю дату',
+    leadTimeHint: 'Онлайн-запис — щонайменше за {{time}} до візиту',
+    tooSoonError: 'Цей час уже недоступний: онлайн-запис — щонайменше за {{time}} до візиту. Оберіть інший час.',
+    unitHours: 'год',
+    unitMinutes: 'хв',
     nameLabel: "Ім'я *",
     namePlaceholder: 'Іван Петренко',
     phoneLabel: 'Телефон *',
@@ -231,6 +239,10 @@ const en: BookingDict = {
     notOpenYetMessage: '🗓 Booking for this date is not open yet. Online booking is available until {{date}}',
     openUntilHint: 'Online booking is open until {{date}}',
     noSlots: 'No available slots for this date',
+    leadTimeHint: 'Online booking at least {{time}} in advance',
+    tooSoonError: 'This time is no longer available: online booking is possible at least {{time}} in advance. Please choose another time.',
+    unitHours: 'h',
+    unitMinutes: 'min',
     nameLabel: 'Name *',
     namePlaceholder: 'John Smith',
     phoneLabel: 'Phone *',
@@ -313,6 +325,10 @@ const cs: BookingDict = {
     notOpenYetMessage: '🗓 Rezervace na toto datum zatím není otevřená. Online rezervace je možná do {{date}}',
     openUntilHint: 'Online rezervace je otevřená do {{date}}',
     noSlots: 'Na tento den nejsou volné termíny',
+    leadTimeHint: 'Online rezervace nejméně {{time}} předem',
+    tooSoonError: 'Tento čas už není dostupný: online rezervace je možná nejméně {{time}} předem. Vyberte prosím jiný čas.',
+    unitHours: 'h',
+    unitMinutes: 'min',
     nameLabel: 'Jméno *',
     namePlaceholder: 'Jan Novák',
     phoneLabel: 'Telefon *',
@@ -395,6 +411,10 @@ const pl: BookingDict = {
     notOpenYetMessage: '🗓 Zapisy na ten dzień nie są jeszcze otwarte. Rezerwacja online jest dostępna do {{date}}',
     openUntilHint: 'Rezerwacja online jest otwarta do {{date}}',
     noSlots: 'Brak wolnych terminów na ten dzień',
+    leadTimeHint: 'Rezerwacja online co najmniej {{time}} wcześniej',
+    tooSoonError: 'Ta godzina jest już niedostępna: rezerwacja online jest możliwa co najmniej {{time}} wcześniej. Wybierz inną godzinę.',
+    unitHours: 'godz.',
+    unitMinutes: 'min',
     nameLabel: 'Imię i nazwisko *',
     namePlaceholder: 'Jan Kowalski',
     phoneLabel: 'Telefon *',
@@ -477,6 +497,10 @@ const de: BookingDict = {
     notOpenYetMessage: '🗓 Für diesen Tag ist die Buchung noch nicht geöffnet. Online-Buchung ist bis {{date}} möglich',
     openUntilHint: 'Online-Buchung ist bis {{date}} geöffnet',
     noSlots: 'An diesem Tag sind keine Termine frei',
+    leadTimeHint: 'Online-Buchung mindestens {{time}} im Voraus',
+    tooSoonError: 'Diese Uhrzeit ist nicht mehr verfügbar: Online-Buchung ist mindestens {{time}} im Voraus möglich. Bitte wählen Sie eine andere Uhrzeit.',
+    unitHours: 'Std.',
+    unitMinutes: 'Min.',
     nameLabel: 'Vor- und Nachname *',
     namePlaceholder: 'Max Mustermann',
     phoneLabel: 'Telefon *',

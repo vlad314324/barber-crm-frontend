@@ -18,6 +18,9 @@ const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'satur
 
 type Tab = 'general' | 'booking' | 'notifications' | 'security';
 
+// Варіанти «Мінімальний час до запису», хв (Settings.bookingMinLeadMinutes).
+const LEAD_OPTIONS = [0, 30, 60, 120, 180, 240, 360, 720, 1440];
+
 const Settings = () => {
   const { user, salonSlug } = useAuth();
   const { t } = useLocale();
@@ -38,6 +41,7 @@ const Settings = () => {
     durationDisplayUnit: 'minutes',
     bookingGroupByCategory: false,
     bookingOpenUntil: '',
+    bookingMinLeadMinutes: 0,
     reviewRequestsEnabled: true,
   });
 
@@ -74,6 +78,7 @@ const Settings = () => {
         durationDisplayUnit: data.durationDisplayUnit === 'hours' ? 'hours' : 'minutes',
         bookingGroupByCategory: !!data.bookingGroupByCategory,
         bookingOpenUntil: data.bookingOpenUntil || '',
+        bookingMinLeadMinutes: data.bookingMinLeadMinutes || 0,
         reviewRequestsEnabled: data.reviewRequestsEnabled !== false,
       });
     }).catch(err => {
@@ -421,6 +426,24 @@ const Settings = () => {
                   )}
                 </div>
                 <p className="text-xs text-ink-muted mt-1.5">{t('settings.fieldBookingOpenUntilHint')}</p>
+              </div>
+              <div>
+                <label className="field-label" htmlFor="bookingMinLeadMinutes">{t('settings.fieldBookingMinLead')}</label>
+                <select
+                  id="bookingMinLeadMinutes"
+                  value={settings.bookingMinLeadMinutes || 0}
+                  onChange={e => setSettings(prev => ({ ...prev, bookingMinLeadMinutes: Number(e.target.value) }))}
+                  className="field-input"
+                >
+                  {LEAD_OPTIONS.map(min => (
+                    <option key={min} value={min}>
+                      {min === 0 ? t('settings.bookingMinLeadNone')
+                        : min < 60 ? t('settings.bookingMinLeadMinutes', { n: min })
+                        : t('settings.bookingMinLeadHours', { n: min / 60 })}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-ink-muted mt-1.5">{t('settings.fieldBookingMinLeadHint')}</p>
               </div>
               <div>
                 <label className="field-label">{t('settings.fieldDurationUnit')}</label>

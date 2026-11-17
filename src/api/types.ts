@@ -436,6 +436,8 @@ export interface ShopSettings {
   bookingGroupByCategory?: boolean;
   // Останній день онлайн-запису "YYYY-MM-DD" ('' — без обмеження)
   bookingOpenUntil?: string;
+  // Мінімум хвилин до візиту для онлайн-запису (0 — без обмеження)
+  bookingMinLeadMinutes?: number;
   // Запрошувати клієнтів залишити відгук після візиту «Виконано»
   reviewRequestsEnabled?: boolean;
 }
@@ -464,4 +466,6 @@ export interface PublicBookingSettings {
   serviceCategoryTranslations?: Record<string, Partial<Record<string, string>>>;
   // Останній день онлайн-запису "YYYY-MM-DD" ('' — без обмеження)
   bookingOpenUntil?: string;
+  // Мінімум хвилин до візиту для онлайн-запису (0 — без обмеження)
+  bookingMinLeadMinutes?: number;
 }
