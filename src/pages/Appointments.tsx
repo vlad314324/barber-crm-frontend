@@ -573,6 +573,16 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
     setNoteText('');
   };
 
+  // `/appointments?date=YYYY-MM-DD` — посилання з Telegram-нагадування
+  // «оновіть статуси» відкриває календар на потрібному дні.
+  useEffect(() => {
+    const d = searchParams.get('date');
+    if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+    setCurrentDate(parseDateLocal(d));
+    setView('day');
+    setSearchParams(prev => { prev.delete('date'); return prev; }, { replace: true });
+  }, [searchParams]);
+
   // Дозволяє відкрити конкретний запис при переході з посилання на
   // сповіщення про нове бронювання (`/appointments?appointmentId=...`).
   useEffect(() => {
