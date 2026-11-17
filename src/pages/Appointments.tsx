@@ -25,6 +25,12 @@ import { BREAK_PATTERN, toMin, validateBreaks, isActive } from '../components/sc
 import BreaksModal from '../components/schedule/BreaksModal';
 import StoryModal from '../components/story/StoryModal';
 
+// Скасовані/перенесені в календарі — бліді «привиди» з пунктирною смугою.
+const INACTIVE_COLORS: Record<string, string> = {
+  Cancelled:   'bg-amber-50 border-amber-400 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200',
+  Rescheduled: 'bg-sky-50 border-sky-400 text-sky-900 dark:bg-sky-950/40 dark:text-sky-200',
+};
+
 const STATUS_COLORS: Record<string, string> = {
   Scheduled: 'bg-slate-500 border-slate-600',
   Completed:  'bg-brand border-brand-dark',
@@ -799,11 +805,20 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
             emptyText={isAdmin ? t('appointments.noBarbers') : t('appointments.notLinked')}
             breakLabel={t('appointments.breakLabel')}
             prepLabel={min => t('appointments.prepLabel', { min })}
+            inactiveInfoLabel={t('appointments.inactiveInfo')}
             onAppointmentClick={openEdit}
             canDrag={canDragAppt}
             canDrop={canDropAppt}
             onAppointmentDrop={handleApptDrop}
             renderAppointment={(a, height) => {
+              if (!isActive(a)) {
+                return (
+                  <div className={`h-full rounded border-l-4 border-dashed pl-6 pr-1.5 py-px text-xs leading-[14px] overflow-hidden opacity-80 ${INACTIVE_COLORS[a.status] || ''}`}>
+                    <p className="font-medium truncate">{clientName(a.client)}</p>
+                    {height >= 28 && <p className="truncate opacity-80">{statusLabel(a.status)} · {a.startTime}</p>}
+                  </div>
+                );
+              }
               const color = STATUS_COLORS[a.status] || 'bg-brand border-brand-dark';
               return (
                 <div className={`h-full rounded border-l-4 px-1.5 py-px text-white text-xs leading-[14px] cursor-pointer hover:opacity-90 shadow-sm overflow-hidden ${color}`}>
@@ -1067,6 +1082,22 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
         </>)}>
         {editAppt && (
           <div className="space-y-4">
+            {(() => {
+              const linkId = editAppt.rescheduledTo || editAppt.rescheduledFrom;
+              if (!linkId) return null;
+              const linked = appointments.find(x => x._id === linkId);
+              const when = linked ? `${new Date(linked.date).toLocaleDateString(locale, { day: 'numeric', month: 'long' })} ${linked.startTime}` : '';
+              return (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-200">
+                  <span>{editAppt.rescheduledTo ? t('appointments.rescheduledTo', { when }) : t('appointments.rescheduledFrom', { when })}</span>
+                  {linked && (
+                    <button type="button" onClick={() => openEdit(linked)} className="font-semibold underline underline-offset-2 hover:no-underline">
+                      {editAppt.rescheduledTo ? t('appointments.openNewAppointment') : t('appointments.openOldAppointment')}
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="field-label">{t('appointments.client')}</label>
@@ -1106,12 +1137,12 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="field-label">{t('appointments.date')}</label>
-                <input type="date" className="field-input"
+                <input type="date" className="field-input disabled:opacity-70" disabled={!!editAppt.rescheduledTo}
                   value={editForm.date} onChange={e => setEditForm({...editForm, date:e.target.value})}/>
               </div>
               <div>
                 <label className="field-label">{t('appointments.time')}</label>
-                <input type="time" className="field-input"
+                <input type="time" className="field-input disabled:opacity-70" disabled={!!editAppt.rescheduledTo}
                   value={editForm.startTime} onChange={e => setEditForm({...editForm, startTime:e.target.value})}/>
               </div>
             </div>

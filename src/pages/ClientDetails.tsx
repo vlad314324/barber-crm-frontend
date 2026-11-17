@@ -102,6 +102,12 @@ const ClientDetails = () => {
   };
 
   const completedVisits = appointments.filter(a => a.status === 'Completed');
+  const countOf = (status: string) => appointments.filter(a => a.status === status).length;
+  const byId = new Map(appointments.map(a => [a._id, a]));
+  const whenOf = (id?: string) => {
+    const a = id ? byId.get(id) : undefined;
+    return a ? `${new Date(a.date).toLocaleDateString()} ${a.startTime}` : '';
+  };
   const lastVisit = completedVisits[0]?.date;
 
   if (loading) return <div className="text-center py-12 text-ink-muted">{t('common.loading')}</div>;
@@ -206,6 +212,18 @@ const ClientDetails = () => {
               <dd className="mt-1 text-sm text-ink">{completedVisits.length}</dd>
             </div>
             <div>
+              <dt className="text-sm font-medium text-ink-muted">{t('clientDetails.rescheduledCount')}</dt>
+              <dd className="mt-1 text-sm text-ink">{countOf('Rescheduled')}</dd>
+            </div>
+            <div>
+              <dt className="text-sm font-medium text-ink-muted">{t('clientDetails.cancelledCount')}</dt>
+              <dd className="mt-1 text-sm text-ink">{countOf('Cancelled')}</dd>
+            </div>
+            <div>
+              <dt className="text-sm font-medium text-ink-muted">{t('clientDetails.noShowCount')}</dt>
+              <dd className="mt-1 text-sm text-ink">{countOf('No-show')}</dd>
+            </div>
+            <div>
               <dt className="text-sm font-medium text-ink-muted">{t('clientDetails.totalSpent')}</dt>
               <dd className="mt-1 text-sm font-semibold text-brand-dark">
                 {formatPrice(completedVisits.reduce((sum, a) => sum + a.totalPrice, 0), currency)}
@@ -292,6 +310,12 @@ const ClientDetails = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`badge ${statusBadgeClass(a.status)}`}>{statusLabel(a.status)}</span>
+                      {a.rescheduledTo && whenOf(a.rescheduledTo) && (
+                        <div className="text-xs text-ink-muted mt-1">{t('clientDetails.rescheduledToLine', { when: whenOf(a.rescheduledTo) })}</div>
+                      )}
+                      {a.rescheduledFrom && whenOf(a.rescheduledFrom) && (
+                        <div className="text-xs text-ink-muted mt-1">{t('clientDetails.rescheduledFromLine', { when: whenOf(a.rescheduledFrom) })}</div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-ink">
                       {formatPrice(a.totalPrice, currency)}

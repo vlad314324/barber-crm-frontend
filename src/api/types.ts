@@ -211,6 +211,9 @@ export interface Appointment {
   // Знижка до дня народження (бронювання за посиланням з привітання).
   discountPercent?: number;
   priceBeforeDiscount?: number;
+  // Перенесення: старий запис («Перенесено») → новий, і навпаки.
+  rescheduledFrom?: string;
+  rescheduledTo?: string;
 }
 
 export interface EmployeeMonthlyEarning {

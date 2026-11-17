@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
+import { Info } from 'lucide-react';
 import { Appointment, EmployeeBreak } from '../../api/types';
 import { SLOTS, SLOT_MIN, PX_PER_SLOT, TOTAL_H, DAY_START, DAY_END, toMin, minToTime, place, isActive, BREAK_PATTERN, PREP_PATTERN } from './scheduleTime';
 
@@ -61,6 +62,8 @@ interface Props {
   emptyText: string;
   breakLabel: string;
   prepLabel: (minutes: number) => string;
+  // Підпис кнопки «i» на скасованих/перенесених записах.
+  inactiveInfoLabel: string;
   renderAppointment: (appt: Appointment, heightPx: number) => ReactNode;
   onAppointmentClick: (appt: Appointment) => void;
   // Перетягування записів; без onAppointmentDrop сітка лише для перегляду.
@@ -72,7 +75,7 @@ interface Props {
 // Сітка календаря: колонки (майстри дня або дні тижня одного майстра) ×
 // 30-хвилинні рядки 08:00–20:00. Записи й перерви позиціонуються абсолютно
 // за хвилинами, тож запис о 10:15 малюється там, де він є.
-const ScheduleGrid = ({ columns, emptyText, breakLabel, prepLabel, renderAppointment, onAppointmentClick, canDrag, canDrop, onAppointmentDrop }: Props) => {
+const ScheduleGrid = ({ columns, emptyText, breakLabel, prepLabel, inactiveInfoLabel, renderAppointment, onAppointmentClick, canDrag, canDrop, onAppointmentDrop }: Props) => {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const colRefs = useRef(new Map<string, HTMLDivElement>());
   const drag = useRef<DragState | null>(null);
@@ -278,11 +281,18 @@ const ScheduleGrid = ({ columns, emptyText, breakLabel, prepLabel, renderAppoint
               );
             })}
 
-            {/* Скасовані/неявки — під активними, щоб новий запис на тому ж часі був зверху */}
+            {/* Скасовані/перенесені — другорядні: під активними, клік по них
+                проходить на клітинку (нове бронювання), деталі — лише кнопкою «i».
+                Активний запис, що їх перекриває, зсунутий праворуч, як у Google
+                Calendar, щоб зліва було видно смужку старого запису. */}
             {[...col.appointments].sort((a, b) => Number(isActive(a)) - Number(isActive(b))).map(a => {
               const start = toMin(a.startTime);
               const end = start + Math.max(a.totalDuration, 15);
               const pos = place(start, end);
+              const active = isActive(a);
+              const coversInactive = active && col.appointments.some(b => !isActive(b)
+                && toMin(b.startTime) < end && start < toMin(b.startTime) + Math.max(b.totalDuration, 15));
+              const left = coversInactive ? 30 : 4;
               // Підготовка місця після клієнта — окремою смугою під записом
               // (лише в активних: скасований запис час не тримає).
               const prep = isActive(a) && (a.prepTime ?? 0) > 0 ? place(end, end + (a.prepTime ?? 0)) : null;
@@ -291,21 +301,35 @@ const ScheduleGrid = ({ columns, emptyText, breakLabel, prepLabel, renderAppoint
               return (
                 <div key={a._id} className={ghost?.apptId === a._id ? 'opacity-40' : ''}>
                   {pos && (
-                    <div
-                      onClick={e => { e.stopPropagation(); if (!suppressClick.current) onAppointmentClick(a); }}
-                      onPointerDown={e => onApptPointerDown(e, a, col.key)}
-                      // Утримання пальцем інакше відкриває системне меню замість drag.
-                      onContextMenu={e => { if (drag.current) e.preventDefault(); }}
-                      style={{ top: pos.top + 1, height: pos.height - (prep ? 1 : 2), left: 4, right: 4, WebkitTouchCallout: 'none' }}
-                      className={`absolute ${isActive(a) ? 'z-[6]' : 'z-[5]'} ${draggable ? 'select-none' : ''}`}>
-                      {renderAppointment(a, pos.height - 2)}
-                    </div>
+                    active ? (
+                      <div
+                        onClick={e => { e.stopPropagation(); if (!suppressClick.current) onAppointmentClick(a); }}
+                        onPointerDown={e => onApptPointerDown(e, a, col.key)}
+                        // Утримання пальцем інакше відкриває системне меню замість drag.
+                        onContextMenu={e => { if (drag.current) e.preventDefault(); }}
+                        style={{ top: pos.top + 1, height: pos.height - (prep ? 1 : 2), left, right: 4, WebkitTouchCallout: 'none' }}
+                        className={`absolute z-[6] ${coversInactive ? 'ring-1 ring-surface' : ''} ${draggable ? 'select-none' : ''}`}>
+                        {renderAppointment(a, pos.height - 2)}
+                      </div>
+                    ) : (
+                      <div style={{ top: pos.top + 1, height: pos.height - 2, left: 4, right: 4 }}
+                        className="absolute z-[5] pointer-events-none">
+                        {renderAppointment(a, pos.height - 2)}
+                        <button type="button"
+                          onClick={e => { e.stopPropagation(); onAppointmentClick(a); }}
+                          aria-label={inactiveInfoLabel} title={inactiveInfoLabel}
+                          style={{ height: Math.min(24, pos.height - 2) }}
+                          className="pointer-events-auto absolute left-0 top-0 w-6 flex items-start justify-center pt-0.5 rounded-l text-ink-secondary hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
+                          <Info size={14} strokeWidth={2.25}/>
+                        </button>
+                      </div>
+                    )
                   )}
                   {prep && (
                     <div
                       onClick={e => { e.stopPropagation(); onAppointmentClick(a); }}
                       title={prepLabel(a.prepTime ?? 0)}
-                      style={{ top: prep.top, height: prep.height - 1, left: 4, right: 4, background: PREP_PATTERN }}
+                      style={{ top: prep.top, height: prep.height - 1, left, right: 4, background: PREP_PATTERN }}
                       className="absolute z-[6] rounded-b border-l-4 border-brand/40 px-1.5 text-[10px] leading-[14px] text-brand-dark overflow-hidden cursor-pointer hover:opacity-90">
                       {prep.height >= 14 && <span className="font-medium truncate block">{prepLabel(a.prepTime ?? 0)}</span>}
                     </div>
