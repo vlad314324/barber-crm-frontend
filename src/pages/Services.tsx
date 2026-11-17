@@ -3,7 +3,7 @@ import {
   Scissors, ScissorsLineDashed, Droplet, ShowerHead, Wind, Sparkles,
   Heart, Flower2, Palette, Waves, Sun, Gem, Brush, Hand, Zap, SprayCan,
   Syringe, Sparkle, Vibrate, Stethoscope,
-  Plus, Search, Pencil, Trash2, Clock, Banknote, Tags, X, Check, Globe, SlidersHorizontal, ChevronDown,
+  Plus, Search, Pencil, Trash2, Clock, Banknote, Tags, X, Check, Globe, SlidersHorizontal, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { serviceApi, categoryApi } from '../api';
 import { Service, Category } from '../api/types';
@@ -68,6 +68,9 @@ const IconPicker = ({ value, onChange }: { value: string; onChange: (icon: strin
     ))}
   </div>
 );
+
+// Згорнуті секції категорій на сторінці «Послуги» (лише зручність у браузері).
+const COLLAPSED_KEY = 'services.collapsed';
 
 const Services = () => {
   const { t } = useLocale();
@@ -144,6 +147,49 @@ const Services = () => {
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Секції за категоріями — у порядку, який адмін задав у «Категоріях» (той
+  // самий на сторінці онлайн-запису); невідомі категорії — у кінці.
+  const serviceGroups = (() => {
+    const groups = new Map<string, Service[]>();
+    filteredServices.forEach(s => {
+      const list = groups.get(s.category);
+      if (list) list.push(s); else groups.set(s.category, [s]);
+    });
+    const rank = (name: string) => { const i = categories.findIndex(c => c.name === name); return i === -1 ? categories.length : i; };
+    return [...groups.entries()]
+      .map(([category, items], i) => ({ category, items, i }))
+      .sort((a, b) => rank(a.category) - rank(b.category) || a.i - b.i);
+  })();
+
+  // Згорнуті секції пам'ятаємо в браузері; під час пошуку все розгорнуто.
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(COLLAPSED_KEY) || '[]')); } catch { return new Set(); }
+  });
+  const toggleSection = (category: string) => {
+    setCollapsed(prev => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category); else next.add(category);
+      try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next])); } catch { /* не критично */ }
+      return next;
+    });
+  };
+  const searching = searchTerm.trim() !== '';
+
+  const moveCategory = async (id: string, dir: -1 | 1) => {
+    const i = categories.findIndex(c => c._id === id);
+    const j = i + dir;
+    if (i === -1 || j < 0 || j >= categories.length) return;
+    const next = [...categories];
+    [next[i], next[j]] = [next[j], next[i]];
+    setCategories(next);
+    try {
+      await categoryApi.reorder(next.map(c => c._id));
+    } catch (err) {
+      alert(getErrorMessage(err) || t('services.categoryOrderError'));
+      fetchCategories();
+    }
+  };
 
   const openAddModal = () => {
     setEditingService(null);
@@ -356,8 +402,27 @@ const Services = () => {
       {filteredServices.length === 0 ? (
         <div className="text-center py-12 text-ink-muted">{t('services.notFound')}</div>
       ) : (
+        <div className="space-y-6">
+          {serviceGroups.map(({ category, items }) => {
+            const isOpen = searching || !collapsed.has(category);
+            const SectionIcon = iconForCategory(category);
+            return (
+            <section key={category}>
+              <button
+                type="button"
+                onClick={() => toggleSection(category)}
+                aria-expanded={isOpen}
+                disabled={searching}
+                className="w-full flex items-center gap-2 py-2 text-left border-b border-line mb-4 group"
+              >
+                <ChevronDown size={18} className={`text-ink-muted flex-shrink-0 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+                <SectionIcon size={18} className="text-brand flex-shrink-0" />
+                <h2 className="flex-1 min-w-0 truncate text-base font-semibold text-ink group-hover:text-brand">{categoryLabel(category)}</h2>
+                <span className="badge badge-neutral flex-shrink-0">{items.length}</span>
+              </button>
+              {isOpen && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredServices.map((service) => {
+          {items.map((service) => {
             const CategoryIcon = iconForCategory(service.category);
             return (
             <div key={service._id} className="ds-card overflow-hidden flex flex-col">
@@ -375,12 +440,11 @@ const Services = () => {
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <h3 className="text-base font-semibold text-ink">{service.name}</h3>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      <span className="badge badge-neutral">
-                        {categoryLabel(service.category)}
-                      </span>
-                      {service.isAddon && <span className="badge bg-brand-extra-soft text-brand-dark">{t('services.addonBadge')}</span>}
-                    </div>
+                    {service.isAddon && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        <span className="badge bg-brand-extra-soft text-brand-dark">{t('services.addonBadge')}</span>
+                      </div>
+                    )}
                   </div>
                   <span className={`badge ${service.isAvailable ? 'badge-success' : 'badge-muted'}`}>
                     {service.isAvailable ? t('services.active') : t('services.inactive')}
@@ -451,6 +515,11 @@ const Services = () => {
               </div>
               )}
             </div>
+            );
+          })}
+        </div>
+              )}
+            </section>
             );
           })}
         </div>
@@ -774,10 +843,11 @@ const Services = () => {
             </div>
           </div>
 
+          {categories.length > 1 && <p className="text-xs text-ink-muted">{t('services.categoryOrderHint')}</p>}
           <div className="space-y-1 max-h-[45vh] overflow-y-auto">
             {categories.length === 0 ? (
               <p className="text-sm text-ink-muted py-2">{t('services.noCategoriesYet')}</p>
-            ) : categories.map(c => {
+            ) : categories.map((c, idx) => {
               const Icon = ICON_OPTIONS[c.icon] || Sparkles;
               return editingCategoryId === c._id ? (
                 <div key={c._id} className="border border-brand/30 bg-brand-extra-soft rounded-sm p-3 space-y-2">
@@ -804,6 +874,28 @@ const Services = () => {
                     <Icon size={16} className="text-brand flex-shrink-0" /> {categoryLabel(c.name)}
                   </span>
                   <div className="flex items-center gap-3">
+                    {categories.length > 1 && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => moveCategory(c._id, -1)}
+                          disabled={idx === 0}
+                          aria-label={t('employees.moveUp')}
+                          title={t('employees.moveUp')}
+                          className="p-0.5 text-ink-secondary hover:text-brand disabled:opacity-30 disabled:hover:text-ink-secondary"
+                        >
+                          <ChevronUp size={16} />
+                        </button>
+                        <button
+                          onClick={() => moveCategory(c._id, 1)}
+                          disabled={idx === categories.length - 1}
+                          aria-label={t('employees.moveDown')}
+                          title={t('employees.moveDown')}
+                          className="p-0.5 text-ink-secondary hover:text-brand disabled:opacity-30 disabled:hover:text-ink-secondary"
+                        >
+                          <ChevronDown size={16} />
+                        </button>
+                      </div>
+                    )}
                     <button onClick={() => startEditCategory(c)} className="text-ink-secondary hover:text-brand">
                       <Pencil size={14} />
                     </button>

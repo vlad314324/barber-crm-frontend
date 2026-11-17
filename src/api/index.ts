@@ -179,6 +179,7 @@ export const categoryApi = {
   create: async (data: { name: string; icon?: string; translations?: Category['translations'] }): Promise<Category> => (await api.post('/categories', data)).data,
   update: async (id: string, data: { name: string; icon?: string; translations?: Category['translations'] }): Promise<Category> => (await api.put(`/categories/${id}`, data)).data,
   delete: async (id: string): Promise<void> => { await api.delete(`/categories/${id}`); },
+  reorder: async (ids: string[]): Promise<Category[]> => (await api.put('/categories/order', { ids })).data,
 };
 
 export const notificationApi = {
