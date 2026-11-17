@@ -64,6 +64,9 @@ interface Props {
   prepLabel: (minutes: number) => string;
   // Підпис кнопки «i» на скасованих/перенесених записах.
   inactiveInfoLabel: string;
+  // Колір і підказка вузької смужки, якою малюється скасований/перенесений
+  // запис, що припадає на перерву.
+  inactiveStrip?: (appt: Appointment) => { className: string; title: string };
   renderAppointment: (appt: Appointment, heightPx: number) => ReactNode;
   onAppointmentClick: (appt: Appointment) => void;
   // Перетягування записів; без onAppointmentDrop сітка лише для перегляду.
@@ -72,10 +75,52 @@ interface Props {
   onAppointmentDrop?: (appt: Appointment, colKey: string, startTime: string) => void;
 }
 
+const spanOf = (a: Appointment): [number, number] => {
+  const s = toMin(a.startTime);
+  return [s, s + Math.max(a.totalDuration, 15)];
+};
+const overlapsSpan = (a: Appointment, s: number, e: number) => {
+  const [as, ae] = spanOf(a);
+  return as < e && s < ae;
+};
+
+// Ширина видимої смужки неактивного запису під активним (з кнопкою «i»).
+const GHOST_W = 26;
+// Крок між вузькими смужками неактивних записів на перерві.
+const STRIP_STEP = 14;
+
+// Неактивні (скасовані/перенесені) записи, що перетинаються між собою,
+// розкладаємо на доріжки каскадом, як у Google Calendar: кожна наступна
+// зсунута праворуч, тож «i» кожного лишається видимою.
+function inactiveLanes(appts: Appointment[]) {
+  const list = appts.filter(a => !isActive(a))
+    .sort((a, b) => toMin(a.startTime) - toMin(b.startTime) || a._id.localeCompare(b._id));
+  const laneEnd: number[] = [];
+  const lane = new Map<string, number>();
+  for (const a of list) {
+    const [s, e] = spanOf(a);
+    let i = laneEnd.findIndex(end => end <= s);
+    if (i < 0) i = laneEnd.length;
+    laneEnd[i] = e;
+    lane.set(a._id, i);
+  }
+  const out = new Map<string, { lane: number; lanes: number }>();
+  for (const a of list) {
+    const [s, e] = spanOf(a);
+    const n = 1 + Math.max(...list.filter(b => overlapsSpan(b, s, e)).map(b => lane.get(b._id)!));
+    out.set(a._id, { lane: lane.get(a._id)!, lanes: n });
+  }
+  return out;
+}
+
+// Скільки доріжок неактивних записів зачіпає інтервал [s, e).
+const lanesIn = (appts: Appointment[], lanes: Map<string, { lane: number }>, s: number, e: number) =>
+  appts.reduce((n, a) => (!isActive(a) && overlapsSpan(a, s, e) ? Math.max(n, lanes.get(a._id)!.lane + 1) : n), 0);
+
 // Сітка календаря: колонки (майстри дня або дні тижня одного майстра) ×
 // 30-хвилинні рядки 08:00–20:00. Записи й перерви позиціонуються абсолютно
 // за хвилинами, тож запис о 10:15 малюється там, де він є.
-const ScheduleGrid = ({ columns, emptyText, breakLabel, prepLabel, inactiveInfoLabel, renderAppointment, onAppointmentClick, canDrag, canDrop, onAppointmentDrop }: Props) => {
+const ScheduleGrid = ({ columns, emptyText, breakLabel, prepLabel, inactiveInfoLabel, inactiveStrip, renderAppointment, onAppointmentClick, canDrag, canDrop, onAppointmentDrop }: Props) => {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const colRefs = useRef(new Map<string, HTMLDivElement>());
   const drag = useRef<DragState | null>(null);
@@ -268,11 +313,13 @@ const ScheduleGrid = ({ columns, emptyText, breakLabel, prepLabel, inactiveInfoL
             {!col.dayOff && col.breaks.map(b => {
               const pos = place(toMin(b.startTime), toMin(b.endTime));
               if (!pos) return null;
+              // Звільняємо праве поле під смужки неактивних записів.
+              const strips = lanesIn(col.appointments, inactiveLanes(col.appointments), toMin(b.startTime), toMin(b.endTime));
               return (
                 <div key={b._id}
                   onClick={col.onBreakClick}
                   title={`${b.comment || breakLabel} · ${b.startTime}–${b.endTime}`}
-                  style={{ top: pos.top + 1, height: pos.height - 2, left: 4, right: 4, background: BREAK_PATTERN }}
+                  style={{ top: pos.top + 1, height: pos.height - 2, left: 4, right: strips ? 6 + STRIP_STEP * strips : 4, background: BREAK_PATTERN }}
                   className={`absolute z-[3] rounded border-l-4 border-line-medium px-1.5 py-0.5 text-xs text-ink-secondary overflow-hidden
                     ${col.onBreakClick ? 'cursor-pointer hover:opacity-90' : 'cursor-default'}`}>
                   <p className="font-semibold truncate leading-tight">{b.comment || breakLabel}</p>
@@ -285,14 +332,31 @@ const ScheduleGrid = ({ columns, emptyText, breakLabel, prepLabel, inactiveInfoL
                 проходить на клітинку (нове бронювання), деталі — лише кнопкою «i».
                 Активний запис, що їх перекриває, зсунутий праворуч, як у Google
                 Calendar, щоб зліва було видно смужку старого запису. */}
-            {[...col.appointments].sort((a, b) => Number(isActive(a)) - Number(isActive(b))).map(a => {
+            {(() => {
+              // Порядок малювання: неактивні за доріжками (наступна поверх
+              // попередньої), потім активні.
+              const order = inactiveLanes(col.appointments);
+              const rank = (x: Appointment) => isActive(x) ? 1000 : (order.get(x._id)?.lane ?? 0);
+              return [...col.appointments].sort((a, b) => rank(a) - rank(b));
+            })().map(a => {
               const start = toMin(a.startTime);
               const end = start + Math.max(a.totalDuration, 15);
               const pos = place(start, end);
               const active = isActive(a);
-              const coversInactive = active && col.appointments.some(b => !isActive(b)
-                && toMin(b.startTime) < end && start < toMin(b.startTime) + Math.max(b.totalDuration, 15));
-              const left = coversInactive ? 30 : 4;
+              const lanes = inactiveLanes(col.appointments);
+              // Активний запис зсуваємо праворуч на стільки смужок, скільки
+              // неактивних доріжок під ним.
+              const coveredLanes = active ? lanesIn(col.appointments, lanes, start, end) : 0;
+              const coversInactive = coveredLanes > 0;
+              const left = 4 + GHOST_W * coveredLanes;
+              const myLane = lanes.get(a._id);
+              // Каскад: кожна наступна доріжка зсунута праворуч на смужку «i»
+              // і лежить поверх попередньої на всю ширину.
+              const ghostLane = myLane?.lane ?? 0;
+              // Неактивний запис на час перерви — лише вузька смужка справа,
+              // щоб не накладатися на перерву.
+              const besideBreak = !active && !col.dayOff && col.breaks.some(b =>
+                toMin(b.startTime) < end && start < toMin(b.endTime));
               // Підготовка місця після клієнта — окремою смугою під записом
               // (лише в активних: скасований запис час не тримає).
               const prep = isActive(a) && (a.prepTime ?? 0) > 0 ? place(end, end + (a.prepTime ?? 0)) : null;
@@ -311,9 +375,22 @@ const ScheduleGrid = ({ columns, emptyText, breakLabel, prepLabel, inactiveInfoL
                         className={`absolute z-[6] ${coversInactive ? 'ring-1 ring-surface' : ''} ${draggable ? 'select-none' : ''}`}>
                         {renderAppointment(a, pos.height - 2)}
                       </div>
-                    ) : (
-                      <div style={{ top: pos.top + 1, height: pos.height - 2, left: 4, right: 4 }}
-                        className="absolute z-[5] pointer-events-none">
+                    ) : besideBreak ? (() => {
+                      const strip = inactiveStrip?.(a);
+                      return (
+                        // Видима смужка 10px, зона натиску 20px — пальцем влучити легко.
+                        <button type="button"
+                          onClick={e => { e.stopPropagation(); onAppointmentClick(a); }}
+                          aria-label={strip ? `${inactiveInfoLabel}: ${strip.title}` : inactiveInfoLabel}
+                          title={strip?.title ?? inactiveInfoLabel}
+                          style={{ top: pos.top + 1, height: pos.height - 2, right: 2 + STRIP_STEP * (myLane?.lane ?? 0), width: 20 }}
+                          className="group absolute z-[5] flex justify-end pr-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand rounded">
+                          <span className={`block h-full w-2.5 rounded-sm group-hover:brightness-110 ${strip?.className ?? 'bg-sky-400'}`}/>
+                        </button>
+                      );
+                    })() : (
+                      <div style={{ top: pos.top + 1, height: pos.height - 2, left: 4 + GHOST_W * ghostLane, right: 4 }}
+                        className={`absolute z-[5] pointer-events-none ${ghostLane ? 'rounded ring-1 ring-surface' : ''}`}>
                         {renderAppointment(a, pos.height - 2)}
                         <button type="button"
                           onClick={e => { e.stopPropagation(); onAppointmentClick(a); }}

@@ -27,8 +27,14 @@ import StoryModal from '../components/story/StoryModal';
 
 // Скасовані/перенесені в календарі — бліді «привиди» з пунктирною смугою.
 const INACTIVE_COLORS: Record<string, string> = {
-  Cancelled:   'bg-amber-50 border-amber-400 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200',
-  Rescheduled: 'bg-sky-50 border-sky-400 text-sky-900 dark:bg-sky-950/40 dark:text-sky-200',
+  Cancelled:   'bg-amber-50 border-amber-400 text-amber-900 dark:bg-amber-950 dark:text-amber-200',
+  Rescheduled: 'bg-sky-50 border-sky-400 text-sky-900 dark:bg-sky-950 dark:text-sky-200',
+};
+
+// Вузька смужка скасованого/перенесеного запису, що припадає на перерву.
+const STRIP_COLORS: Record<string, string> = {
+  Cancelled:   'bg-amber-400 dark:bg-amber-500',
+  Rescheduled: 'bg-sky-400 dark:bg-sky-500',
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -806,6 +812,10 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
             breakLabel={t('appointments.breakLabel')}
             prepLabel={min => t('appointments.prepLabel', { min })}
             inactiveInfoLabel={t('appointments.inactiveInfo')}
+            inactiveStrip={a => ({
+              className: STRIP_COLORS[a.status] || STRIP_COLORS.Rescheduled,
+              title: `${clientName(a.client)} · ${statusLabel(a.status)} · ${a.startTime}`,
+            })}
             onAppointmentClick={openEdit}
             canDrag={canDragAppt}
             canDrop={canDropAppt}
@@ -813,7 +823,7 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
             renderAppointment={(a, height) => {
               if (!isActive(a)) {
                 return (
-                  <div className={`h-full rounded border-l-4 border-dashed pl-6 pr-1.5 py-px text-xs leading-[14px] overflow-hidden opacity-80 ${INACTIVE_COLORS[a.status] || ''}`}>
+                  <div className={`h-full rounded border-l-4 border-dashed pl-6 pr-1.5 py-px text-xs leading-[14px] overflow-hidden ${INACTIVE_COLORS[a.status] || ''}`}>
                     <p className="font-medium truncate">{clientName(a.client)}</p>
                     {height >= 28 && <p className="truncate opacity-80">{statusLabel(a.status)} · {a.startTime}</p>}
                   </div>
