@@ -636,11 +636,17 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
     finally { setAddingNote(false); }
   };
 
+  // Послуга за id. Майстер отримує лише свої послуги, тож послугу не з його
+  // списку (її поставив адмін) беремо з самого запису, що редагується.
+  const findService = (id: string): Service | undefined =>
+    services.find(sv => sv._id === id)
+    ?? editAppt?.services.find(sv => typeof sv === 'object' && sv?._id === id);
+
   // Ціна й тривалість — обраного майстра (індивідуальні, якщо задані).
   const totalsFor = (ids: string[], employeeId: string) => {
     const emp = employees.find(e => e._id === employeeId);
     const priced = (id: string) => {
-      const svc = services.find(sv => sv._id === id);
+      const svc = findService(id);
       return svc ? effectiveService(svc, emp) : undefined;
     };
     const totalPrice = ids.reduce((s,id) => s + (priced(id)?.price||0), 0);
@@ -650,7 +656,7 @@ const isDayOff = (emp: Employee, date: Date): boolean => {
       return s + (rangesEnabled ? (svc.durationMax ?? svc.duration) : svc.duration);
     }, 0);
     // Кілька послуг — одна підготовка після візиту, найбільша з них.
-    const prepTime = ids.reduce((m,id) => Math.max(m, services.find(sv => sv._id === id)?.prepTime ?? 0), 0);
+    const prepTime = ids.reduce((m,id) => Math.max(m, findService(id)?.prepTime ?? 0), 0);
     return { totalPrice, totalDuration: totalDuration || 30, prepTime };
   };
 
