@@ -23,7 +23,11 @@ type EmployeeTranslationsForm = Partial<Record<BookingLang, { bio: string; speci
 // Індивідуальні ціни майстра у формі — рядками (порожнє = базове значення).
 const OVERRIDE_FIELDS = ['price', 'priceMax', 'duration', 'durationMax'] as const;
 type OverrideField = typeof OVERRIDE_FIELDS[number];
-type OverridesForm = Record<string, Partial<Record<OverrideField, string>>>;
+// description / descTr — свій опис майстра (основна мова і переклади).
+type OverrideForm = Partial<Record<OverrideField, string>> & { description?: string; descTr?: Partial<Record<string, string>> };
+type OverridesForm = Record<string, OverrideForm>;
+const hasOwnDescription = (ov: OverrideForm) =>
+  !!ov.description?.trim() || Object.values(ov.descTr || {}).some(v => !!v?.trim());
 
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 
@@ -79,6 +83,8 @@ const Employees = () => {
   const [fieldErrors,    setFieldErrors]    = useState<Set<string>>(new Set());
   const [saving,         setSaving]         = useState(false);
   const [empTab, setEmpTab] = useState<typeof EMP_TABS[number]>('main');
+  // Послуги, де розгорнуто поле «Свій опис» (із заданим описом — завжди).
+  const [descOpen, setDescOpen] = useState<Set<string>>(new Set());
   const [trLang, setTrLang] = useState('');
 
   // reviews modal
@@ -119,7 +125,7 @@ const Employees = () => {
     setEditingEmployee(null);
     setFormData(defaultForm);
     setFieldErrors(new Set());
-    setEmpTab('main');
+    setEmpTab('main'); setDescOpen(new Set());
     setIsModalOpen(true);
   };
 
@@ -133,9 +139,11 @@ const Employees = () => {
       specialties: emp.specialties?.join(', ') || '',
       bio: emp.bio || '',
       serviceIds: emp.services || [],
-      overrides: Object.fromEntries((emp.serviceOverrides || []).map(o => [o.service, Object.fromEntries(
-        OVERRIDE_FIELDS.filter(f => o[f] !== undefined && o[f] !== null).map(f => [f, String(o[f])])
-      )])),
+      overrides: Object.fromEntries((emp.serviceOverrides || []).map(o => [o.service, {
+        ...Object.fromEntries(OVERRIDE_FIELDS.filter(f => o[f] !== undefined && o[f] !== null).map(f => [f, String(o[f])])),
+        description: o.description || '',
+        descTr: { ...(o.descriptionTranslations || {}) },
+      }])),
       schedule: emp.schedule
         ? { ...defaultSchedule, ...emp.schedule }
         : { ...defaultSchedule },
@@ -144,7 +152,7 @@ const Employees = () => {
       ),
     });
     setFieldErrors(new Set());
-    setEmpTab('main');
+    setEmpTab('main'); setDescOpen(new Set());
     setIsModalOpen(true);
   };
 
@@ -208,9 +216,14 @@ const Employees = () => {
       const serviceOverrides = Object.entries(overrides)
         .filter(([id]) => serviceIds.length === 0 || serviceIds.includes(id))
         .filter(([id]) => services.some(s => s._id === id))
-        .map(([service, v]) => ({ service, ...Object.fromEntries(
-          OVERRIDE_FIELDS.filter(f => (rangesEnabled || !f.endsWith('Max')) && (v[f] ?? '').trim() !== '').map(f => [f, Number(v[f])])
-        ) }))
+        .map(([service, v]) => {
+          const descTr = Object.fromEntries(translationLangs.map(l => [l, v.descTr?.[l]?.trim() || '']).filter(([, text]) => text));
+          return { service, ...Object.fromEntries(
+            OVERRIDE_FIELDS.filter(f => (rangesEnabled || !f.endsWith('Max')) && (v[f] ?? '').trim() !== '').map(f => [f, Number(v[f])])
+          ),
+          ...(v.description?.trim() ? { description: v.description.trim() } : {}),
+          ...(Object.keys(descTr).length ? { descriptionTranslations: descTr } : {}) };
+        })
         .filter(o => Object.keys(o).length > 1);
       const payload = {
         ...rest,
@@ -691,7 +704,13 @@ const Employees = () => {
               {orderedServices.map(s => {
                 const active = formData.serviceIds.length === 0 || formData.serviceIds.includes(s._id);
                 const ov = formData.overrides[s._id] || {};
-                const changed = OVERRIDE_FIELDS.some(f => (ov[f] ?? '').trim() !== '');
+                const changed = OVERRIDE_FIELDS.some(f => (ov[f] ?? '').trim() !== '') || hasOwnDescription(ov);
+                const descShown = descOpen.has(s._id) || hasOwnDescription(ov);
+                const setDesc = (lang: string | null, v: string) => setFormData(p => {
+                  const cur = p.overrides[s._id] || {};
+                  const next = lang === null ? { ...cur, description: v } : { ...cur, descTr: { ...(cur.descTr || {}), [lang]: v } };
+                  return { ...p, overrides: { ...p.overrides, [s._id]: next } };
+                });
                 const setOv = (f: OverrideField, v: string) => setFormData(p => ({
                   ...p, overrides: { ...p.overrides, [s._id]: { ...p.overrides[s._id], [f]: v } },
                 }));
@@ -735,6 +754,26 @@ const Employees = () => {
                         {rangesEnabled && input('priceMax', t('employees.ownPriceMax'))}
                         {input('duration', t('employees.ownDuration'))}
                         {rangesEnabled && input('durationMax', t('employees.ownDurationMax'))}
+                      </div>
+                    )}
+                    {active && !descShown && (
+                      <button type="button" className="mt-1.5 ml-6 text-xs text-brand hover:text-brand-dark"
+                        onClick={() => setDescOpen(prev => new Set(prev).add(s._id))}>
+                        + {t('employees.ownDescription')}
+                      </button>
+                    )}
+                    {active && descShown && (
+                      <div className="mt-2 pl-6 space-y-1.5">
+                        <span className="text-[11px] text-ink-muted">{t('employees.ownDescription')}</span>
+                        <textarea rows={2} className={`field-input !py-1.5 !text-sm ${ov.description?.trim() ? 'border-brand bg-brand-extra-soft' : ''}`}
+                          placeholder={s.description || t('employees.ownDescriptionPlaceholder')}
+                          value={ov.description ?? ''} onChange={e => setDesc(null, e.target.value)} />
+                        {translationLangs.map(l => (
+                          <textarea key={l} rows={2} className={`field-input !py-1.5 !text-sm ${ov.descTr?.[l]?.trim() ? 'border-brand bg-brand-extra-soft' : ''}`}
+                            placeholder={`${BOOKING_LANG_LABELS[l]} — ${s.translations?.[l]?.description || t('employees.ownDescriptionPlaceholder')}`}
+                            value={ov.descTr?.[l] ?? ''} onChange={e => setDesc(l, e.target.value)} />
+                        ))}
+                        <p className="text-[11px] text-ink-muted">{t('employees.ownDescriptionHint')}</p>
                       </div>
                     )}
                   </div>
