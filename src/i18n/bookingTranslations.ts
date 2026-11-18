@@ -64,6 +64,8 @@ interface BookingDict {
     dateLabel: string;
     availableTimeLabel: string;
     closedMessage: string;
+    masterOffMessage: string;
+    nobodyWorksMessage: string;
     notOpenYetMessage: string;
     openUntilHint: string;
     noSlots: string;
@@ -150,6 +152,8 @@ const uk: BookingDict = {
     dateLabel: 'Дата',
     availableTimeLabel: 'Вільний час',
     closedMessage: '🚫 Заклад не працює в цей день',
+    masterOffMessage: '🗓 {{name}} не працює в цей день. Оберіть іншого майстра або інший день',
+    nobodyWorksMessage: '🗓 У цей день ніхто з майстрів не працює. Оберіть інший день',
     notOpenYetMessage: '🗓 Запис на цю дату ще не відкрито. Онлайн-запис доступний до {{date}}',
     openUntilHint: 'Онлайн-запис відкрито до {{date}}',
     noSlots: 'Немає вільних слотів на цю дату',
@@ -236,6 +240,8 @@ const en: BookingDict = {
     dateLabel: 'Date',
     availableTimeLabel: 'Available time',
     closedMessage: '🚫 The shop is closed this day',
+    masterOffMessage: "🗓 {{name}} doesn't work on this day. Choose another specialist or another day",
+    nobodyWorksMessage: '🗓 None of our specialists work on this day. Please choose another day',
     notOpenYetMessage: '🗓 Booking for this date is not open yet. Online booking is available until {{date}}',
     openUntilHint: 'Online booking is open until {{date}}',
     noSlots: 'No available slots for this date',
@@ -322,6 +328,8 @@ const cs: BookingDict = {
     dateLabel: 'Datum',
     availableTimeLabel: 'Volný čas',
     closedMessage: '🚫 Salon je tento den zavřený',
+    masterOffMessage: '🗓 {{name}} v tento den nepracuje. Vyberte jiného specialistu nebo jiný den',
+    nobodyWorksMessage: '🗓 V tento den nepracuje žádný z našich specialistů. Vyberte prosím jiný den',
     notOpenYetMessage: '🗓 Rezervace na toto datum zatím není otevřená. Online rezervace je možná do {{date}}',
     openUntilHint: 'Online rezervace je otevřená do {{date}}',
     noSlots: 'Na tento den nejsou volné termíny',
@@ -408,6 +416,8 @@ const pl: BookingDict = {
     dateLabel: 'Data',
     availableTimeLabel: 'Wolne godziny',
     closedMessage: '🚫 Salon jest zamknięty tego dnia',
+    masterOffMessage: '🗓 {{name}} nie pracuje tego dnia. Wybierz innego specjalistę lub inny dzień',
+    nobodyWorksMessage: '🗓 Tego dnia nie pracuje żaden z naszych specjalistów. Wybierz inny dzień',
     notOpenYetMessage: '🗓 Zapisy na ten dzień nie są jeszcze otwarte. Rezerwacja online jest dostępna do {{date}}',
     openUntilHint: 'Rezerwacja online jest otwarta do {{date}}',
     noSlots: 'Brak wolnych terminów na ten dzień',
@@ -494,6 +504,8 @@ const de: BookingDict = {
     dateLabel: 'Datum',
     availableTimeLabel: 'Freie Zeiten',
     closedMessage: '🚫 Der Salon ist an diesem Tag geschlossen',
+    masterOffMessage: '🗓 {{name}} arbeitet an diesem Tag nicht. Wählen Sie eine andere Fachkraft oder einen anderen Tag',
+    nobodyWorksMessage: '🗓 An diesem Tag arbeitet keine unserer Fachkräfte. Bitte wählen Sie einen anderen Tag',
     notOpenYetMessage: '🗓 Für diesen Tag ist die Buchung noch nicht geöffnet. Online-Buchung ist bis {{date}} möglich',
     openUntilHint: 'Online-Buchung ist bis {{date}} geöffnet',
     noSlots: 'An diesem Tag sind keine Termine frei',

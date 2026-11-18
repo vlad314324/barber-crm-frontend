@@ -155,6 +155,8 @@ const BookingPage = () => {
   const [branding, setBranding]   = useState<PublicBookingSettings | null>(null);
   const [slots, setSlots]         = useState<string[]>([]);
   const [isClosed, setIsClosed]   = useState(false);
+  // Салон працює, вихідний лише в майстра (або в усіх майстрів).
+  const [employeeOff, setEmployeeOff] = useState(false);
   const [notOpenYet, setNotOpenYet] = useState(false);
 
   // Каталог (послуги/майстри) — без нього сторінка непридатна для
@@ -357,6 +359,7 @@ const BookingPage = () => {
     api.get(url, { signal: controller.signal })
       .then(r => {
         setIsClosed(r.data.closed || false);
+        setEmployeeOff(!!r.data.employeeOff);
         setNotOpenYet(!!r.data.notOpenYet);
         let available: string[];
         if (selectedEmployee) {
@@ -922,7 +925,11 @@ const BookingPage = () => {
                   <p className="text-sm text-amber-700">
                     {notOpenYet && bookingOpenUntil
                       ? t('booking.notOpenYetMessage', { date: formatCalendarDate(bookingOpenUntil) })
-                      : t('booking.closedMessage')}
+                      : employeeOff
+                        ? (selectedEmployee
+                          ? t('booking.masterOffMessage', { name: selectedEmployee.name })
+                          : t('booking.nobodyWorksMessage'))
+                        : t('booking.closedMessage')}
                   </p>
                 </div>
               ) : slots.length === 0 ? (
