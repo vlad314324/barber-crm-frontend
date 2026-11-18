@@ -3,7 +3,7 @@ import {
   Scissors, ScissorsLineDashed, Droplet, ShowerHead, Wind, Sparkles,
   Heart, Flower2, Palette, Waves, Sun, Gem, Brush, Hand, Zap, SprayCan,
   Syringe, Sparkle, Vibrate, Stethoscope,
-  Plus, Search, Pencil, Trash2, Clock, Banknote, Tags, X, Check, Globe, SlidersHorizontal, ChevronDown, ChevronUp,
+  Plus, Search, Pencil, Trash2, Clock, Banknote, Tags, X, Check, Globe, SlidersHorizontal, ChevronDown, ChevronUp, Inbox, MessageSquarePlus,
 } from 'lucide-react';
 import { serviceApi, categoryApi } from '../api';
 import { Service, Category } from '../api/types';
@@ -18,6 +18,8 @@ import { formatDurationRangeForUnit, formatDurationForUnit } from '../utils/dura
 import DurationInput from '../components/DurationInput';
 import ImageCropField, { ImageChange } from '../components/ImageCropField';
 import { getCurrencySymbol } from '../constants/currencies';
+import { MasterService, ServiceChangeRequest, serviceRequestApi, serviceRequestId } from '../api/serviceRequests';
+import { ProposeChangesModal, ReviewRequestsModal } from '../components/services/ServiceRequestModals';
 import { BookingLang, BOOKING_LANG_LABELS } from '../i18n/bookingTranslations';
 
 type ServiceTranslations = Partial<Record<BookingLang, { name: string; description: string }>>;
@@ -141,7 +143,21 @@ const Services = () => {
     }
   }, [t]);
 
-  useEffect(() => { fetchServices(); fetchCategories(); }, [fetchServices, fetchCategories]);
+  // Пропозиції майстрів змінити свій опис/фото: адміну — відкриті всіх
+  // майстрів, майстру — свої відкриті й відхилені.
+  const [requests, setRequests] = useState<ServiceChangeRequest[]>([]);
+  const [proposeFor, setProposeFor] = useState<MasterService | null>(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const fetchRequests = useCallback(async () => {
+    try { setRequests(await serviceRequestApi.list()); } catch { setRequests([]); }
+  }, []);
+  const requestFor = (serviceId: string) => requests.find(r => serviceRequestId(r.service) === serviceId);
+  const dismissRejected = async (serviceId: string) => {
+    try { await serviceRequestApi.cancel(serviceId); } catch { /* не критично */ }
+    fetchRequests();
+  };
+
+  useEffect(() => { fetchServices(); fetchCategories(); fetchRequests(); }, [fetchServices, fetchCategories, fetchRequests]);
 
   const filteredServices = services.filter(s =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -375,6 +391,12 @@ const Services = () => {
         {/* Майстер лише переглядає послуги */}
         {isAdmin && (
         <div className="flex items-center gap-2 flex-shrink-0">
+          {requests.length > 0 && (
+            <button onClick={() => setReviewOpen(true)} className="btn btn-secondary relative" title={t('serviceRequests.reviewTitle')}>
+              <Inbox size={16} /> <span className="hidden sm:inline">{t('serviceRequests.reviewBtn')}</span>
+              <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-brand text-white text-[11px] leading-[18px] text-center font-semibold">{requests.length}</span>
+            </button>
+          )}
           <button onClick={() => setIsCategoryModalOpen(true)} className="btn btn-secondary">
             <Tags size={16} /> <span className="hidden sm:inline">{t('services.categoriesBtn')}</span>
           </button>
@@ -514,6 +536,30 @@ const Services = () => {
                 </button>
               </div>
               )}
+              {/* Майстер пропонує свій опис/фото — після погодження адміном */}
+              {!isAdmin && (() => {
+                const req = requestFor(service._id);
+                return (
+                  <div className="px-5 py-3 border-t border-line space-y-2">
+                    {req?.status === 'pending' && (
+                      <p className="text-xs text-amber-700 dark:text-amber-400">{t('serviceRequests.statusPending')}</p>
+                    )}
+                    {req?.status === 'rejected' && (
+                      <div className="text-xs text-red-600 flex items-start gap-2">
+                        <span className="flex-1">{t('serviceRequests.statusRejected')}{req.rejectReason ? `: ${req.rejectReason}` : ''}</span>
+                        <button onClick={() => dismissRejected(service._id)} className="text-ink-muted hover:text-ink" aria-label={t('common.close')}><X size={14} /></button>
+                      </div>
+                    )}
+                    <div className="flex justify-end">
+                      <button onClick={() => setProposeFor(service as MasterService)}
+                        className="inline-flex items-center text-sm text-brand hover:text-brand-dark">
+                        <MessageSquarePlus size={14} className="mr-1" />
+                        {req?.status === 'pending' ? t('serviceRequests.editRequest') : t('serviceRequests.proposeBtn')}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
             );
           })}
@@ -912,6 +958,19 @@ const Services = () => {
           </div>
         </div>
       </Modal>
+
+      <ProposeChangesModal
+        service={proposeFor}
+        request={proposeFor ? requestFor(proposeFor._id) : undefined}
+        onClose={() => setProposeFor(null)}
+        onSaved={() => { setProposeFor(null); fetchRequests(); }}
+      />
+      <ReviewRequestsModal
+        isOpen={reviewOpen}
+        requests={requests}
+        onClose={() => setReviewOpen(false)}
+        onChanged={() => { fetchRequests(); fetchServices(); }}
+      />
     </div>
   );
 };

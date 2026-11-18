@@ -7,6 +7,7 @@ import OnboardingGuideCard from './OnboardingGuideCard';
 import BookingNotificationRow from './BookingNotificationRow';
 import BirthdayNotificationRow from './BirthdayNotificationRow';
 import ReviewNotificationRow from './ReviewNotificationRow';
+import ServiceRequestNotificationRow from './ServiceRequestNotificationRow';
 
 const POLL_INTERVAL_MS = 60000;
 
@@ -70,6 +71,9 @@ const NotificationsMenu = () => {
                 }
                 if (n.type === 'new_review') {
                   return <ReviewNotificationRow key={n._id} notification={n} onRead={markRead} onNavigate={() => setOpen(false)} />;
+                }
+                if (n.type === 'service_change_request' || n.type === 'service_change_reviewed') {
+                  return <ServiceRequestNotificationRow key={n._id} notification={n} onRead={markRead} onNavigate={() => setOpen(false)} />;
                 }
                 if (n.type === 'birthday') {
                   return <BirthdayNotificationRow key={n._id} notification={n} onRead={markRead} onNavigate={() => setOpen(false)} />;

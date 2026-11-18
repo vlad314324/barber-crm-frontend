@@ -10,6 +10,8 @@ export interface ServiceOverride {
   // Свій опис майстра: основною мовою салону і переклади { uk, en, ... }.
   description?: string;
   descriptionTranslations?: Partial<Record<string, string>>;
+  // Своє фото послуги (схвалене адміном).
+  imageUrl?: string;
 }
 
 interface PricedService {
@@ -20,6 +22,7 @@ interface PricedService {
   durationMax?: number;
   description?: string;
   translations?: Partial<Record<string, { name?: string; description?: string }>>;
+  imageUrl?: string;
 }
 
 interface WithOverrides {
@@ -53,6 +56,7 @@ export function effectiveService<T extends PricedService>(service: T, employee: 
   const out = { ...service };
   for (const f of FIELDS) if (o[f] !== undefined && o[f] !== null) out[f] = o[f] as number;
   applyDescription(out, o);
+  if (o.imageUrl) out.imageUrl = o.imageUrl;
   if (out.priceMax !== undefined && out.priceMax < out.price) delete out.priceMax;
   if (out.durationMax !== undefined && out.durationMax < out.duration) delete out.durationMax;
   return out;

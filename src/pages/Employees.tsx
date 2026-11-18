@@ -24,7 +24,8 @@ type EmployeeTranslationsForm = Partial<Record<BookingLang, { bio: string; speci
 const OVERRIDE_FIELDS = ['price', 'priceMax', 'duration', 'durationMax'] as const;
 type OverrideField = typeof OVERRIDE_FIELDS[number];
 // description / descTr — свій опис майстра (основна мова і переклади).
-type OverrideForm = Partial<Record<OverrideField, string>> & { description?: string; descTr?: Partial<Record<string, string>> };
+// imageUrl — схвалене фото майстра (лише показ); removeImage — адмін його прибирає.
+type OverrideForm = Partial<Record<OverrideField, string>> & { description?: string; descTr?: Partial<Record<string, string>>; imageUrl?: string; removeImage?: boolean };
 type OverridesForm = Record<string, OverrideForm>;
 const hasOwnDescription = (ov: OverrideForm) =>
   !!ov.description?.trim() || Object.values(ov.descTr || {}).some(v => !!v?.trim());
@@ -143,6 +144,7 @@ const Employees = () => {
         ...Object.fromEntries(OVERRIDE_FIELDS.filter(f => o[f] !== undefined && o[f] !== null).map(f => [f, String(o[f])])),
         description: o.description || '',
         descTr: { ...(o.descriptionTranslations || {}) },
+        imageUrl: o.imageUrl || '',
       }])),
       schedule: emp.schedule
         ? { ...defaultSchedule, ...emp.schedule }
@@ -222,7 +224,8 @@ const Employees = () => {
             OVERRIDE_FIELDS.filter(f => (rangesEnabled || !f.endsWith('Max')) && (v[f] ?? '').trim() !== '').map(f => [f, Number(v[f])])
           ),
           ...(v.description?.trim() ? { description: v.description.trim() } : {}),
-          ...(Object.keys(descTr).length ? { descriptionTranslations: descTr } : {}) };
+          ...(Object.keys(descTr).length ? { descriptionTranslations: descTr } : {}),
+          ...(v.removeImage ? { removeImage: true } : {}) };
         })
         .filter(o => Object.keys(o).length > 1);
       const payload = {
@@ -754,6 +757,16 @@ const Employees = () => {
                         {rangesEnabled && input('priceMax', t('employees.ownPriceMax'))}
                         {input('duration', t('employees.ownDuration'))}
                         {rangesEnabled && input('durationMax', t('employees.ownDurationMax'))}
+                      </div>
+                    )}
+                    {active && ov.imageUrl && (
+                      <div className="mt-2 pl-6 flex items-center gap-3">
+                        <img src={ov.imageUrl} alt="" className={`w-12 h-12 rounded-sm object-cover ${ov.removeImage ? 'opacity-30' : ''}`} />
+                        <span className="text-xs text-ink-muted flex-1">{ov.removeImage ? t('employees.ownPhotoRemoved') : t('employees.ownPhoto')}</span>
+                        <button type="button" className="text-xs text-brand hover:text-brand-dark whitespace-nowrap"
+                          onClick={() => setFormData(p => ({ ...p, overrides: { ...p.overrides, [s._id]: { ...p.overrides[s._id], removeImage: !ov.removeImage } } }))}>
+                          {ov.removeImage ? t('common.cancel') : t('employees.ownPhotoRemove')}
+                        </button>
                       </div>
                     )}
                     {active && !descShown && (
