@@ -396,6 +396,18 @@ export interface TelegramStatusResponse {
   linked: boolean;
 }
 
+// Які Telegram-сповіщення отримує користувач (GET/PUT /auth/telegram-prefs).
+export type TelegramPrefKey =
+  | 'newBooking' | 'bookingChanged' | 'reminder2h' | 'dailyAgenda' | 'review'
+  | 'newBookingAll' | 'bookingChangedAll' | 'reviewAll' | 'dailySummary'
+  | 'birthdays' | 'statusNudge';
+export type TelegramPrefs = Record<TelegramPrefKey, boolean>;
+export interface TelegramPrefsResponse {
+  linked: boolean;
+  prefs: TelegramPrefs;
+  sections: { own: boolean; salon: boolean };
+}
+
 // Excel import/export
 export interface ImportRowError {
   row: number;

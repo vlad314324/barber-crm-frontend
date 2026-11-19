@@ -7,7 +7,7 @@ import type {
   CreateStaffLoginDto, CreateStaffLoginResponse,
   UpdateStaffLoginDto, UpdateStaffLoginResponse,
   ImportResult, ClientPageParams, ClientPageResult, EmployeeStats,
-  TelegramLinkCodeResponse, TelegramStatusResponse, ShopSettings,
+  TelegramLinkCodeResponse, TelegramStatusResponse, TelegramPrefsResponse, TelegramPrefs, ShopSettings,
   EmployeeBreak, BreakInterval, ClientNote, UpcomingBirthday, BirthdayGreetingInput
 } from './types';
 import { getSalonSlug, clearSalonSlug } from '../utils/tenant';
@@ -82,6 +82,10 @@ export const authApi = {
   getTelegramStatus: async (): Promise<TelegramStatusResponse> =>
     (await api.get('/auth/telegram-status')).data,
   unlinkTelegram: async (): Promise<void> => { await api.delete('/auth/telegram-link'); },
+  getTelegramPrefs: async (): Promise<TelegramPrefsResponse> =>
+    (await api.get('/auth/telegram-prefs')).data,
+  updateTelegramPrefs: async (patch: Partial<TelegramPrefs>): Promise<{ prefs: TelegramPrefs }> =>
+    (await api.put('/auth/telegram-prefs', patch)).data,
 };
 
 export const clientApi = {

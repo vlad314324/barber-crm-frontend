@@ -9,6 +9,7 @@ import { getSiteUrl } from '../utils/siteUrl';
 import { getPasswordError } from '../utils/passwordValidation';
 import { useRefreshShopSettings } from '../context/SettingsContext';
 import BookingLinkCard from '../components/BookingLinkCard';
+import TelegramPrefsCard from '../components/settings/TelegramPrefsCard';
 import ImageCropField, { ImageChange } from '../components/ImageCropField';
 import { BOOKING_LANGS, BookingLang } from '../i18n/bookingTranslations';
 import { CURRENCIES } from '../constants/currencies';
@@ -712,7 +713,10 @@ const Settings = () => {
 
       {/* Сповіщення: Telegram */}
       {activeTab === 'notifications' && (
-      <div className="max-w-xl">{telegramCard}</div>
+      <div className="max-w-xl space-y-4">
+        {telegramCard}
+        {telegramLinked === true && <TelegramPrefsCard />}
+      </div>
       )}
     </div>
   );
