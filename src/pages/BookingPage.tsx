@@ -190,7 +190,7 @@ const BookingPage = () => {
   // Знижка до дня народження: дані з GET /booking/gift/:token; promoError —
   // сервер відхилив знижку (телефон, термін, використана) — тоді пропонуємо
   // записатися без неї.
-  const [gift, setGift] = useState<{ token: string; discountPercent: number; validFrom: string; validUntil: string; firstName: string; used: boolean } | null>(null);
+  const [gift, setGift] = useState<{ token: string; kind?: 'birthday' | 'personal'; discountPercent: number; validFrom: string; validUntil: string; firstName: string; used: boolean } | null>(null);
   const [promoError, setPromoError] = useState('');
   const [bookedDiscount, setBookedDiscount] = useState<number | null>(null);
   const [done, setDone]       = useState(false);
@@ -702,8 +702,8 @@ const BookingPage = () => {
                 : !giftInRange
                   ? t('gift.outOfRange', { pct: gift.discountPercent, date: giftDateLabel })
                   : gift.firstName
-                    ? t('gift.banner', { name: gift.firstName, pct: gift.discountPercent, date: giftDateLabel })
-                    : t('gift.bannerNoName', { pct: gift.discountPercent, date: giftDateLabel })}
+                    ? t(gift.kind === 'personal' ? 'gift.personalBanner' : 'gift.banner', { name: gift.firstName, pct: gift.discountPercent, date: giftDateLabel })
+                    : t(gift.kind === 'personal' ? 'gift.personalBannerNoName' : 'gift.bannerNoName', { pct: gift.discountPercent, date: giftDateLabel })}
             </span>
           </div>
         </div>

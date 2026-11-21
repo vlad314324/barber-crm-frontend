@@ -8,7 +8,7 @@ import type {
   UpdateStaffLoginDto, UpdateStaffLoginResponse,
   ImportResult, ClientPageParams, ClientPageResult, EmployeeStats,
   TelegramLinkCodeResponse, TelegramStatusResponse, ShopSettings,
-  EmployeeBreak, BreakInterval, ClientNote, UpcomingBirthday, BirthdayGreetingInput
+  EmployeeBreak, BreakInterval, ClientNote, UpcomingBirthday, BirthdayGreetingInput, DiscountOffer, DiscountOffersInfo, DiscountOfferInput
 } from './types';
 import { getSalonSlug, clearSalonSlug } from '../utils/tenant';
 
@@ -106,6 +106,12 @@ export const clientApi = {
     (await api.delete(`/clients/${clientId}/birthday-greeting`)).data,
   birthdayGreetingDefaults: async (): Promise<BirthdayGreetingInput> =>
     (await api.get('/clients/birthday-greeting/defaults')).data,
+  discountOffers: async (clientId: string): Promise<DiscountOffersInfo> =>
+    (await api.get(`/clients/${clientId}/discount-offers`)).data,
+  sendDiscountOffer: async (clientId: string, data: DiscountOfferInput): Promise<DiscountOffer> =>
+    (await api.post(`/clients/${clientId}/discount-offer`, data)).data,
+  cancelDiscountOffer: async (clientId: string, offerId: string): Promise<DiscountOffer> =>
+    (await api.delete(`/clients/${clientId}/discount-offers/${offerId}`)).data,
   addNote: async (id: string, text: string): Promise<ClientNote[]> =>
     (await api.post(`/clients/${id}/notes`, { text })).data,
 };

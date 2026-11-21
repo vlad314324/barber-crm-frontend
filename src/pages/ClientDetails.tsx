@@ -14,6 +14,7 @@ import { useShopCurrency } from '../context/SettingsContext';
 import { formatPrice } from '../utils/money';
 import { instagramUrl, formatBirthday } from '../utils/clientProfile';
 import BirthdayInput from '../components/BirthdayInput';
+import DiscountOffers from '../components/clients/DiscountOffers';
 
 const ClientDetails = () => {
   const { t, lang } = useLocale();
@@ -232,6 +233,8 @@ const ClientDetails = () => {
           </dl>
         </div>
       </div>
+
+      {isAdmin && <DiscountOffers clientId={client._id} clientName={client.name} />}
 
       {/* Коментарі персоналу — бачать усі, з автором */}
       <div className="ds-card overflow-hidden">

@@ -178,6 +178,35 @@ export interface BirthdayGreetingInfo {
   promoUsed?: boolean;
 }
 
+// Персональна знижка з картки клієнта (GET /clients/:id/discount-offers).
+export interface DiscountOffer {
+  _id: string;
+  discountPercent: number;
+  validDays: number;
+  validFrom: string; // YYYY-MM-DD
+  validUntil: string; // YYYY-MM-DD, останній день візиту зі знижкою
+  message: string;
+  channels: { email: boolean; telegram: boolean };
+  state: 'active' | 'used' | 'expired' | 'cancelled' | 'failed';
+  createdBy?: string;
+  sentAt?: string;
+  createdAt: string;
+}
+
+export interface DiscountOffersInfo {
+  hasEmail: boolean;
+  telegramLinked: boolean;
+  defaults: { discountPercent: number; validDays: number; message: string };
+  offers: DiscountOffer[];
+}
+
+export interface DiscountOfferInput {
+  discountPercent: number;
+  validDays: number;
+  message: string;
+  channels: Array<'email' | 'telegram'>;
+}
+
 export interface BirthdayGreetingInput {
   discountPercent: number;
   validDays: number;

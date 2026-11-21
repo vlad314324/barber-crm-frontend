@@ -26,6 +26,9 @@ interface BookingDict {
   gift: {
     banner: string;
     bannerNoName: string;
+    // Персональна знижка з картки клієнта (не до дня народження).
+    personalBanner: string;
+    personalBannerNoName: string;
     used: string;
     outOfRange: string;
     withoutDiscount: string;
@@ -109,6 +112,8 @@ const uk: BookingDict = {
   gift: {
     banner: '{{name}}, ваш подарунок до дня народження: −{{pct}}% на візит до {{date}}',
     bannerNoName: 'Ваш подарунок до дня народження: −{{pct}}% на візит до {{date}}',
+    personalBanner: '{{name}}, ваша персональна знижка −{{pct}}% на візит до {{date}}',
+    personalBannerNoName: 'Ваша персональна знижка −{{pct}}% на візит до {{date}}',
     used: 'Знижку за цим посиланням уже використано — ціни показано звичайні.',
     outOfRange: 'Знижка −{{pct}}% діє на візити до {{date}}. Оберіть ранішу дату, щоб її отримати.',
     withoutDiscount: 'Записатися без знижки',
@@ -197,6 +202,8 @@ const en: BookingDict = {
   gift: {
     banner: '{{name}}, your birthday gift: −{{pct}}% on a visit until {{date}}',
     bannerNoName: 'Your birthday gift: −{{pct}}% on a visit until {{date}}',
+    personalBanner: '{{name}}, your personal discount: −{{pct}}% on a visit until {{date}}',
+    personalBannerNoName: 'Your personal discount: −{{pct}}% on a visit until {{date}}',
     used: 'The discount from this link has already been used — regular prices are shown.',
     outOfRange: 'The −{{pct}}% discount applies to visits until {{date}}. Pick an earlier date to get it.',
     withoutDiscount: 'Book without the discount',
@@ -285,6 +292,8 @@ const cs: BookingDict = {
   gift: {
     banner: '{{name}}, váš narozeninový dárek: −{{pct}} % na návštěvu do {{date}}',
     bannerNoName: 'Váš narozeninový dárek: −{{pct}} % na návštěvu do {{date}}',
+    personalBanner: '{{name}}, vaše osobní sleva −{{pct}} % na návštěvu do {{date}}',
+    personalBannerNoName: 'Vaše osobní sleva −{{pct}} % na návštěvu do {{date}}',
     used: 'Sleva z tohoto odkazu už byla využita — zobrazují se běžné ceny.',
     outOfRange: 'Sleva −{{pct}} % platí na návštěvy do {{date}}. Vyberte dřívější datum.',
     withoutDiscount: 'Rezervovat bez slevy',
@@ -373,6 +382,8 @@ const pl: BookingDict = {
   gift: {
     banner: '{{name}}, Twój prezent urodzinowy: −{{pct}}% na wizytę do {{date}}',
     bannerNoName: 'Twój prezent urodzinowy: −{{pct}}% na wizytę do {{date}}',
+    personalBanner: '{{name}}, Twoja osobista zniżka −{{pct}}% na wizytę do {{date}}',
+    personalBannerNoName: 'Twoja osobista zniżka −{{pct}}% na wizytę do {{date}}',
     used: 'Zniżka z tego linku została już wykorzystana — pokazujemy zwykłe ceny.',
     outOfRange: 'Zniżka −{{pct}}% obowiązuje na wizyty do {{date}}. Wybierz wcześniejszą datę.',
     withoutDiscount: 'Zarezerwuj bez zniżki',
@@ -461,6 +472,8 @@ const de: BookingDict = {
   gift: {
     banner: '{{name}}, Ihr Geburtstagsgeschenk: −{{pct}} % auf einen Termin bis {{date}}',
     bannerNoName: 'Ihr Geburtstagsgeschenk: −{{pct}} % auf einen Termin bis {{date}}',
+    personalBanner: '{{name}}, Ihr persönlicher Rabatt: −{{pct}} % auf einen Termin bis {{date}}',
+    personalBannerNoName: 'Ihr persönlicher Rabatt: −{{pct}} % auf einen Termin bis {{date}}',
     used: 'Der Rabatt aus diesem Link wurde bereits eingelöst — wir zeigen die regulären Preise.',
     outOfRange: 'Der Rabatt von −{{pct}} % gilt für Termine bis {{date}}. Bitte wählen Sie ein früheres Datum.',
     withoutDiscount: 'Ohne Rabatt buchen',
