@@ -6,6 +6,7 @@ import { getSalonStatus, daysUntil } from '../../utils/platformSalonStatus';
 import Modal from '../Modal';
 import SalonFunnelSection from './SalonFunnelSection';
 import SalonUsageSection from './SalonUsageSection';
+import SalonMessagingSection from './SalonMessagingSection';
 
 interface SalonDetailModalProps {
   salon: PlatformSalon;
@@ -133,6 +134,11 @@ const SalonDetailModal = ({ salon, onClose, onUpdated }: SalonDetailModalProps) 
           <button onClick={handleSaveSubscription} disabled={subSaving} className="btn btn-primary mt-3">
             {subSaving ? t('platformAdmin.saving') : t('platformAdmin.saveBtn')}
           </button>
+        </div>
+
+        {/* Платні сповіщення клієнтам */}
+        <div className="pt-5 border-t border-line">
+          <SalonMessagingSection salon={salon} onUpdated={onUpdated} />
         </div>
 
         {/* Коментарі */}

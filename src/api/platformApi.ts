@@ -53,6 +53,30 @@ export interface PlatformSalonComment {
   createdAt: string;
 }
 
+export type MessagingCountry = 'UA' | 'CZ' | 'PL' | 'DE' | 'OTHER';
+export type MessagingKind = 'confirmation' | 'rescheduled' | 'cancelled' | 'reminder24' | 'reminder2h';
+
+export interface PlatformSalonMessaging {
+  enabled: boolean;
+  country: MessagingCountry | null;
+  monthlyLimit: number;
+  kinds: Record<MessagingKind, boolean>;
+}
+
+export interface PlatformSalonMessagingUsage {
+  period: string;
+  used: number;
+  limit: number;
+  history: { period: string; used: number }[];
+  viber: number;
+  sms: number;
+  failed: number;
+  pending: number;
+  // TurboSMS рахує в гривнях, BulkGate — в EUR.
+  cost: { UAH: number; EUR: number };
+  suggestedCountry: MessagingCountry;
+}
+
 export interface PlatformSalon {
   id: string;
   name: string;
@@ -64,6 +88,7 @@ export interface PlatformSalon {
   subscriptionPaidAt?: string;
   subscriptionPeriodDays?: number;
   subscriptionExpiresAt?: string;
+  messaging: PlatformSalonMessaging;
   comments: PlatformSalonComment[];
   deactivatedAt?: string;
   deactivationReason?: string;
@@ -198,6 +223,12 @@ export const platformAuthApi = {
 
   updateSubscription: async (id: string, data: { paidAt: string; periodDays: number }): Promise<PlatformSalon> =>
     (await platformApi.put(`/salons/${id}/subscription`, data)).data,
+
+  updateMessaging: async (id: string, data: PlatformSalonMessaging): Promise<PlatformSalon> =>
+    (await platformApi.put(`/salons/${id}/messaging`, data)).data,
+
+  getSalonMessagingUsage: async (id: string): Promise<PlatformSalonMessagingUsage> =>
+    (await platformApi.get(`/salons/${id}/messaging/usage`)).data,
 
   addComment: async (id: string, text: string): Promise<PlatformSalon> =>
     (await platformApi.post(`/salons/${id}/comments`, { text })).data,

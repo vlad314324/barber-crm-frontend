@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Clock, Lock, Save, Check, Link2, Palette, Send, X } from 'lucide-react';
+import { Settings as SettingsIcon, Clock, Lock, Save, Check, Link2, Palette, Send, X, MessageSquare } from 'lucide-react';
 import api, { authApi, settingsImageApi } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../i18n/LocaleContext';
@@ -57,6 +57,7 @@ const Settings = () => {
   const [savedPass, setSavedPass]   = useState(false);
   const [errorPass, setErrorPass]   = useState('');
 
+  const [messagingUsage, setMessagingUsage] = useState<{ enabled: boolean; used: number; limit: number } | null>(null);
   const [telegramLinked, setTelegramLinked] = useState<boolean | null>(null);
   const [telegramDeepLink, setTelegramDeepLink] = useState<string | null>(null);
   const [telegramBusy, setTelegramBusy] = useState(false);
@@ -91,6 +92,7 @@ const Settings = () => {
   useEffect(() => {
     loadSettings();
     authApi.getTelegramStatus().then(r => setTelegramLinked(r.linked)).catch(() => setTelegramLinked(false));
+    if (isAdmin) api.get('/settings/messaging-usage').then(r => setMessagingUsage(r.data)).catch(() => setMessagingUsage(null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -715,6 +717,16 @@ const Settings = () => {
       <div className="max-w-xl space-y-4">
         {telegramCard}
         {telegramLinked === true && <p className="text-sm text-ink-muted px-1">{t('settings.telegramPrefsInBot')}</p>}
+        {messagingUsage?.enabled && (
+          <div className="ds-card p-5">
+            <h2 className="text-base font-semibold text-ink flex items-center gap-2">
+              <MessageSquare size={18} className="text-brand" /> {t('settings.messagingUsageTitle')}
+            </h2>
+            <p className="text-sm text-ink-muted mt-0.5">
+              {t('settings.messagingUsageDesc', { used: messagingUsage.used, limit: messagingUsage.limit })}
+            </p>
+          </div>
+        )}
       </div>
       )}
     </div>

@@ -475,6 +475,7 @@ export interface ShopSettings {
 export interface PublicBookingSettings {
   shopName: string;
   timezone?: string;
+  messagingEnabled?: boolean;
   coverImageUrl?: string;
   logoUrl?: string;
   tagline?: string;

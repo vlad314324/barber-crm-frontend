@@ -184,6 +184,7 @@ const BookingPage = () => {
   const [clientName, setClientName]   = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [clientEmail, setClientEmail] = useState('');
+  const [messagingConsent, setMessagingConsent] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
@@ -568,6 +569,8 @@ const BookingPage = () => {
         clientName,
         clientPhone,
         clientEmail,
+        // Лише коли чекбокс показано: інакше бекенд не чіпає наявну згоду.
+        messagingConsent: branding?.messagingEnabled ? messagingConsent : undefined,
         // Мова інтерфейсу сторінки — нею прийде лист-підтвердження й нагадування.
         lang,
         giftToken: useGift,
@@ -1043,6 +1046,17 @@ const BookingPage = () => {
                 onChange={(val) => setClientPhone(val || '')}
                 className="phone-input"
               />
+              {branding?.messagingEnabled && (
+                <label className="flex items-start gap-2 text-sm text-ink-secondary mt-2">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={messagingConsent}
+                    onChange={e => setMessagingConsent(e.target.checked)}
+                  />
+                  <span>{t('booking.messagingConsent', { salon: branding.shopName })}</span>
+                </label>
+              )}
             </div>
             <div>
               <label className="field-label">{t('booking.emailLabel')}</label>

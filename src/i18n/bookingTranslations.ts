@@ -79,6 +79,7 @@ interface BookingDict {
     nameLabel: string;
     namePlaceholder: string;
     phoneLabel: string;
+    messagingConsent: string;
     emailLabel: string;
     next: string;
     back: string;
@@ -169,6 +170,7 @@ const uk: BookingDict = {
     nameLabel: "Ім'я *",
     namePlaceholder: 'Іван Петренко',
     phoneLabel: 'Телефон *',
+    messagingConsent: 'Погоджуюсь отримувати від {{salon}} SMS-сповіщення про мій запис',
     emailLabel: 'Email *',
     next: 'Далі',
     back: 'Назад',
@@ -259,6 +261,7 @@ const en: BookingDict = {
     nameLabel: 'Name *',
     namePlaceholder: 'John Smith',
     phoneLabel: 'Phone *',
+    messagingConsent: 'I agree to receive SMS notifications about my booking from {{salon}}',
     emailLabel: 'Email *',
     next: 'Next',
     back: 'Back',
@@ -349,6 +352,7 @@ const cs: BookingDict = {
     nameLabel: 'Jméno *',
     namePlaceholder: 'Jan Novák',
     phoneLabel: 'Telefon *',
+    messagingConsent: 'Souhlasím se zasíláním SMS oznámení o mé rezervaci od {{salon}}',
     emailLabel: 'Email *',
     next: 'Další',
     back: 'Zpět',
@@ -439,6 +443,7 @@ const pl: BookingDict = {
     nameLabel: 'Imię i nazwisko *',
     namePlaceholder: 'Jan Kowalski',
     phoneLabel: 'Telefon *',
+    messagingConsent: 'Zgadzam się na otrzymywanie od {{salon}} powiadomień SMS o mojej rezerwacji',
     emailLabel: 'Email *',
     next: 'Dalej',
     back: 'Wstecz',
@@ -529,7 +534,7 @@ const de: BookingDict = {
     nameLabel: 'Vor- und Nachname *',
     namePlaceholder: 'Max Mustermann',
     phoneLabel: 'Telefon *',
-    messagingConsent: 'Ich bin einverstanden, von {{salon}} Benachrichtigungen zu meiner Buchung per Viber, WhatsApp oder SMS zu erhalten',
+    messagingConsent: 'Ich bin einverstanden, von {{salon}} SMS-Benachrichtigungen zu meiner Buchung zu erhalten',
     emailLabel: 'E-Mail *',
     next: 'Weiter',
     back: 'Zurück',
